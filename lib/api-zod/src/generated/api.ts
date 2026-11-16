@@ -529,7 +529,8 @@ export const GetDashboardResponse = zod.object({
   "unit": zod.enum(['CURRENCY', 'COUNT', 'MULTIPLIER', 'DAYS']).optional(),
   "changePct": zod.number().nullish(),
   "change": zod.string(),
-  "positive": zod.boolean()
+  "positive": zod.boolean(),
+  "estimated": zod.boolean().optional().describe('True when the value rests on assumptions (default commission, missing cost prices)')
 })),
   "actions": zod.array(zod.object({
   "type": zod.enum(['SCALE', 'OPTIMIZE', 'DEFEND', 'FIX', 'WATCH', 'RESTOCK']),
@@ -608,7 +609,8 @@ export const GetAdvertisingResponse = zod.object({
   "unit": zod.enum(['CURRENCY', 'COUNT', 'MULTIPLIER', 'DAYS']).optional(),
   "changePct": zod.number().nullish(),
   "change": zod.string(),
-  "positive": zod.boolean()
+  "positive": zod.boolean(),
+  "estimated": zod.boolean().optional().describe('True when the value rests on assumptions (default commission, missing cost prices)')
 })),
   "secondaryMetrics": zod.array(zod.object({
   "label": zod.string(),
@@ -617,7 +619,8 @@ export const GetAdvertisingResponse = zod.object({
   "unit": zod.enum(['CURRENCY', 'COUNT', 'MULTIPLIER', 'DAYS']).optional(),
   "changePct": zod.number().nullish(),
   "change": zod.string(),
-  "positive": zod.boolean()
+  "positive": zod.boolean(),
+  "estimated": zod.boolean().optional().describe('True when the value rests on assumptions (default commission, missing cost prices)')
 })),
   "signal": zod.object({
   "eyebrow": zod.string(),

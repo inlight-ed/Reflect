@@ -3,6 +3,7 @@ import { accountTotals, demoProducts, opportunityRules } from "./demo-products";
 import { getAdvertising, getDashboard, getExternalMedia, getIntegrations } from "./shift-market";
 import { overviewMetrics, recommendations, skuStats, type SkuStats } from "./analytics";
 import { loadUserData } from "./user-data";
+import { dataAsOf } from "./workspace";
 
 export type Locale = "ru" | "kk" | "en";
 export type AskResult = {
@@ -266,7 +267,8 @@ type UserContext = Awaited<ReturnType<typeof userContext>>;
 async function userContext(userId: string) {
   const data = await loadUserData(userId);
   if (!data.hasOrders) return undefined;
-  const now = new Date();
+  // Same window end as the overview: an old export must not read as a collapse in sales.
+  const now = await dataAsOf(userId, data);
   const stats = skuStats(data.lines, data.catalog, data.ads, now, 30, "previous");
   return { stats, metrics: overviewMetrics(data.lines, stats, now, 30, "previous"), actions: recommendations(stats, now), hasAds: data.ads.length > 0 };
 }
@@ -424,8 +426,16 @@ async function aiAnswer(question: string, locale: Locale, fallback: AskResult, s
   }
 }
 
+const NO_SELLER_DATA: Record<Locale, string> = {
+  ru: "Ваших заказов пока нет, поэтому отвечать не на чем. Подключите Kaspi по токену на обзоре или загрузите выгрузку заказов — после этого я разберу ваши продажи.",
+  kk: "Сіздің тапсырыстарыңыз әзірге жоқ, сондықтан жауап беруге дерек жоқ. Шолудағы токен арқылы Kaspi-ді қосыңыз немесе тапсырыстар выгрузкасын жүктеңіз — содан кейін сатылымдарыңызды талдаймын.",
+  en: "There are no orders of yours yet, so there is nothing to answer from. Connect Kaspi with a token on the overview or upload an orders export, and I will go through your sales.",
+};
+
 export async function askAssistant(question: string, locale: Locale, userId?: string): Promise<AskResult> {
   const ctx = userId ? await userContext(userId) : undefined;
+  // A signed-in seller never gets answers from the demo shop: those sales are not theirs.
+  if (userId && !ctx) return { answer: NO_SELLER_DATA[locale], mode: "RULES", insufficientData: true, references: [] };
   if (ctx) {
     const fallback = userRulesAnswer(question, locale, ctx);
     const sellerContext = {

@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { hasPersistentKey } from "./lib/security";
 import { scheduleMaintenance } from "./lib/maintenance";
+import { releaseOwnSyncs, scheduleSyncRecovery } from "./lib/integrations/service";
 
 const rawPort = process.env["PORT"];
 
@@ -34,10 +35,11 @@ const server = app.listen(port, (err) => {
 });
 
 // docker stop / redeploy sends SIGTERM: stop taking requests and let running ones finish.
-// A sync cut off here is marked interrupted on the next run, so nothing is left locked.
+// Syncs still running are handed over, and the next instance resumes them on startup.
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
-  process.once(signal, () => {
+  process.once(signal, async () => {
     logger.info({ signal }, "Shutting down");
+    await releaseOwnSyncs().catch(() => undefined);
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 10_000).unref();
   });
@@ -45,3 +47,5 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 
 // Daily housekeeping: expired sessions, old sync log, stale counters.
 scheduleMaintenance();
+// Syncs cut off by a restart start again by themselves.
+if (process.env["DATABASE_URL"]) scheduleSyncRecovery();

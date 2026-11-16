@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import type { SourceMessageKey } from "@workspace/api-zod";
 import { limitConcurrency } from "../concurrency";
 import { database } from "../database";
@@ -88,6 +88,11 @@ export async function removeConnection(userId: string, kind: IntegrationKind) {
 }
 
 const STALE_SYNC_MS = 15 * 60_000;
+/** A run whose owner stopped refreshing its heartbeat for this long is treated as dead. */
+const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
+const HEARTBEAT_EVERY_MS = 60_000;
+/** Runs this instance owns, queued or running: their heartbeat is refreshed while it is alive. */
+const ownRuns = new Set<string>();
 /**
  * Syncs running at once on this instance (SYNC_CONCURRENCY, default 4). Each seller already has at
  * most one sync per source; this caps the total, so 50 sellers pressing "Sync" together do not
@@ -129,17 +134,19 @@ export async function startSync(userId: string, kind: IntegrationKind) {
   const { db, syncRunsTable } = await database();
   // Free locks left by a run that died with its instance.
   await db.update(syncRunsTable).set({ status: "FAILED", detail: "connector.sync.interrupted", finishedAt: new Date() })
-    .where(and(eq(syncRunsTable.userId, userId), eq(syncRunsTable.kind, kind), eq(syncRunsTable.status, "RUNNING"), lt(syncRunsTable.startedAt, new Date(Date.now() - STALE_SYNC_MS))));
+    .where(and(eq(syncRunsTable.userId, userId), eq(syncRunsTable.kind, kind), eq(syncRunsTable.status, "RUNNING"), lt(syncRunsTable.heartbeatAt, new Date(Date.now() - HEARTBEAT_TIMEOUT_MS))));
   const runId = randomUUID();
   const inserted = await db.insert(syncRunsTable).values({ id: runId, userId, kind, status: "RUNNING" }).onConflictDoNothing().returning({ id: syncRunsTable.id });
   if (!inserted.length) return { ...(await view(userId, kind)), status: "SYNCING" as const };
   await updateIntegrationStatus(userId, kind, "SYNCING", null);
+  ownRuns.add(runId);
   // Queued behind other sellers' syncs; the run counts as started when it gets a slot, so a long
   // wait in the queue is not mistaken for a run that died.
   void syncSlots.run(
     () => runSync(userId, kind, runId, stored),
-    async () => { await db.update(syncRunsTable).set({ startedAt: new Date() }).where(eq(syncRunsTable.id, runId)); },
-  ).catch((err) => logger.error({ err: safeError(err), kind }, "Sync crashed"));
+    async () => { await db.update(syncRunsTable).set({ startedAt: new Date(), heartbeatAt: new Date() }).where(eq(syncRunsTable.id, runId)); },
+  ).catch((err) => logger.error({ err: safeError(err), kind }, "Sync crashed"))
+    .finally(() => ownRuns.delete(runId));
   return { ...(await view(userId, kind)), status: "SYNCING" as const };
 }
 
@@ -199,4 +206,53 @@ export async function recentSyncRuns(userId: string, limit = 10) {
   const { db, syncRunsTable } = await database();
   const rows = await db.select().from(syncRunsTable).where(eq(syncRunsTable.userId, userId)).orderBy(sql`${syncRunsTable.startedAt} desc`).limit(limit);
   return rows.map((row) => ({ id: row.id, kind: row.kind as IntegrationKind, status: row.status as "RUNNING" | "DONE" | "FAILED", detail: (row.detail ?? undefined) as SourceMessageKey | undefined, rows: row.rows, startedAt: row.startedAt.toISOString(), finishedAt: row.finishedAt?.toISOString() ?? null }));
+}
+
+
+/**
+ * Picks up syncs whose instance died or was redeployed mid-run: their lock is released and the
+ * sync starts again from the last complete point (Kaspi re-reads a few days of overlap, imports
+ * are upserts), so a restart costs a little time, never data. Runs on startup and every few minutes.
+ */
+export async function resumeInterruptedSyncs(limit = 50) {
+  const { db, syncRunsTable } = await database();
+  const dead = await db.update(syncRunsTable).set({ status: "FAILED", detail: "connector.sync.interrupted", finishedAt: new Date() })
+    .where(and(eq(syncRunsTable.status, "RUNNING"), lt(syncRunsTable.heartbeatAt, new Date(Date.now() - HEARTBEAT_TIMEOUT_MS))))
+    .returning({ userId: syncRunsTable.userId, kind: syncRunsTable.kind });
+  let resumed = 0;
+  for (const run of dead.slice(0, limit)) {
+    try {
+      const view = await startSync(run.userId, run.kind as IntegrationKind);
+      if (view.status === "SYNCING") resumed += 1;
+    } catch (err) {
+      logger.warn({ err: safeError(err), kind: run.kind }, "Could not resume a sync");
+    }
+  }
+  if (dead.length) logger.info({ interrupted: dead.length, resumed }, "Resumed interrupted syncs");
+  return { interrupted: dead.length, resumed };
+}
+
+/** Keeps this instance's runs alive in the database and resumes runs of instances that died. */
+export function scheduleSyncRecovery() {
+  const beat = async () => {
+    if (!ownRuns.size) return;
+    const { db, syncRunsTable } = await database();
+    await db.update(syncRunsTable).set({ heartbeatAt: new Date() })
+      .where(and(eq(syncRunsTable.status, "RUNNING"), inArray(syncRunsTable.id, [...ownRuns])));
+  };
+  const sweep = () => resumeInterruptedSyncs().catch((err) => logger.warn({ err: safeError(err) }, "Sync recovery failed"));
+  setInterval(() => void beat().catch((err) => logger.warn({ err: safeError(err) }, "Sync heartbeat failed")), HEARTBEAT_EVERY_MS).unref();
+  setTimeout(() => void sweep(), 30_000).unref();
+  setInterval(() => void sweep(), HEARTBEAT_TIMEOUT_MS).unref();
+}
+
+/**
+ * On a planned stop (redeploy, docker stop) hands this instance's runs over at once: their
+ * heartbeat is cleared, so the next instance resumes them on startup instead of in 5 minutes.
+ */
+export async function releaseOwnSyncs() {
+  if (!ownRuns.size) return;
+  const { db, syncRunsTable } = await database();
+  await db.update(syncRunsTable).set({ heartbeatAt: new Date(0) })
+    .where(and(eq(syncRunsTable.status, "RUNNING"), inArray(syncRunsTable.id, [...ownRuns])));
 }

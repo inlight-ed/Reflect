@@ -1,0 +1,1 @@
+ALTER TABLE "sync_runs" ADD COLUMN "heartbeat_at" timestamp with time zone DEFAULT now() NOT NULL;

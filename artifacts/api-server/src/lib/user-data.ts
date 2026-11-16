@@ -85,13 +85,16 @@ export async function importOrders(userId: string, rows: OrderInput[], source: s
   const normalized = normalizeOrders(rows, source);
   if (!normalized.length) throw new ImportValidationError("NO_VALID_ROWS");
   const { db, ordersTable, importsTable } = await database();
-  for (const part of chunk(normalized, 500)) {
-    await db.insert(ordersTable).values(part.map((row) => ({ ...row, userId }))).onConflictDoUpdate({
-      target: [ordersTable.userId, ordersTable.orderCode, ordersTable.lineKey],
-      set: { orderedAt: sql`excluded.ordered_at`, productName: sql`excluded.product_name`, quantity: sql`excluded.quantity`, amount: sql`excluded.amount`, status: sql`excluded.status`, sku: sql`excluded.sku`, source: sql`excluded.source` },
-    });
-  }
-  await db.insert(importsTable).values({ id: randomUUID(), userId, kind: "ORDERS", source, fileName, rows: normalized.length });
+  // One transaction: a failure part-way leaves the stored orders exactly as they were.
+  await db.transaction(async (tx) => {
+    for (const part of chunk(normalized, 500)) {
+      await tx.insert(ordersTable).values(part.map((row) => ({ ...row, userId }))).onConflictDoUpdate({
+        target: [ordersTable.userId, ordersTable.orderCode, ordersTable.lineKey],
+        set: { orderedAt: sql`excluded.ordered_at`, productName: sql`excluded.product_name`, quantity: sql`excluded.quantity`, amount: sql`excluded.amount`, status: sql`excluded.status`, sku: sql`excluded.sku`, source: sql`excluded.source` },
+      });
+    }
+    await tx.insert(importsTable).values({ id: randomUUID(), userId, kind: "ORDERS", source, fileName, rows: normalized.length });
+  });
   return { accepted: normalized.length, skipped: rows.length - normalized.length };
 }
 
@@ -116,16 +119,18 @@ export async function importProducts(userId: string, rows: ProductInput[], sourc
   const { db, productsTable, importsTable } = await database();
   // Only overwrite columns the file actually provides: an empty cell keeps the stored value.
   const keep = (column: string) => sql.raw(`coalesce(excluded.${column}, products.${column})`);
-  for (const part of chunk(normalized, 500)) {
-    await db.insert(productsTable).values(part).onConflictDoUpdate({
-      target: [productsTable.userId, productsTable.sku],
-      set: {
-        name: keep("name"), category: keep("category"), kaspiCode: keep("kaspi_code"), costPrice: keep("cost_price"), stock: keep("stock"),
-        leadTimeDays: keep("lead_time_days"), commissionPct: keep("commission_pct"), stockUpdatedAt: keep("stock_updated_at"), updatedAt: sql`excluded.updated_at`,
-      },
-    });
-  }
-  await db.insert(importsTable).values({ id: randomUUID(), userId, kind: "PRODUCTS", source, fileName, rows: normalized.length });
+  await db.transaction(async (tx) => {
+    for (const part of chunk(normalized, 500)) {
+      await tx.insert(productsTable).values(part).onConflictDoUpdate({
+        target: [productsTable.userId, productsTable.sku],
+        set: {
+          name: keep("name"), category: keep("category"), kaspiCode: keep("kaspi_code"), costPrice: keep("cost_price"), stock: keep("stock"),
+          leadTimeDays: keep("lead_time_days"), commissionPct: keep("commission_pct"), stockUpdatedAt: keep("stock_updated_at"), updatedAt: sql`excluded.updated_at`,
+        },
+      });
+    }
+    await tx.insert(importsTable).values({ id: randomUUID(), userId, kind: "PRODUCTS", source, fileName, rows: normalized.length });
+  });
   return { accepted: normalized.length, skipped: rows.length - normalized.length };
 }
 
@@ -142,10 +147,12 @@ export async function importAds(userId: string, rows: AdInput[], source: string,
   const normalized = [...merged.values()];
   if (!normalized.length) throw new ImportValidationError("NO_VALID_ROWS");
   const { db, adSpendTable, importsTable } = await database();
-  for (const part of chunk(normalized, 500)) {
-    await db.insert(adSpendTable).values(part).onConflictDoUpdate({ target: [adSpendTable.userId, adSpendTable.day, adSpendTable.sku, adSpendTable.channel], set: { spend: sql`excluded.spend` } });
-  }
-  await db.insert(importsTable).values({ id: randomUUID(), userId, kind: "ADS", source, fileName, rows: normalized.length });
+  await db.transaction(async (tx) => {
+    for (const part of chunk(normalized, 500)) {
+      await tx.insert(adSpendTable).values(part).onConflictDoUpdate({ target: [adSpendTable.userId, adSpendTable.day, adSpendTable.sku, adSpendTable.channel], set: { spend: sql`excluded.spend` } });
+    }
+    await tx.insert(importsTable).values({ id: randomUUID(), userId, kind: "ADS", source, fileName, rows: normalized.length });
+  });
   return { accepted: normalized.length, skipped: rows.length - normalized.length };
 }
 

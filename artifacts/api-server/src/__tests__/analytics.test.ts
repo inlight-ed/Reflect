@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dataCoverage, recommendations, skuStats, windows, type CatalogItem, type OrderLine } from "../lib/analytics";
+import { dataCoverage, overviewMetrics, recommendations, skuStats, windows, type CatalogItem, type OrderLine } from "../lib/analytics";
 
 const NOW = new Date("2026-08-18T12:00:00Z");
 const day = (daysAgo: number) => new Date(NOW.getTime() - daysAgo * 86_400_000);
@@ -101,5 +101,13 @@ describe("dataCoverage", () => {
 
   it("is null without sales", () => {
     assert.equal(dataCoverage([], []).costCoveragePct, null);
+  });
+
+  it("marks gross profit as an estimate when the commission is assumed or costs are missing", () => {
+    const lines = [line(1, "A", 10_000), line(2, "B", 5_000)];
+    const profit = (catalog: CatalogItem[]) => overviewMetrics(lines, skuStats(lines, catalog, [], NOW, 30, "previous"), NOW, 30, "previous").find((m) => m.label === "metric.grossProfit");
+    assert.equal(profit([item("A", { costPrice: 4_000, commissionPct: 10 }), item("B", { costPrice: 2_000, commissionPct: 10 })])?.estimated, false);
+    assert.equal(profit([item("A", { costPrice: 4_000 }), item("B", { costPrice: 2_000, commissionPct: 10 })])?.estimated, true, "default commission");
+    assert.equal(profit([item("A", { costPrice: 4_000, commissionPct: 10 }), item("B")])?.estimated, true, "B has no cost price");
   });
 });

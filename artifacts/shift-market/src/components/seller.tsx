@@ -5,6 +5,7 @@ import { useListFeedback, type Assumptions, type ForecastItem, type SeriesPoint 
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
 import { usePeriod, type CompareValue, type PeriodValue } from '@/lib/period';
 import { useSession } from '@/lib/session';
+import { axisTick, chartColors, gridProps, tooltipProps } from '@/lib/chart-theme';
 import { downloadTemplate } from '@/lib/template';
 import { EmptyState, SectionTitle, useText } from './common';
 
@@ -38,13 +39,13 @@ export function RevenueChart({ series }: { series: SeriesPoint[] }) {
       <div className="chart-body">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={series} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-            <defs><linearGradient id="revenue-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#e7b24f" stopOpacity={0.32} /><stop offset="100%" stopColor="#e7b24f" stopOpacity={0} /></linearGradient></defs>
-            <CartesianGrid stroke="#29313c" strokeDasharray="3 6" vertical={false} />
-            <XAxis dataKey="period" tick={{ fill: '#8b95a3', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value) => formatDate(String(value), locale)} minTickGap={18} />
-            <YAxis tick={{ fill: '#8b95a3', fontSize: 11 }} axisLine={false} tickLine={false} width={64} tickFormatter={(value) => formatCompactCurrency(Number(value), locale)} />
-            <Tooltip contentStyle={{ background: '#151a21', border: '1px solid #3b4551', borderRadius: 6, color: '#e7eaf0', fontSize: 12 }} labelFormatter={(value) => formatDate(String(value), locale)} formatter={(value, name) => [formatCurrency(Number(value), locale), name === 'total' ? t('chart.current') : t('chart.previous')]} />
-            <Line type="monotone" dataKey="previous" stroke="#6f7b8a" strokeWidth={1.6} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
-            <Area type="monotone" dataKey="total" stroke="#e7b24f" strokeWidth={2.4} fill="url(#revenue-fill)" animationDuration={500} />
+            <defs><linearGradient id="revenue-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={chartColors.accent} stopOpacity={0.28} /><stop offset="100%" stopColor={chartColors.accent} stopOpacity={0.02} /></linearGradient></defs>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="period" tick={axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={(value) => formatDate(String(value), locale)} minTickGap={18} />
+            <YAxis tick={axisTick} axisLine={false} tickLine={false} width={64} tickFormatter={(value) => formatCompactCurrency(Number(value), locale)} />
+            <Tooltip {...tooltipProps} labelFormatter={(value) => formatDate(String(value), locale)} formatter={(value, name) => [formatCurrency(Number(value), locale), name === 'total' ? t('chart.current') : t('chart.previous')]} />
+            <Line type="monotone" dataKey="previous" stroke={chartColors.previous} strokeWidth={1.6} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
+            <Area type="monotone" dataKey="total" stroke={chartColors.accent} strokeWidth={2.4} fill="url(#revenue-fill)" animationDuration={500} activeDot={{ r: 5, fill: chartColors.accent, stroke: chartColors.surface, strokeWidth: 2 }} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

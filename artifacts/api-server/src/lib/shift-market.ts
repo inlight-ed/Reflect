@@ -94,12 +94,25 @@ const sourceMessageKeys = {
   kaspiTokenRequired: "connector.kaspi.token_required",
 } as const satisfies Record<string, SourceMessageKey>;
 
-const placementSeeds = [
-  { name: "Search", spend: 302400, revenue: 1306368, impressions: 2120000, clicks: 122960, orders: 2582, benchmarkRoas: 3.65, pressure: "LOW" as const, stock: 128 },
-  { name: "Catalog", spend: 218800, revenue: 809560, impressions: 1680000, clicks: 63840, orders: 1686, benchmarkRoas: 3.45, pressure: "LOW" as const, stock: 94 },
-  { name: "Recommendations", spend: 147600, revenue: 437904, impressions: 1430000, clicks: 38610, orders: 941, benchmarkRoas: 3.15, pressure: "MEDIUM" as const, stock: 73 },
-  { name: "Competitor cards", spend: 96500, revenue: 246640, impressions: 1180000, clicks: 21240, orders: 388, benchmarkRoas: 2.95, pressure: "HIGH" as const, stock: 48 },
+/**
+ * Kaspi Ads placements, derived from the catalogue so ad orders and revenue stay below the store's
+ * own totals: ads bring AD_ORDER_SHARE of orders at the store's average order value. Each placement
+ * keeps its own efficiency profile (ROAS, CTR, CVR), which is what the recommendations read.
+ */
+const AD_ORDER_SHARE = 0.6;
+const placementProfiles = [
+  { name: "Search", orderShare: 0.46, roas: 4.32, ctr: 0.058, cvr: 0.021, benchmarkRoas: 3.65, pressure: "LOW" as const, stock: 128 },
+  { name: "Catalog", orderShare: 0.3, roas: 3.7, ctr: 0.038, cvr: 0.0264, benchmarkRoas: 3.45, pressure: "LOW" as const, stock: 94 },
+  { name: "Recommendations", orderShare: 0.16, roas: 2.97, ctr: 0.027, cvr: 0.0244, benchmarkRoas: 3.15, pressure: "MEDIUM" as const, stock: 73 },
+  { name: "Competitor cards", orderShare: 0.08, roas: 2.56, ctr: 0.018, cvr: 0.0183, benchmarkRoas: 2.95, pressure: "HIGH" as const, stock: 48 },
 ];
+const averageOrderValue = accountTotals.revenue / accountTotals.orders;
+const placementSeeds = placementProfiles.map(({ orderShare, roas, ctr, cvr, ...profile }) => {
+  const orders = Math.round(accountTotals.orders * AD_ORDER_SHARE * orderShare);
+  const revenue = Math.round(orders * averageOrderValue);
+  const clicks = Math.round(orders / cvr);
+  return { ...profile, orders, revenue, spend: Math.round(revenue / roas), clicks, impressions: Math.round(clicks / ctr) };
+});
 
 const correctedPlacementSeeds = placementSeeds;
 
@@ -135,11 +148,11 @@ const placements = correctedPlacementSeeds.map((placement) => {
 });
 
 const authoredTimeline = [
-  { id: "e1", date: "2026-08-10T09:00:00+05:00", label: "Meta Campaign START", kind: "MEDIA" as const, detail: "Beauty audience / ₸420K budget" },
-  { id: "e2", date: "2026-08-12T09:00:00+05:00", label: "Price -5%", kind: "PRICE" as const, detail: "L'Oréal Revitalift Serum" },
+  { id: "e1", date: "2026-08-10T09:00:00+05:00", label: "Meta Campaign START", kind: "MEDIA" as const, detail: "Beauty audience / ₸150K budget" },
+  { id: "e2", date: "2026-08-12T09:00:00+05:00", label: "Price -5%", kind: "PRICE" as const, detail: "Avène XeraCalm A.D липидовосполняющий крем 200 мл" },
   { id: "e3", date: "2026-08-15T09:00:00+05:00", label: "Kaspi Ads budget +30%", kind: "ADS" as const, detail: "Search placement" },
-  { id: "e4", date: "2026-08-17T09:00:00+05:00", label: "Competitor X price -10%", kind: "COMPETITOR" as const, detail: "La Roche-Posay SPF 50" },
-  { id: "e5", date: "2026-08-17T15:00:00+05:00", label: "New Creative", kind: "CONTENT" as const, detail: "Maybelline Sky High Mascara" },
+  { id: "e4", date: "2026-08-17T09:00:00+05:00", label: "Competitor X price -10%", kind: "COMPETITOR" as const, detail: "La Roche-Posay Anthelios UVmune 400 флюид SPF 50+ 50 мл" },
+  { id: "e5", date: "2026-08-17T15:00:00+05:00", label: "New Creative", kind: "CONTENT" as const, detail: "Maybelline Lash Sensational Sky High тушь, чёрная" },
   { id: "e6", date: "2026-08-18T08:00:00+05:00", label: "Promo window", kind: "PROMO" as const, detail: "Weekend skincare offer" },
 ];
 
@@ -153,19 +166,20 @@ const adTotals = (() => {
   const revenue = placementSeeds.reduce((sum, item) => sum + item.revenue, 0);
   const clicks = placementSeeds.reduce((sum, item) => sum + item.clicks, 0);
   const impressions = placementSeeds.reduce((sum, item) => sum + item.impressions, 0);
-  return { spend, revenue, roas: revenue / spend, cpc: spend / clicks, ctr: clicks / impressions };
+  const orders = placementSeeds.reduce((sum, item) => sum + item.orders, 0);
+  return { spend, revenue, clicks, impressions, orders, roas: revenue / spend, cpc: spend / clicks, ctr: clicks / impressions, cvr: orders / clicks, cpo: spend / orders };
 })();
 
 function dashboardActions() {
-  const revitalift = findDemoProduct("L'Oréal Revitalift Serum");
-  const sunscreen = findDemoProduct("La Roche-Posay SPF 50");
-  const mascara = findDemoProduct("Maybelline Sky High Mascara");
+  const hero = findDemoProduct("Avène XeraCalm A.D липидовосполняющий крем 200 мл");
+  const sunscreen = findDemoProduct("La Roche-Posay Anthelios UVmune 400 флюид SPF 50+ 50 мл");
+  const mascara = findDemoProduct("Maybelline Lash Sensational Sky High тушь, чёрная");
   const searchSeed = placementSeeds[0];
   const search = placements[0];
   return [
-    { type: "SCALE" as const, object: revitalift.name, signal: `ROAS ${revitalift.roas}x`, explanation: "High conversion with available stock and rising organic demand.", recommendation: "Increase ad coverage on Search.", impact: "+₸320K / month", ...scoreConfidence(scaleSignals(revitalift)) },
+    { type: "SCALE" as const, object: hero.name, signal: `ROAS ${hero.roas}x`, explanation: "High conversion with available stock and rising organic demand.", recommendation: "Increase ad coverage on Search.", impact: "+₸95K / month", ...scoreConfidence(scaleSignals(hero)) },
     { type: "OPTIMIZE" as const, object: "Search placement", signal: `ROAS ${search.roas.toFixed(2)}x`, explanation: "Most efficient placement, but bids are paying a premium.", recommendation: "Tighten bids for the top 6 SKUs.", impact: "+8–12% revenue", ...scoreConfidence(placementSignals({ roas: search.roas, cpc: search.cpc, ctr: search.ctr, benchmarkRoas: searchSeed.benchmarkRoas, pressure: searchSeed.pressure }, adTotals)) },
-    { type: "DEFEND" as const, object: sunscreen.name, signal: "Competitor price -10%", explanation: "Price pressure is rising while the product still converts above account average.", recommendation: "Protect price competitiveness before scaling CPC.", impact: "Protect ₸180K / month", ...scoreConfidence(defendSignals(sunscreen)) },
+    { type: "DEFEND" as const, object: sunscreen.name, signal: "Competitor price -10%", explanation: "Price pressure is rising while the product still converts above account average.", recommendation: "Protect price competitiveness before scaling CPC.", impact: "Protect ₸90K / month", ...scoreConfidence(defendSignals(sunscreen)) },
     { type: "FIX" as const, object: mascara.name, signal: `CVR ${(mascara.conversion * 100).toFixed(1)}%`, explanation: "Demand is arriving, but content is not closing enough of it.", recommendation: "Refresh the first image and value proposition.", impact: "+4–7% CVR", ...scoreConfidence(fixSignals(mascara)) },
   ].sort((a, b) => b.confidence - a.confidence);
 }
@@ -180,7 +194,7 @@ export function getDashboard() {
     summary: {
       eyebrow: "AI EXECUTIVE SUMMARY",
       title: "Growth is real. Efficiency is the constraint.",
-      body: "Sales grew 12% over the last 30 days, led by Revitalift and Sky High. External media is contributing demand, while Kaspi Ads efficiency softened as CPC rose 17%. The clearest move is to reallocate budget from competitor cards into Search.",
+      body: "Sales grew 12% over the last 30 days, led by CeraVe and La Roche-Posay. External media is contributing demand, while Kaspi Ads efficiency softened as CPC rose 17%. The clearest move is to reallocate budget from competitor cards into Search.",
       confidence: summaryConfidence,
       impact: "+₸390K estimated incremental sales",
       severity: "MEDIUM",
@@ -202,61 +216,61 @@ export function getAdvertising() {
       id: "GOOGLE" as const,
       name: "Google Ads",
       source,
-      impressions: 1842000,
-      clicks: 84240,
+      impressions: 221000,
+      clicks: 10110,
       ctr: 4.57,
       cpc: 92.4,
-      estimatedOrders: 2840,
+      estimatedOrders: 341,
       signal: {
         eyebrow: "AI SIGNAL · DEMO ESTIMATE",
         title: "Google captures the strongest purchase intent.",
         body: "High-intent search queries are sustaining efficient estimated orders. Expand the best-performing non-brand terms before widening reach.",
         confidence: 86,
-        impact: "+180 estimated orders / month",
+        impact: "+22 estimated orders / month",
         severity: "HIGH",
       },
       activities: [
         { id: "google-1", date: "2026-08-17T10:15:00+05:00", channel: "Google Ads", eventType: "Bid refinement", explanation: "Top non-brand search bids were concentrated on six high-converting SKUs.", estimatedImpact: "+6–9% estimated orders" },
-        { id: "google-2", date: "2026-08-15T14:30:00+05:00", channel: "Google Ads", eventType: "Query expansion", explanation: "Added high-intent skincare queries to the synthetic demo campaign.", estimatedImpact: "+74 estimated orders" },
+        { id: "google-2", date: "2026-08-15T14:30:00+05:00", channel: "Google Ads", eventType: "Query expansion", explanation: "Added high-intent skincare queries to the synthetic demo campaign.", estimatedImpact: "+9 estimated orders" },
       ],
     },
     {
       id: "META" as const,
       name: "Meta Ads",
       source,
-      impressions: 2635000,
-      clicks: 94860,
+      impressions: 316200,
+      clicks: 11380,
       ctr: 3.6,
       cpc: 74.1,
-      estimatedOrders: 1960,
+      estimatedOrders: 235,
       signal: {
         eyebrow: "AI SIGNAL · DEMO ESTIMATE",
         title: "Meta creative is driving discovery, not yet conversion.",
         body: "Video reach grew faster than estimated orders. Keep the winning beauty audience, but refresh the product proof in the first frame.",
         confidence: 78,
-        impact: "+110 estimated orders / month",
+        impact: "+13 estimated orders / month",
         severity: "MEDIUM",
       },
       activities: [
         { id: "meta-1", date: "2026-08-16T12:00:00+05:00", channel: "Meta Ads", eventType: "Creative refresh", explanation: "A product texture video replaced the static catalog cover for the skincare audience.", estimatedImpact: "+4–7% estimated orders" },
-        { id: "meta-2", date: "2026-08-12T09:20:00+05:00", channel: "Meta Ads", eventType: "Audience launch", explanation: "The demo Beauty Pulse audience was activated with a fixed KZT budget.", estimatedImpact: "+96 estimated orders" },
+        { id: "meta-2", date: "2026-08-12T09:20:00+05:00", channel: "Meta Ads", eventType: "Audience launch", explanation: "The demo Beauty Pulse audience was activated with a fixed KZT budget.", estimatedImpact: "+12 estimated orders" },
       ],
     },
     {
       id: "TIKTOK" as const,
       name: "TikTok Ads",
       source,
-      impressions: 3188000,
-      clicks: 70120,
+      impressions: 382600,
+      clicks: 8410,
       ctr: 2.2,
       cpc: 63.8,
-      estimatedOrders: 1080,
+      estimatedOrders: 130,
       signal: {
         eyebrow: "AI SIGNAL · DEMO ESTIMATE",
         title: "TikTok has low-cost attention but a weaker order signal.",
         body: "The demo creative attracts clicks efficiently, while estimated orders remain below the account benchmark. Test a clearer product offer before scaling budget.",
         confidence: 72,
-        impact: "+65 estimated orders / month",
+        impact: "+8 estimated orders / month",
         severity: "MEDIUM",
       },
       activities: [
@@ -268,21 +282,21 @@ export function getAdvertising() {
       id: "KASPI" as const,
       name: "Kaspi Ads",
       source,
-      impressions: 2416000,
-      clicks: 112540,
-      ctr: 4.66,
-      cpc: 8.12,
-      estimatedOrders: 3170,
+      impressions: adTotals.impressions,
+      clicks: adTotals.clicks,
+      ctr: Number((adTotals.ctr * 100).toFixed(2)),
+      cpc: Number(adTotals.cpc.toFixed(2)),
+      estimatedOrders: adTotals.orders,
       signal: {
         eyebrow: "AI SIGNAL · DEMO ESTIMATE",
         title: "Kaspi internal ads remain the largest estimated order driver.",
         body: "Search placement is efficient, but CPC is rising in the synthetic snapshot. Reallocate from competitor cards before increasing the total budget.",
         confidence: 83,
-        impact: "+140 estimated orders / month",
+        impact: "+17 estimated orders / month",
         severity: "HIGH",
       },
       activities: [
-        { id: "kaspi-1", date: "2026-08-15T11:30:00+05:00", channel: "Kaspi Ads", eventType: "Budget increase", explanation: "Search placement budget increased 30% in the demo scenario.", estimatedImpact: "+128 estimated orders" },
+        { id: "kaspi-1", date: "2026-08-15T11:30:00+05:00", channel: "Kaspi Ads", eventType: "Budget increase", explanation: "Search placement budget increased 30% in the demo scenario.", estimatedImpact: "+15 estimated orders" },
         { id: "kaspi-2", date: "2026-08-13T13:45:00+05:00", channel: "Kaspi Ads", eventType: "Placement mix", explanation: "Spend moved away from competitor cards toward Search placement.", estimatedImpact: "+5–8% estimated orders" },
       ],
     },
@@ -300,11 +314,11 @@ export function getAdvertising() {
       { label: "ROAS", value: `${adTotals.roas.toFixed(2)}x`, amount: Number(adTotals.roas.toFixed(2)), unit: "MULTIPLIER" as const, change: "-11.2%", positive: false },
     ],
     secondaryMetrics: [
-      { label: "ORDERS", value: "5,597", change: "+4.8%", positive: true },
-      { label: "CTR", value: "4.42%", change: "+0.6%", positive: true },
-      { label: "CPC", value: "₸8.12", change: "+17.1%", positive: false },
-      { label: "CVR", value: "3.82%", change: "-0.2%", positive: false },
-      { label: "CPO", value: "₸136.8", change: "+4.2%", positive: false },
+      { label: "ORDERS", value: adTotals.orders.toLocaleString("en-US"), change: "+4.8%", positive: true },
+      { label: "CTR", value: `${(adTotals.ctr * 100).toFixed(2)}%`, change: "+0.6%", positive: true },
+      { label: "CPC", value: `₸${adTotals.cpc.toFixed(2)}`, change: "+17.1%", positive: false },
+      { label: "CVR", value: `${(adTotals.cvr * 100).toFixed(2)}%`, change: "-0.2%", positive: false },
+      { label: "CPO", value: `₸${adTotals.cpo.toFixed(1)}`, change: "+4.2%", positive: false },
     ],
     signal: {
       eyebrow: "AI SIGNAL · HIGH CONFIDENCE",
@@ -336,9 +350,9 @@ export function getProducts() {
 }
 
 const seedCampaigns = [
-  { id: "campaign-1", name: "Beauty Pulse", channel: "Meta", startDate: "2026-08-10", endDate: "2026-08-24", budget: 420000, objective: "Acquire skincare demand" },
-  { id: "campaign-2", name: "Creator SPF Review", channel: "Influencer", startDate: "2026-08-05", endDate: "2026-08-12", budget: 180000, objective: "Drive product discovery" },
-  { id: "campaign-3", name: "Search Demand Capture", channel: "Google", startDate: "2026-07-28", endDate: "2026-08-07", budget: 260000, objective: "Capture high intent" },
+  { id: "campaign-1", name: "Beauty Pulse", channel: "Meta", startDate: "2026-08-10", endDate: "2026-08-24", budget: 150000, objective: "Acquire skincare demand" },
+  { id: "campaign-2", name: "Creator SPF Review", channel: "Influencer", startDate: "2026-08-05", endDate: "2026-08-12", budget: 60000, objective: "Drive product discovery" },
+  { id: "campaign-3", name: "Search Demand Capture", channel: "Google", startDate: "2026-07-28", endDate: "2026-08-07", budget: 90000, objective: "Capture high intent" },
 ];
 
 function campaignStatus(startDate: string, endDate: string) {
@@ -466,18 +480,18 @@ export function getDemoCardAnalysis() {
     revenue: products[0].revenue,
     trendPct: products[0].trend,
     checklist: [
-      { key: "card.rating", status: "PASS" as const, params: { rating: 4.8 } },
-      { key: "card.reviews", status: "PASS" as const, params: { count: 214 } },
-      { key: "card.negative", status: "WARN" as const, params: { pct: 12.5 } },
-      { key: "card.price", status: "WARN" as const, params: { gap: 6.1, min: 32700 } },
-      { key: "card.sellers", status: "WARN" as const, params: { count: 9 } },
+      { key: "card.rating", status: "PASS" as const, params: { rating: 4.9 } },
+      { key: "card.reviews", status: "PASS" as const, params: { count: 102 } },
+      { key: "card.negative", status: "WARN" as const, params: { pct: 12.7 } },
+      { key: "card.price", status: "WARN" as const, params: { gap: 6.1, min: 6283 } },
+      { key: "card.sellers", status: "PASS" as const, params: { count: 2 } },
       { key: "card.returns", status: "PASS" as const, params: { pct: 2.1 } },
       { key: "card.trend", status: "PASS" as const, params: { trend: products[0].trend } },
     ],
-    reviews: { averageRating: 4.8, count: 214, positive: 182, negative: 26 },
+    reviews: { averageRating: 4.9, count: 102, positive: 87, negative: 13 },
     themes: { praise: ["theme.effect", "theme.quality", "theme.smell"], complaints: ["theme.delivery", "theme.packaging", "theme.authenticity"], mode: "RULES" as const },
     events: [
-      { id: "demo-event-1", sku: products[0].sku, kind: "PHOTO" as const, note: null, happenedAt: demoTimestamp("2026-08-04T10:00:00+05:00"), beforePerDay: 410000, afterPerDay: 468000, changePct: 14.1, daysAfter: 14 },
+      { id: "demo-event-1", sku: products[0].sku, kind: "PHOTO" as const, note: null, happenedAt: demoTimestamp("2026-08-04T10:00:00+05:00"), beforePerDay: 2100, afterPerDay: 2400, changePct: 14.3, daysAfter: 14 },
     ],
   };
 }

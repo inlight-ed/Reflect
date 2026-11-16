@@ -80,7 +80,7 @@ router.get("/shift-market/competitors", marketLimit, async (req, res): Promise<v
   if (req.user) {
     const redstat = await getIntegration(req.user.id, "REDSTAT_MCP");
     if (redstat?.url) {
-      const connector = mcpRedstatConnector((tool, args) => callMcpTool(redstat.url!, redstat.secret, tool, args));
+      const connector = mcpRedstatConnector((tool, args) => callMcpTool(redstat.url!, redstat.secret, tool, args), redstat.url);
       res.json(GetCompetitorsResponse.parse(await getCompetitorAnalysis(parsed.data.kaspiSku, connector)));
       return;
     }

@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useGetCompetitors } from '@workspace/api-client-react';
 import { formatCurrency, formatNumber, useI18n } from '@/lib/i18n';
 import { EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, SectionTitle, SummaryCard } from '@/components/common';
+import { MarketSection } from '@/components/market';
 
 const DEFAULT_SKU = '11700213';
 
@@ -34,6 +35,7 @@ export default function CompetitorsPage() {
     </form>
     {detail && <div className="card card-pad competitor-status" role="status" data-testid="redstat-connection-status"><strong>{t('RedStat data status')}</strong><p>{detail}</p>{data.detail === 'connector.redstat.connect_in_settings' && <Link href="/settings" className="btn secondary">{t('competitors.openSettings')}</Link>}</div>}
     {data.insight && <SummaryCard insight={data.insight} />}
+    {data.market && <MarketSection market={data.market} />}
     <SectionTitle title={t('Sellers on this Kaspi card')} note={<>{sellers.length} {t('offers')}</>} />
     <div className="card table-wrap">{sellers.length ? <table className="data-table"><thead><tr><th>{t('Seller')}</th><th>{t('Price')}</th><th>{t('Rating')}</th><th>{t('Reviews')}</th><th>{t('Availability')}</th></tr></thead><tbody>{sellers.map((seller, index) => <tr key={`${seller.name}-${index}`}><td>{seller.url ? <a href={seller.url} target="_blank" rel="noreferrer noopener">{seller.name}</a> : seller.name}</td><td>{formatCurrency(seller.price, locale, 2)}</td><td>{seller.rating == null ? '—' : seller.rating}</td><td>{seller.reviews == null ? '—' : formatNumber(seller.reviews, locale)}</td><td>{seller.availability ?? '—'}</td></tr>)}</tbody></table> : <EmptyState label="seller offers" />}</div>
     <SectionTitle title={t('Comparable products')} note={<>{alternatives.length} {t('products')}</>} />

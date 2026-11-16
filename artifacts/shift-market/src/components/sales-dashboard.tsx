@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileSpreadsheet, ShieldCheck, Trash2, UploadCloud } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatMonthYear, formatNumber, useI18n } from '@/lib/i18n';
+import { axisTick, chartColors, formatMonthShort, gridProps, lastChange, tooltipProps } from '@/lib/chart-theme';
 import {
   demoSalesReport,
   isImportedSalesReport,
@@ -16,6 +17,13 @@ import { SectionTitle } from './common';
 
 // v2: series are read from the file. Reports saved by v1 (fixed distributors) are discarded.
 const salesStorageKey = 'shift-market-sales-report-v2';
+/** Rounds up to a tidy axis maximum: 1 010 → 1 200, 87 → 90. */
+function niceCeiling(value: number) {
+  if (value <= 0) return 1;
+  const step = 10 ** Math.floor(Math.log10(value)) / 5;
+  return Math.ceil(value / step) * step;
+}
+
 const seriesColors = ['#e7b24f', '#b9d94b', '#65c6d0', '#d890c8', '#8fa6ff', '#f08f6c', '#7fd6a3', '#9aa3ad'];
 
 function loadSavedReport(): ImportedSalesReport | null {
@@ -43,6 +51,7 @@ export function SalesDashboard() {
   const growth = latest && previous && previous.total > 0 ? ((latest.total - previous.total) / previous.total) * 100 : 0;
   const seriesLabel = (series: SalesSeries) => series.label === TOTAL_SERIES ? t('Всего') : series.label === OTHER_SERIES ? t('Прочие') : series.label;
   const hasBreakdown = !(activeReport.series.length === 1 && activeReport.series[0].label === TOTAL_SERIES);
+  const seriesMax = niceCeiling(Math.max(0, ...activeReport.points.flatMap((point) => activeReport.series.map((series) => Number(point[series.key] ?? 0)))));
 
   useEffect(() => {
     if (window.location.hash === '#sales-report') sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -94,12 +103,12 @@ export function SalesDashboard() {
       <div className="brand-orders-chart">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={activeReport.points} margin={{ top: 12, right: 20, left: 0, bottom: 0 }}>
-            <defs><linearGradient id="brand-orders-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#e7b24f" stopOpacity={0.36} /><stop offset="100%" stopColor="#e7b24f" stopOpacity={0} /></linearGradient></defs>
-            <CartesianGrid stroke="#29313c" strokeDasharray="3 6" vertical={false} />
-            <XAxis dataKey="period" tick={{ fill: '#74808d', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(period) => formatMonthYear(String(period), locale)} />
-            <YAxis tick={{ fill: '#74808d', fontSize: 10 }} axisLine={false} tickLine={false} width={56} tickFormatter={(value) => formatNumber(Number(value), locale)} />
-            <Tooltip contentStyle={{ background: '#151a21', border: '1px solid #3b4551', borderRadius: 5, color: '#e7eaf0', fontSize: 12 }} labelFormatter={(period) => formatMonthYear(String(period), locale)} formatter={(value) => [formatNumber(Number(value), locale), t('Заказы')]} />
-            <Area type="monotone" dataKey="total" name={t('Заказы бренда')} stroke="#e7b24f" strokeWidth={2.5} fill="url(#brand-orders-gradient)" />
+            <defs><linearGradient id="brand-orders-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={chartColors.accent} stopOpacity={0.28} /><stop offset="100%" stopColor={chartColors.accent} stopOpacity={0.02} /></linearGradient></defs>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="period" tick={axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={16} tickFormatter={(period) => formatMonthShort(String(period), locale)} />
+            <YAxis tick={axisTick} axisLine={false} tickLine={false} width={52} tickFormatter={(value) => formatNumber(Number(value), locale)} />
+            <Tooltip {...tooltipProps} labelFormatter={(period) => formatMonthYear(String(period), locale)} formatter={(value) => [formatNumber(Number(value), locale), t('Заказы')]} />
+            <Area type="monotone" dataKey="total" name={t('Заказы бренда')} stroke={chartColors.accent} strokeWidth={2.5} fill="url(#brand-orders-gradient)" dot={{ r: 3, fill: chartColors.accent, strokeWidth: 0 }} activeDot={{ r: 5, fill: chartColors.accent, stroke: chartColors.surface, strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -107,24 +116,33 @@ export function SalesDashboard() {
     {hasBreakdown ? <>
       <SectionTitle title={t('Динамика по дистрибьюторам')} note={t('заказы по каждому партнёру')} />
       <div className="distributor-chart-grid">
-        {activeReport.series.map((series, index) => <SeriesChart key={series.key} series={series} label={seriesLabel(series)} data={activeReport.points} color={seriesColors[index % seriesColors.length]} />)}
+        {activeReport.series.map((series, index) => <SeriesChart key={series.key} series={series} label={seriesLabel(series)} data={activeReport.points} color={seriesColors[index % seriesColors.length]} max={seriesMax} />)}
       </div>
     </> : <p className="section-note standalone" data-testid="status-no-breakdown">{t('В отчёте нет разбивки по дистрибьюторам — показан только общий итог.')}</p>}
   </>;
 }
 
-function SeriesChart({ series, label, data, color }: { series: SalesSeries; label: string; data: SalesPoint[]; color: string }) {
+/**
+ * Small multiples share one vertical scale, so a partner with 480 orders does not look as big as one
+ * with 1 010. The header carries the latest value and its change, which the line alone cannot show.
+ */
+function SeriesChart({ series, label, data, color, max }: { series: SalesSeries; label: string; data: SalesPoint[]; color: string; max: number }) {
   const { locale, t } = useI18n();
-  const latest = Number(data.at(-1)?.[series.key] ?? 0);
+  const values = data.map((point) => Number(point[series.key] ?? 0));
+  const latest = values.at(-1) ?? 0;
+  const change = lastChange(values);
   return <section className="distributor-chart" data-testid={`chart-distributor-${label.toLowerCase().replace(/\s/g, '-')}`}>
-    <div className="distributor-chart-head"><div><span className="chart-color" style={{ background: color }} /><strong>{label}</strong></div><span>{formatNumber(latest, locale)} {t('заказов')}</span></div>
+    <div className="distributor-chart-head">
+      <div><span className="chart-color" style={{ background: color }} /><strong>{label}</strong></div>
+      <span><b>{formatNumber(latest, locale)}</b> {t('заказов')}{change !== null && <em className={change >= 0 ? 'positive' : 'negative'}>{change >= 0 ? '+' : ''}{formatNumber(change, locale, 1)}%</em>}</span>
+    </div>
     <ResponsiveContainer width="100%" height={168}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
-        <CartesianGrid stroke="#27303a" strokeDasharray="3 6" vertical={false} />
-        <XAxis dataKey="period" tick={{ fill: '#6e7987', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(period) => formatMonthYear(String(period), locale)} />
-        <YAxis hide domain={['dataMin - 20', 'dataMax + 20']} />
-        <Tooltip contentStyle={{ background: '#151a21', border: '1px solid #3b4551', borderRadius: 5, color: '#e7eaf0', fontSize: 11 }} labelFormatter={(period) => formatMonthYear(String(period), locale)} formatter={(value) => [formatNumber(Number(value), locale), t('Заказы')]} />
-        <Line type="monotone" dataKey={series.key} name={label} stroke={color} strokeWidth={2.2} dot={false} activeDot={{ r: 4, fill: color }} />
+      <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <CartesianGrid {...gridProps} />
+        <XAxis dataKey="period" tick={{ ...axisTick, fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={14} tickFormatter={(period) => formatMonthShort(String(period), locale)} />
+        <YAxis tick={{ ...axisTick, fontSize: 10 }} axisLine={false} tickLine={false} width={40} domain={[0, max]} tickCount={3} tickFormatter={(value) => formatNumber(Number(value), locale)} />
+        <Tooltip {...tooltipProps} contentStyle={{ ...tooltipProps.contentStyle, fontSize: 11 }} labelFormatter={(period) => formatMonthYear(String(period), locale)} formatter={(value) => [formatNumber(Number(value), locale), t('Заказы')]} />
+        <Line type="monotone" dataKey={series.key} name={label} stroke={color} strokeWidth={2.2} dot={false} activeDot={{ r: 4, fill: color, stroke: chartColors.surface, strokeWidth: 2 }} />
       </LineChart>
     </ResponsiveContainer>
   </section>;

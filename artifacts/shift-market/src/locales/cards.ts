@@ -18,7 +18,7 @@ export const cards: Catalog = {
   "card.price": ["Цена против конкурентов", "Бәсекелестерге қарсы баға", "Price vs competitors"],
   "card.price.desc": ["Ваша цена выше минимальной ({min} ₸) на {gap}%.", "Бағаңыз ең төменгіден ({min} ₸) {gap}%-ға жоғары.", "Your price is {gap}% above the lowest ({min} ₸)."],
   "card.sellers": ["Продавцов на карточке", "Карточкадағы сатушылар", "Sellers on the card"],
-  "card.sellers.desc": ["{count} продавцов. Чем их больше, тем сильнее давление на цену.", "{count} сатушы. Олар неғұрлым көп болса, бағаға қысым соғұрлым күшті.", "{count} sellers. More sellers mean more price pressure."],
+  "card.sellers.desc": ["Продавцов: {count}. Чем их больше, тем сильнее давление на цену.", "{count} сатушы. Олар неғұрлым көп болса, бағаға қысым соғұрлым күшті.", "{count} sellers. More sellers mean more price pressure."],
   "card.returns": ["Возвраты", "Қайтарымдар", "Returns"],
   "card.returns.desc": ["{pct}% заказов вернули. Норма — до 5%.", "Тапсырыстардың {pct}%-ы қайтарылды. Норма — 5%-ға дейін.", "{pct}% of orders were returned. Normal is up to 5%."],
   "card.trend": ["Динамика продаж", "Сату динамикасы", "Sales trend"],

@@ -211,7 +211,11 @@ button { cursor: pointer; }
 .distributor-chart { padding:16px 17px 10px; border:1px solid #2d3641; border-radius:6px; background:var(--app-surface); }
 .distributor-chart-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .distributor-chart-head > div { display:flex; align-items:center; gap:8px; color:#e7ebef; font-size:13px; }
-.distributor-chart-head > span { color:#98a3b0; font:11px var(--app-font-mono); }
+.distributor-chart-head > span { color:#98a3b0; font:11px var(--app-font-mono); display:flex; align-items:baseline; gap:6px; white-space:nowrap; }
+.distributor-chart-head > span b { color:#e7ebef; font-weight:600; font-size:13px; }
+.distributor-chart-head > span em { font-style:normal; padding:1px 6px; border-radius:4px; }
+.distributor-chart-head > span em.positive { color:var(--app-positive); background:rgba(185,217,75,.1); }
+.distributor-chart-head > span em.negative { color:var(--app-negative); background:rgba(232,132,121,.1); }
 .chart-color { width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 3px rgba(255,255,255,.04); }
 .section-row { display:flex; align-items:center; justify-content:space-between; margin:29px 0 13px; }
 .section-title { margin:0; color:#dce0e7; font:600 15px var(--app-font-serif); letter-spacing:-.01em; }
@@ -511,7 +515,7 @@ a.btn { text-decoration:none; }
 .chart-legend { display:flex; align-items:center; gap:8px; color:#9aa3ae; font-size:12px; }
 .swatch { display:inline-block; width:16px; height:3px; border-radius:2px; }
 .swatch.current { background:var(--app-accent); }
-.swatch.previous { background:repeating-linear-gradient(90deg,#6f7b8a 0 4px,transparent 4px 8px); margin-left:10px; }
+.swatch.previous { background:repeating-linear-gradient(90deg,#8a94a2 0 4px,transparent 4px 8px); margin-left:10px; }
 
 .forecast-list { padding:4px 0; }
 .forecast-row { display:grid; grid-template-columns:minmax(0,2.2fr) minmax(80px,1.2fr) minmax(120px,1fr) minmax(110px,.9fr) 70px; gap:14px; align-items:center; padding:13px 20px; border-bottom:1px solid #232933; }

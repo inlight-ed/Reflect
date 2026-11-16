@@ -6,7 +6,7 @@ import { usePeriod } from '@/lib/period';
 import { useSession } from '@/lib/session';
 import { PeriodBar } from '@/components/seller';
 import { formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
-import { EmptyState, ErrorState, Hint, LoadingState, MetricCards, PageFrame, PageHead, SectionTitle, SummaryCard, demoSource } from '@/components/common';
+import { EmptyState, ErrorState, Hint, LoadingState, MetricCards, PageFrame, PageHead, Reveal, SectionTitle, SummaryCard, demoSource } from '@/components/common';
 
 export default function AdvertisingPage() {
   const { t } = useI18n();
@@ -66,6 +66,7 @@ function AdvertisingChannelCard({ channel }: { channel: AdvertisingChannel }) {
       {metrics.map(([label, value], index) => <div key={index}><span>{label}</span><strong>{value}</strong></div>)}
     </div>
     <SummaryCard insight={channel.signal} compact />
+    <Reveal className="channel-activity-reveal" label={t('Активности и влияние')} meta={String(channel.activities.length)} testId={`reveal-activities-${channel.id.toLowerCase()}`}>
     <div className="channel-activity-list">
       <div className="activity-list-head"><span>{t('Активности и влияние')}</span><span>{t('Оценочный эффект')}</span></div>
       {channel.activities.map((activity) => <div className="channel-activity" key={activity.id}>
@@ -74,6 +75,7 @@ function AdvertisingChannelCard({ channel }: { channel: AdvertisingChannel }) {
         <span className="impact">{t(activity.estimatedImpact)}</span>
       </div>)}
     </div>
+    </Reveal>
   </section>;
 }
 

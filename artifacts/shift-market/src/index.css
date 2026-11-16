@@ -354,11 +354,7 @@ button { cursor: pointer; }
 
 /* Confidence explanation */
 .action-grid .action-card { display:flex; flex-direction:column; }
-.confidence-basis { margin-top:12px; color:var(--app-text-muted); font-size:11px; }
-.confidence-basis summary { cursor:pointer; color:#9aa3ae; font:11px var(--app-font-mono); list-style:none; }
-.confidence-basis summary::-webkit-details-marker { display:none; }
-.confidence-basis summary::before { content:'▸ '; color:var(--app-accent); }
-.confidence-basis[open] summary::before { content:'▾ '; }
+.confidence-basis { margin-top:4px; color:var(--app-text-muted); font-size:11px; }
 .confidence-basis ul { display:grid; gap:6px; margin:10px 0 0; padding:0; list-style:none; }
 .confidence-basis li { display:flex; align-items:center; gap:7px; }
 .confidence-basis li.met { color:#c9d6a0; }
@@ -490,7 +486,7 @@ button.mobile-nav { padding:0; background:transparent; border:0; }
 .channel-metrics span { font-size:10px; }
 .nav-item { font-size:14px; }
 .section-title { font-size:16px; }
-.confidence-bar, .confidence-basis summary { font-size:11px; }
+.confidence-bar { font-size:11px; }
 
 /* ======================= Seller workspace ======================= */
 .grid-5 { grid-template-columns:repeat(5,minmax(0,1fr)); }
@@ -724,3 +720,25 @@ a.btn { text-decoration:none; }
   .data-table tbody tr:hover td:first-child { background:var(--app-surface-hover); }
   .data-table tr.selected-row td:first-child { background:#1d211b; }
 }
+
+/* Details on demand: a quiet toggle that slides content open. */
+.reveal { margin-top:10px; }
+.reveal-toggle { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:4px 0; border:0; background:none; color:var(--app-text-muted); font:11px var(--app-font-mono); letter-spacing:.03em; text-transform:uppercase; cursor:pointer; transition:color .15s ease; }
+.reveal-toggle:hover, .reveal.open .reveal-toggle { color:#e7ebef; }
+.reveal-toggle:focus-visible { outline:2px solid var(--app-accent); outline-offset:2px; border-radius:3px; }
+.reveal-meta { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-transform:none; letter-spacing:0; color:#6f7b8a; }
+.reveal-meta::before { content:'·'; margin-right:7px; }
+.reveal-chevron { flex:none; transition:transform .25s cubic-bezier(.2,.7,.2,1); }
+.reveal.open .reveal-chevron { transform:rotate(180deg); }
+.reveal-panel { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .3s cubic-bezier(.2,.7,.2,1), opacity .22s ease; }
+.reveal.open .reveal-panel { grid-template-rows:1fr; opacity:1; }
+.reveal-inner { min-height:0; overflow:hidden; }
+.reveal-content { padding-top:8px; transform:translateY(-4px); transition:transform .3s cubic-bezier(.2,.7,.2,1); }
+.reveal.open .reveal-content { transform:none; }
+.reveal .action-explanation, .reveal .summary-body { margin:0 0 8px; }
+.reveal .confidence-basis-title { display:block; margin:4px 0 6px; color:var(--app-text-muted); font:10px var(--app-font-mono); letter-spacing:.06em; text-transform:uppercase; }
+.reveal .report-note { margin:0 0 8px; color:var(--app-text-muted); font-size:13px; }
+.matrix-filter-note { margin:12px 0 0; color:var(--app-text-muted); font-size:13px; }
+@media (prefers-reduced-motion: reduce) { .reveal-panel, .reveal-chevron, .reveal-content { transition:none; } }
+/* Opening one card must not stretch its neighbour into an empty box. */
+.action-grid, .ad-channel-grid { align-items:start; }

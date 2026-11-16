@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Plus, X } from 'lucide-react';
 import { getGetExternalMediaQueryKey, useCreateExternalCampaign, useGetExternalMedia } from '@workspace/api-client-react';
-import { formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
-import { ConfidenceBasisView, EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, SectionTitle, SummaryCard, demoSource, statusLabel } from '@/components/common';
+import { fill, formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
+import { ConfidenceBasisView, EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, Reveal, SectionTitle, SummaryCard, demoSource, statusLabel } from '@/components/common';
 import { Link } from 'wouter';
 import { useSession } from '@/lib/session';
 
@@ -64,7 +64,7 @@ export default function ExternalMediaPage() {
           <div className="card-header"><span className="card-title">{t('До / во время / после')}</span><span className="card-kicker">{t('GMV и рост заказов')}</span></div>
           {Array.isArray(selectedImpact.periods) ? <div className="table-wrap"><table className="data-table"><thead><tr><th>{t('Период')}</th><th><Hint term="GMV">GMV</Hint></th><th>{t('Заказы')}</th><th>{t('Единицы')}</th><th><Hint term="AOV">{t('Средний чек')}</Hint></th><th>{t('Рост')}</th></tr></thead><tbody>{selectedImpact.periods.map((period, index) => <tr key={`${period.label}-${index}`}><td>{t(period.label)}</td><td>{formatCurrency(period.gmv, locale)}</td><td>{formatNumber(period.orders, locale)}</td><td>{formatNumber(period.units, locale)}</td><td>{formatCurrency(period.aov, locale, 2)}</td><td className={period.growth >= 0 ? 'positive' : 'negative'}>{period.growth > 0 ? '+' : ''}{formatNumber(period.growth, locale, 1)}%</td></tr>)}</tbody></table></div> : <EmptyState label="breakdown" />}
           <div className="card-pad impact-totals"><div><div className="eyebrow">{t('Базовый GMV')}</div><div className="metric-value">{formatCurrency(selectedImpact.baseline, locale)}</div></div><div><div className="eyebrow">{t('Дополнительный GMV')}</div><div className="metric-value positive">{formatCurrency(selectedImpact.incremental, locale)}</div></div><div><div className="eyebrow"><Hint term="confidence">{t('УВЕРЕННОСТЬ')}</Hint></div><div className="metric-value">{selectedImpact.confidence}%</div></div></div>
-          <div className="card-pad impact-basis"><ConfidenceBasisView basis={selectedImpact.confidenceBasis} /></div>
+          <div className="card-pad impact-basis"><Reveal label={t('Почему такая уверенность')} meta={fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: selectedImpact.confidenceBasis.supporting, total: selectedImpact.confidenceBasis.total })}><ConfidenceBasisView basis={selectedImpact.confidenceBasis} /></Reveal></div>
         </> : <EmptyState label="impact" message={t(selectedCampaign?.status === 'PLANNED' ? 'media.noImpact' : 'Для этой кампании разбор эффекта ещё не рассчитан. Он появится, когда накопятся данные о продажах до, во время и после кампании.')} />}
       </div>
       {modalOpen && <CampaignModal form={form} setForm={setForm} error={formError} pending={createCampaign.isPending} onClose={closeModal} onSubmit={submitCampaign} />}

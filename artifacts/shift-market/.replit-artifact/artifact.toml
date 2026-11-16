@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Reflect"
+description = "Reflect — AI commerce intelligence for Kaspi sellers and brands. Explore business performance, advertising efficiency, product opportunities, external campaign impact, competitors, and content improvement hypotheses in a transparent demo-first workspace."
+version = "1.0.0"
+id = "artifacts/shift-market"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19678
+
+[services.development]
+run = "pnpm --filter @workspace/shift-market run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/shift-market", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/shift-market/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19678"
+BASE_PATH = "/"

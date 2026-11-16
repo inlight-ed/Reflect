@@ -1,0 +1,131 @@
+import { useEffect, useRef, useState } from 'react';
+import { FileSpreadsheet, ShieldCheck, Trash2, UploadCloud } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { formatMonthYear, formatNumber, useI18n } from '@/lib/i18n';
+import {
+  demoSalesReport,
+  isImportedSalesReport,
+  OTHER_SERIES,
+  parseSalesReport,
+  TOTAL_SERIES,
+  type ImportedSalesReport,
+  type SalesPoint,
+  type SalesSeries,
+} from '@/lib/sales-report';
+import { SectionTitle } from './common';
+
+// v2: series are read from the file. Reports saved by v1 (fixed distributors) are discarded.
+const salesStorageKey = 'shift-market-sales-report-v2';
+const seriesColors = ['#e7b24f', '#b9d94b', '#65c6d0', '#d890c8', '#8fa6ff', '#f08f6c', '#7fd6a3', '#9aa3ad'];
+
+function loadSavedReport(): ImportedSalesReport | null {
+  try {
+    window.localStorage.removeItem('shift-market-sales-report-v1');
+    const saved = window.localStorage.getItem(salesStorageKey);
+    const parsed = saved ? JSON.parse(saved) : null;
+    if (isImportedSalesReport(parsed)) return parsed;
+    if (saved) window.localStorage.removeItem(salesStorageKey);
+  } catch {
+    // Storage can be unavailable (private mode); the demo report is shown instead.
+  }
+  return null;
+}
+
+export function SalesDashboard() {
+  const { locale, t } = useI18n();
+  const [report, setReport] = useState<ImportedSalesReport | null>(loadSavedReport);
+  const [notice, setNotice] = useState('');
+  const [failed, setFailed] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const activeReport = report ?? demoSalesReport;
+  const latest = activeReport.points.at(-1);
+  const previous = activeReport.points.at(-2);
+  const growth = latest && previous && previous.total > 0 ? ((latest.total - previous.total) / previous.total) * 100 : 0;
+  const seriesLabel = (series: SalesSeries) => series.label === TOTAL_SERIES ? t('Всего') : series.label === OTHER_SERIES ? t('Прочие') : series.label;
+  const hasBreakdown = !(activeReport.series.length === 1 && activeReport.series[0].label === TOTAL_SERIES);
+
+  useEffect(() => {
+    if (window.location.hash === '#sales-report') sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const uploadReport = async (file?: File) => {
+    if (!file) return;
+    try {
+      const parsed = await parseSalesReport(file);
+      setReport(parsed);
+      setFailed(false);
+      try { window.localStorage.setItem(salesStorageKey, JSON.stringify(parsed)); } catch { /* keep in memory only */ }
+      setNotice(t('Отчёт загружен. Диаграммы построены по вашим данным.'));
+    } catch (error) {
+      setFailed(true);
+      setNotice(error instanceof Error ? t(error.message) : t('Не удалось обработать отчёт. Проверьте формат файла.'));
+    }
+  };
+
+  const resetReport = () => {
+    setReport(null);
+    setFailed(false);
+    try { window.localStorage.removeItem(salesStorageKey); } catch { /* nothing stored */ }
+    setNotice(t('Загруженный отчёт удалён. Показаны демонстрационные данные.'));
+  };
+
+  return <>
+    <section className="sales-dashboard" id="sales-report" ref={sectionRef} data-testid="sales-dashboard">
+      <div className="sales-dashboard-head">
+        <div><div className="eyebrow">{t(report ? 'ЗАГРУЖЕННЫЙ ОТЧЁТ' : 'ДЕМО-ДАННЫЕ')}</div><h2>{t('Динамика заказов бренда')}</h2><p>{t('Главная диаграмма суммирует заказы по дистрибьюторам за каждый период.')}</p></div>
+        <div className="report-actions">
+          <label className="btn secondary upload-button" htmlFor="sales-report-upload"><UploadCloud size={14} /> {t('Загрузить отчёт')}</label>
+          <input id="sales-report-upload" type="file" accept=".csv,.xlsx,.xls" onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} data-testid="input-sales-report" />
+          {report && <button className="btn secondary clear-report" onClick={resetReport} data-testid="button-clear-sales-report"><Trash2 size={14} /> {t('Очистить')}</button>}
+        </div>
+      </div>
+      <div className="report-meta">
+        <span><FileSpreadsheet size={13} /> {activeReport.fileName}</span>
+        <span>{formatNumber(activeReport.rowsProcessed, locale)} {t('строк обработано')}</span>
+        <span>{report ? t('Источник: загруженный файл') : t('Источник: демонстрационный отчёт')}</span>
+        <span className="privacy-note"><ShieldCheck size={13} /> {t('Файл обрабатывается в браузере и никуда не отправляется.')}</span>
+      </div>
+      {notice && <div className={`report-notice ${failed ? 'error' : ''}`} role="status" data-testid="status-sales-report">{notice}</div>}
+      <div className="sales-summary-strip">
+        <div><span>{t('Заказы за последний период')}</span><strong>{formatNumber(latest?.total ?? 0, locale)}</strong></div>
+        <div><span>{t('Динамика к прошлому периоду')}</span><strong className={growth >= 0 ? 'positive' : 'negative'}>{growth >= 0 ? '+' : ''}{formatNumber(growth, locale, 1)}%</strong></div>
+        <div><span>{t('Периодов в отчёте')}</span><strong>{formatNumber(activeReport.points.length, locale)}</strong></div>
+      </div>
+      <div className="brand-orders-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={activeReport.points} margin={{ top: 12, right: 20, left: 0, bottom: 0 }}>
+            <defs><linearGradient id="brand-orders-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#e7b24f" stopOpacity={0.36} /><stop offset="100%" stopColor="#e7b24f" stopOpacity={0} /></linearGradient></defs>
+            <CartesianGrid stroke="#29313c" strokeDasharray="3 6" vertical={false} />
+            <XAxis dataKey="period" tick={{ fill: '#74808d', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(period) => formatMonthYear(String(period), locale)} />
+            <YAxis tick={{ fill: '#74808d', fontSize: 10 }} axisLine={false} tickLine={false} width={56} tickFormatter={(value) => formatNumber(Number(value), locale)} />
+            <Tooltip contentStyle={{ background: '#151a21', border: '1px solid #3b4551', borderRadius: 5, color: '#e7eaf0', fontSize: 12 }} labelFormatter={(period) => formatMonthYear(String(period), locale)} formatter={(value) => [formatNumber(Number(value), locale), t('Заказы')]} />
+            <Area type="monotone" dataKey="total" name={t('Заказы бренда')} stroke="#e7b24f" strokeWidth={2.5} fill="url(#brand-orders-gradient)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+    {hasBreakdown ? <>
+      <SectionTitle title={t('Динамика по дистрибьюторам')} note={t('заказы по каждому партнёру')} />
+      <div className="distributor-chart-grid">
+        {activeReport.series.map((series, index) => <SeriesChart key={series.key} series={series} label={seriesLabel(series)} data={activeReport.points} color={seriesColors[index % seriesColors.length]} />)}
+      </div>
+    </> : <p className="section-note standalone" data-testid="status-no-breakdown">{t('В отчёте нет разбивки по дистрибьюторам — показан только общий итог.')}</p>}
+  </>;
+}
+
+function SeriesChart({ series, label, data, color }: { series: SalesSeries; label: string; data: SalesPoint[]; color: string }) {
+  const { locale, t } = useI18n();
+  const latest = Number(data.at(-1)?.[series.key] ?? 0);
+  return <section className="distributor-chart" data-testid={`chart-distributor-${label.toLowerCase().replace(/\s/g, '-')}`}>
+    <div className="distributor-chart-head"><div><span className="chart-color" style={{ background: color }} /><strong>{label}</strong></div><span>{formatNumber(latest, locale)} {t('заказов')}</span></div>
+    <ResponsiveContainer width="100%" height={168}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+        <CartesianGrid stroke="#27303a" strokeDasharray="3 6" vertical={false} />
+        <XAxis dataKey="period" tick={{ fill: '#6e7987', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(period) => formatMonthYear(String(period), locale)} />
+        <YAxis hide domain={['dataMin - 20', 'dataMax + 20']} />
+        <Tooltip contentStyle={{ background: '#151a21', border: '1px solid #3b4551', borderRadius: 5, color: '#e7eaf0', fontSize: 11 }} labelFormatter={(period) => formatMonthYear(String(period), locale)} formatter={(value) => [formatNumber(Number(value), locale), t('Заказы')]} />
+        <Line type="monotone" dataKey={series.key} name={label} stroke={color} strokeWidth={2.2} dot={false} activeDot={{ r: 4, fill: color }} />
+      </LineChart>
+    </ResponsiveContainer>
+  </section>;
+}

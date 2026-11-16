@@ -1,0 +1,369 @@
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Check, CloudOff, RefreshCw, X } from 'lucide-react';
+import { getGetDashboardQueryKey, getListFeedbackQueryKey, useCreateFeedback, type DashboardAction, type Insight, type Metric, type TemplateParams, type TimelineEvent, type Verdict } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { fill, formatCompactCurrency, formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
+import { useSession } from '@/lib/session';
+import type { GlossaryTerm } from '@/lib/i18n';
+
+export const demoSource = 'DEMO DATA';
+
+/** Translates a key and fills {params}, formatting numbers and ISO dates for the active language. */
+export function useText() {
+  const { locale, t } = useI18n();
+  return (key: string, params?: TemplateParams | Record<string, string | number>) => {
+    if (!params) return t(key);
+    const formatted: Record<string, string> = {};
+    for (const [name, value] of Object.entries(params)) {
+      if (typeof value === 'number') formatted[name] = name === 'amount' ? formatCompactCurrency(value, locale) : formatNumber(value, locale, Math.abs(value) < 100 ? 1 : 0);
+      else formatted[name] = /^\d{4}-\d{2}-\d{2}/.test(value) ? formatDate(value, locale) : value;
+    }
+    return fill(t(key), formatted);
+  };
+}
+
+export function SourcePill({ source = demoSource }: { source?: string }) {
+  const { t } = useI18n();
+  const sourceLabel = source === demoSource || source === 'MOCK'
+    ? t('ДАННЫЕ / ДЕМО')
+    : source === 'LIVE'
+      ? t('LIVE')
+      : source === 'REDSTAT'
+        ? t('SOURCE: REDSTAT')
+      : source === 'USER DATA'
+        ? t('source.user')
+        : t('Источник недоступен');
+  return (
+    <span className="source-pill" data-testid="status-data-source">
+      <span className="source-dot" />
+      {sourceLabel}
+    </span>
+  );
+}
+
+const statusLabels: Record<string, string> = {
+  SCALE: 'МАСШТАБИРОВАТЬ',
+  OPTIMIZE: 'ОПТИМИЗИРОВАТЬ',
+  DEFEND: 'ЗАЩИЩАТЬ',
+  FIX: 'ИСПРАВИТЬ',
+  WATCH: 'НАБЛЮДАТЬ',
+  KEEP: 'СОХРАНИТЬ',
+  REDUCE: 'СНИЗИТЬ',
+  STOP: 'ОСТАНОВИТЬ',
+  HIGH: 'ВЫСОКИЙ',
+  MEDIUM: 'СРЕДНИЙ',
+  LOW: 'НИЗКИЙ',
+  ACTIVE: 'АКТИВНА',
+  COMPLETE: 'ЗАВЕРШЕНА',
+  PLANNED: 'ЗАПЛАНИРОВАНА',
+  IN_STOCK: 'В НАЛИЧИИ',
+  LOW_STOCK: 'МАЛО ОСТАЛОСЬ',
+  NOT_CONNECTED: 'НЕ ПОДКЛЮЧЕНО',
+  CONNECTED: 'ПОДКЛЮЧЕНО',
+  ERROR: 'ОШИБКА',
+  DEMO: 'ДЕМО',
+  CONTENT: 'КОНТЕНТ',
+};
+
+export function statusLabel(value: string) {
+  return statusLabels[value] ?? 'Статус недоступен';
+}
+
+/**
+ * A term with a tap/hover explanation, so non-marketers can read the numbers.
+ * The bubble is positioned against the viewport so scrolling tables never clip it.
+ */
+export function Hint({ term, children }: { term: GlossaryTerm; children?: ReactNode }) {
+  const { t } = useI18n();
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const bubbleId = useId();
+  const open = position !== null;
+
+  const show = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(280, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(rect.left - 8, window.innerWidth - width - 12));
+    const below = rect.bottom + 8;
+    const top = below + 140 > window.innerHeight ? Math.max(12, rect.top - 148) : below;
+    setPosition({ top, left });
+  };
+  const hide = () => setPosition(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent | TouchEvent) => {
+      if (!ref.current?.contains(event.target as Node)) hide();
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') hide(); };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', hide, true);
+      window.removeEventListener('resize', hide);
+    };
+  }, [open]);
+
+  const canHover = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches;
+  return (
+    <span ref={ref} className={`hint ${open ? 'open' : ''}`} onMouseEnter={canHover ? show : undefined} onMouseLeave={canHover ? hide : undefined}>
+      {children}
+      <button
+        ref={triggerRef}
+        type="button"
+        className="hint-trigger"
+        aria-label={t('Что это значит')}
+        aria-expanded={open}
+        aria-describedby={open ? bubbleId : undefined}
+        onClick={(event) => { event.stopPropagation(); if (open && !canHover) hide(); else show(); }}
+        onFocus={(event) => { if (event.currentTarget.matches(':focus-visible')) show(); }}
+        onBlur={hide}
+        data-testid={`hint-${term.toLowerCase()}`}
+      >?</button>
+      {position && createPortal(<span role="tooltip" id={bubbleId} className="hint-bubble" style={{ top: position.top, left: position.left }}>{t(`glossary.${term}`)}</span>, document.body)}
+    </span>
+  );
+}
+
+export function LoadingState() {
+  return (
+    <div className="page fade-in" data-testid="status-loading" aria-busy="true">
+      <div className="skeleton" style={{ height: 46, width: '42%', marginBottom: 29 }} />
+      <div className="loading-grid">
+        <div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton" />
+        <div className="skeleton large wide" /><div className="skeleton large wide" />
+      </div>
+    </div>
+  );
+}
+
+export function ErrorState({ onRetry, source = demoSource }: { onRetry: () => void; source?: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="page" data-testid="status-error">
+      <div className="page-meta" style={{ marginBottom: 18 }}><SourcePill source={source} /></div>
+      <div className="error-box" role="alert">
+        <AlertTriangle size={22} />
+        <h3>{t('Сигнал недоступен')}</h3>
+        <p>{t('Источник не вернул корректный снимок данных. Повторите подключение.')}</p>
+        <button className="btn secondary" onClick={onRetry} data-testid="button-retry">
+          <RefreshCw size={14} /> {t('Повторить')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const emptyLabelKeys: Record<string, string> = {
+  metrics: 'empty.metrics',
+  'timeline events': 'empty.timeline',
+  'market signal': 'empty.signal',
+  impact: 'empty.impact',
+  breakdown: 'empty.breakdown',
+  integrations: 'empty.integrations',
+  actions: 'empty.actions',
+  channels: 'empty.channels',
+  товаров: 'empty.products',
+  кампаний: 'empty.campaigns',
+  competitors: 'empty.competitors',
+  'seller offers': 'empty.sellerOffers',
+  'comparable products': 'empty.comparableProducts',
+  recommendations: 'empty.recommendations',
+  Strengths: 'empty.strengths',
+  Weaknesses: 'empty.weaknesses',
+};
+
+export function EmptyState({ label, message }: { label: string; message?: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="empty-box" data-testid={`empty-${label.toLowerCase().replace(/\s/g, '-')}`}>
+      <CloudOff size={24} />
+      <p>{message ?? <>{t('В этом снимке нет данных:')} {t(emptyLabelKeys[label] ?? 'empty.items')}.</>}</p>
+    </div>
+  );
+}
+
+function metricTerm(label: string): GlossaryTerm | undefined {
+  if (label.includes('ROAS')) return 'ROAS';
+  if (label.includes('GMV') || label === 'metric.revenue') return 'GMV';
+  if (label === 'metric.aov') return 'AOV';
+  if (label.includes('STOCK')) return 'stock';
+  if (label === 'CTR' || label === 'CPC' || label === 'CVR' || label === 'CPO') return label;
+  return undefined;
+}
+
+export function MetricCards({ metrics }: { metrics: Metric[] }) {
+  const { locale, t } = useI18n();
+  const display = (metric: Metric) => {
+    if (metric.amount == null || !metric.unit) return t(metric.value);
+    if (metric.unit === 'CURRENCY') return formatCompactCurrency(metric.amount, locale);
+    if (metric.unit === 'MULTIPLIER') return `${formatNumber(metric.amount, locale, 2)}x`;
+    if (metric.unit === 'DAYS') return fill(t('metric.days'), { days: formatNumber(metric.amount, locale) });
+    return formatNumber(metric.amount, locale);
+  };
+  if (!metrics.length) return <div className="card"><EmptyState label="metrics" /></div>;
+  return (
+    <div className="grid grid-4">
+      {metrics.map((metric, index) => {
+        const term = metricTerm(metric.label);
+        return (
+          <div className="card metric-card fade-in" key={`${metric.label}-${index}`} data-testid={`metric-card-${index}`}>
+            <div className="eyebrow">{term ? <Hint term={term}>{t(metric.label)}</Hint> : t(metric.label)}</div>
+            <div className="metric-value" data-testid={`text-metric-${index}`}>{display(metric)}</div>
+            <div className={`metric-change ${metric.positive ? 'positive' : 'negative'}`}>
+              {metric.changePct === null ? <span className="neutral">—</span> : <>{metric.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {metric.changePct !== undefined ? `${metric.changePct > 0 ? '+' : ''}${formatNumber(metric.changePct, locale, 1)}%` : t(metric.change)}</>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function SummaryCard({ insight, compact = false }: { insight: Insight; compact?: boolean }) {
+  const { t } = useI18n();
+  const text = useText();
+  const title = insight.titleKey ? text(insight.titleKey, insight.params) : t(insight.title);
+  const body = insight.bodyKey ? text(insight.bodyKey, insight.params) : t(insight.body);
+  const impact = insight.impactAmount !== undefined && insight.impact === 'summary.impact' ? text('summary.impact', { amount: insight.impactAmount }) : t(insight.impact);
+  return (
+    <div className={`card summary ${compact ? 'signal-card' : ''}`} data-testid="card-ai-summary">
+      <div className="summary-top">
+        <span className="signal-mark"><BrainCircuit size={14} /></span>
+        <span className="eyebrow">{t(insight.eyebrow || 'Сигнал ИИ')}</span>
+      </div>
+      <h2 className="summary-title">{title}</h2>
+      <p className="summary-body">{body}</p>
+      <div className="summary-foot">
+        <span className="confidence"><Hint term="confidence">{t('УВЕРЕННОСТЬ')} {insight.confidence}%</Hint></span>
+        {impact !== '—' && <span className="impact">{t('ОЖИДАЕМЫЙ ЭФФЕКТ')} {impact}</span>}
+        <span>{t(insight.severity === 'HIGH' ? 'ВЫСОКИЙ' : insight.severity === 'MEDIUM' ? 'СРЕДНИЙ' : 'НИЗКИЙ')} {t('СИГНАЛ')}</span>
+      </div>
+    </div>
+  );
+}
+
+export function ConfidenceBasisView({ basis }: { basis: DashboardAction['confidenceBasis'] }) {
+  const { t } = useI18n();
+  return (
+    <details className="confidence-basis">
+      <summary>{t('Почему такая уверенность')} · {fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: basis.supporting, total: basis.total })}</summary>
+      <ul>
+        {basis.signals.map((signal) => (
+          <li key={signal.key} className={signal.met ? 'met' : 'unmet'}>
+            {signal.met ? <Check size={12} aria-hidden /> : <X size={12} aria-hidden />}
+            <span className="sr-only">{signal.met ? '✓' : '✗'}</span>
+            {t(`signal.${signal.key}`)}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+const verdicts: Verdict[] = ['WORKED', 'NOT_WORKED', 'TOO_EARLY'];
+
+function FeedbackButtons({ action }: { action: DashboardAction }) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const create = useCreateFeedback();
+  const [saved, setSaved] = useState<Verdict | undefined>(action.verdict);
+  if (!action.key) return null;
+  const send = (verdict: Verdict) => {
+    setSaved(verdict);
+    create.mutate({ data: { actionKey: action.key!, actionType: action.type, sku: action.sku, object: action.object, verdict } }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListFeedbackQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey().slice(0, 1) });
+      },
+      onError: () => setSaved(action.verdict),
+    });
+  };
+  return (
+    <div className="feedback-row" role="group" aria-label={t('action.feedback.question')}>
+      <span>{t('action.feedback.question')}</span>
+      {verdicts.map((verdict) => (
+        <button type="button" key={verdict} className={`verdict ${verdict.toLowerCase()} ${saved === verdict ? 'active' : ''}`} aria-pressed={saved === verdict} disabled={create.isPending} onClick={() => send(verdict)} data-testid={`verdict-${verdict.toLowerCase()}`}>
+          {t(`verdict.${verdict}`)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function ActionCard({ action, index }: { action: DashboardAction; index: number }) {
+  const { t } = useI18n();
+  const text = useText();
+  const { signedIn } = useSession();
+  const type = action.type.toLowerCase();
+  const explanation = action.reasonKey ? text(action.reasonKey, action.params) : t(action.explanation);
+  const recommendation = action.recommendationKey ? text(action.recommendationKey, action.params) : t(action.recommendation);
+  const impact = action.impactAmount !== undefined && action.impact === 'action.impact' ? text('action.impact', { amount: action.impactAmount }) : t(action.impact);
+  return (
+    <div className={`card action-card ${type} fade-in stagger-${Math.min(index + 1, 3)}`} data-testid={`card-action-${index}`}>
+      <div className="action-top">
+        <span className={`action-type ${type}`}>{t(action.type === 'RESTOCK' ? 'ДОЗАКАЗАТЬ' : statusLabel(action.type))}</span>
+        <span className="eyebrow">{impact}</span>
+      </div>
+      <div className="action-object">{t(action.object)}</div>
+      <p className="action-explanation">{explanation}</p>
+      <div className="action-recommendation"><strong>{t('Далее:')}</strong> {recommendation}</div>
+      <div className="confidence-bar">
+        <span><Hint term="confidence">{t('уверенность')}</Hint></span>
+        <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={action.confidence} aria-label={t('уверенность')}><span style={{ width: `${action.confidence}%` }} /></div>
+        <span>{action.confidence}%</span>
+      </div>
+      {action.confidenceBasis && <ConfidenceBasisView basis={action.confidenceBasis} />}
+      {signedIn && <FeedbackButtons action={action} />}
+    </div>
+  );
+}
+
+export function Timeline({ events }: { events: TimelineEvent[] }) {
+  const { locale, t } = useI18n();
+  return (
+    <div className="card">
+      <div className="card-header"><span className="card-title">{t('Лента сигналов')}</span><span className="card-kicker">{t('последние 7 дней')}</span></div>
+      {events.length ? <div className="timeline">
+        {events.map((event) => (
+          <div className="timeline-item" key={event.id} data-testid={`timeline-event-${event.id}`}>
+            <span className="timeline-node" />
+            <span className="timeline-date">{formatDate(event.date, locale)}</span>
+            <div><div className="timeline-label">{t(event.label)}</div><div className="timeline-detail">{t(event.detail)}</div></div>
+          </div>
+        ))}
+      </div> : <EmptyState label="timeline events" />}
+    </div>
+  );
+}
+
+export function PageHead({ eyebrow, title, subtitle, source, refreshedAt, action }: { eyebrow: string; title: string; subtitle: string; source?: string; refreshedAt?: string; action?: ReactNode }) {
+  const { locale, t } = useI18n();
+  return (
+    <div className="page-head">
+      <div><div className="eyebrow">{t(eyebrow)}</div><h1 className="page-title">{t(title)}</h1><p className="page-subtitle">{t(subtitle)}</p></div>
+      <div className="page-meta">
+        {action}
+        {source && <SourcePill source={source} />}
+        {refreshedAt && <span>{t('ОБНОВЛЕНО')} {formatTime(refreshedAt, locale)}</span>}
+      </div>
+    </div>
+  );
+}
+
+export function PageFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <main className={`page fade-in ${className}`}>{children}</main>;
+}
+
+export function SectionTitle({ title, note, children }: { title: ReactNode; note?: ReactNode; children?: ReactNode }) {
+  return <div className="section-row"><h2 className="section-title">{title}</h2>{note && <span className="section-note">{note}</span>}{children}</div>;
+}

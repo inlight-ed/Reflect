@@ -1,0 +1,1479 @@
+# SHIFT/MARKET — AI Commerce Intelligence Platform
+
+## 0. Твоя задача
+
+Ты — senior full-stack engineer, product designer и AI product architect.
+
+Нужно развить существующий MVP приложения SHIFT/MARKET в полноценный качественный prototype / MVP аналитической платформы для продавцов и брендов на Kaspi.
+
+ВАЖНО:
+
+У меня уже есть существующий интерфейс и визуальный стиль приложения. Не создавай приложение с нуля и не заменяй текущий дизайн без необходимости.
+
+Сначала проанализируй существующий код, структуру проекта, routing, components, styles и data model.
+
+Текущий интерфейс является визуальным baseline.
+
+Основная страница уже существует:
+
+`/advertising`
+
+Она выполнена в тёмной теме с визуальным стилем:
+
+* dark UI;
+* минималистичный B2B SaaS;
+* lime / neon green accent;
+* тонкие borders;
+* крупная типографика;
+* аналитический интерфейс;
+* плотная, но не перегруженная информация;
+* визуальный стиль modern fintech / analytics product.
+
+Сохрани этот язык дизайна.
+
+---
+
+# 1. Product vision
+
+SHIFT/MARKET — не обычный BI-dashboard.
+
+Это:
+
+> AI Commerce Intelligence Platform
+
+для ответа на четыре вопроса:
+
+1. Что происходит с продажами?
+2. Почему это происходит?
+3. Что нужно сделать?
+4. Какой результат можно ожидать от этого действия?
+
+Главный product loop:
+
+DATA → ANALYSIS → DIAGNOSIS → HYPOTHESIS → ACTION → RESULT → LEARNING
+
+Пользователь не должен самостоятельно изучать десятки графиков.
+
+Система должна превращать данные в конкретные бизнес-рекомендации.
+
+Пример:
+
+Плохо:
+
+> ROAS снизился на 18%.
+
+Хорошо:
+
+> ROAS снизился на 18%. Основной фактор — рост CPC на 21% при стабильной конверсии. При этом SKU имеет conversion rate выше среднего по аккаунту.
+>
+> Рекомендация: не увеличивать общий бюджет. Перераспределить бюджет на SKU X и снизить ставку для SKU Y.
+>
+> Ожидаемый потенциал: +8–12% revenue при сохранении текущего бюджета.
+
+---
+
+# 2. Основные разделы приложения
+
+В левом меню должны быть:
+
+1. Обзор
+2. Товары
+3. Реклама
+4. Внешние медиа
+5. Анализ контента
+
+Дополнительно можно добавить:
+
+6. Конкуренты
+7. Настройки / Integrations
+
+Но не перегружай navigation.
+
+---
+
+# 3. Главный dashboard — /overview
+
+Главная задача страницы:
+
+не показывать все данные, а отвечать:
+
+> Что мне нужно знать сегодня?
+
+Верхний блок:
+
+## AI Executive Summary
+
+Пример:
+
+> Продажи за последние 30 дней выросли на 12%.
+>
+> Рост обеспечен SKU A (+41%) и SKU B (+28%), а также внешней Meta-активацией.
+>
+> При этом эффективность Kaspi Ads ухудшилась: CPC +17%, ROAS -11%.
+>
+> Главная возможность роста — перераспределение бюджета из размещения "Карточки конкурентов" в "Поиск".
+
+Под summary показать:
+
+### TOP ACTIONS
+
+3–5 конкретных действий:
+
+1. SCALE
+2. OPTIMIZE
+3. DEFEND
+4. FIX
+5. WATCH
+
+Каждое действие должно содержать:
+
+* объект;
+* проблема / возможность;
+* краткое объяснение;
+* рекомендуемое действие;
+* confidence;
+* estimated impact.
+
+Например:
+
+### SCALE
+
+SKU L'Oréal X
+
+Revenue +38%
+
+ROAS 5.2x
+
+High conversion
+
+> Увеличить рекламное покрытие.
+
+Estimated opportunity:
+
++320K ₸ / месяц
+
+Confidence: 82%
+
+---
+
+# 4. Раздел /advertising
+
+Сохрани текущую страницу:
+
+# Где покупать внимание
+
+Subtitle:
+
+> Сравнивайте не только расход, но и качество спроса, который он покупает.
+
+Существующие KPI:
+
+* Расход
+* Выручка с рекламы
+* ROAS
+
+Сохрани их.
+
+Но добавь:
+
+* Orders
+* CTR
+* CPC
+* Conversion Rate
+* CPO
+* share of advertising sales
+
+Не перегружай KPI-карточками.
+
+Основные 3 KPI должны оставаться визуально главными.
+
+---
+
+# 5. Advertising Intelligence
+
+Добавь под KPI блок:
+
+## AI SIGNAL
+
+Например:
+
+> SEARCH сейчас является наиболее эффективным placement.
+>
+> ROAS 4.32x при CTR 5.8%.
+>
+> Однако CPC на 18% выше среднего.
+>
+> Система рекомендует не увеличивать общий бюджет, а оптимизировать ставки для наиболее конверсионных SKU.
+
+Показывать:
+
+* Severity
+* Confidence
+* Expected impact
+
+---
+
+# 6. Placement analysis
+
+Существующий блок:
+
+"Размещения"
+
+сохранить.
+
+Но расширить таблицу:
+
+| Placement | Spend | Revenue | CTR | CPC | CVR | ROAS | Status | Recommendation |
+
+Status:
+
+* SCALE
+* KEEP
+* OPTIMIZE
+* REDUCE
+* STOP
+
+Пример:
+
+Search
+ROAS 4.32x
+Status: SCALE
+
+Catalog
+ROAS 3.70x
+Status: KEEP
+
+Recommendations
+ROAS 2.96x
+Status: OPTIMIZE
+
+Competitor cards
+ROAS 2.56x
+Status: REDUCE
+
+ВАЖНО:
+
+Не использовать случайную генерацию статусов.
+
+Status должен рассчитываться на основе понятного scoring engine.
+
+---
+
+# 7. Recommendation Engine
+
+Создай отдельный модуль:
+
+`recommendationEngine`
+
+Он должен принимать:
+
+* spend;
+* revenue;
+* ROAS;
+* CTR;
+* CPC;
+* CVR;
+* CPO;
+* historical performance;
+* account benchmarks;
+* product performance;
+* competitor pressure;
+* stock availability.
+
+И возвращать:
+
+```typescript
+{
+  type: "SCALE" | "KEEP" | "OPTIMIZE" | "REDUCE" | "STOP",
+  reason: string,
+  recommendation: string,
+  confidence: number,
+  estimatedImpact?: number
+}
+```
+
+Не зашивай рекомендации прямо в UI.
+
+Бизнес-логика должна быть отделена от компонентов.
+
+---
+
+# 8. Event Timeline
+
+Это одна из ключевых функций продукта.
+
+Создай timeline, который позволяет видеть:
+
+* продажи;
+* рекламу;
+* внешние медиа;
+* изменение цены;
+* промо;
+* изменение контента;
+* действия конкурентов.
+
+Например:
+
+10 Aug — Meta Campaign START
+
+12 Aug — Price -5%
+
+15 Aug — Kaspi Ads budget +30%
+
+18 Aug — Competitor X price -10%
+
+20 Aug — New Creative
+
+Timeline должен отображаться поверх временного графика продаж.
+
+Пользователь должен визуально видеть:
+
+BEFORE → DURING → AFTER
+
+для каждой рекламной активации.
+
+---
+
+# 9. Раздел /external-media
+
+Название:
+
+# Внешнее влияние
+
+Subtitle:
+
+> Оценивайте, как внешние рекламные активности меняют продажи на Kaspi.
+
+Источники:
+
+* Meta
+* Google
+* TikTok
+* Influencer
+* Other
+
+На первом этапе данные могут работать через mock connector.
+
+Но архитектура должна позволять подключить реальные API позднее.
+
+---
+
+# 10. External Campaign Calendar
+
+Создать возможность добавить событие:
+
+Fields:
+
+* Campaign name
+* Channel
+* Start date
+* End date
+* Budget
+* Brand
+* SKU / products
+* Campaign objective
+* Target audience
+* Notes
+
+После добавления событие появляется на timeline.
+
+---
+
+# 11. Campaign impact analysis
+
+Для каждой кампании показывать:
+
+### BEFORE
+
+GMV
+
+Orders
+
+Units
+
+AOV
+
+### DURING
+
+GMV
+
+Orders
+
+Units
+
+AOV
+
+### AFTER
+
+GMV
+
+Orders
+
+Units
+
+AOV
+
+И рассчитывать:
+
+* growth vs previous period;
+* growth vs baseline;
+* estimated incremental sales;
+* confidence.
+
+Пример:
+
+Actual GMV:
+
+1.71M ₸
+
+Expected baseline:
+
+1.32M ₸
+
+Estimated incremental:
+
++390K ₸
+
+Confidence:
+
+74%
+
+---
+
+# 12. IMPORTANT — attribution
+
+Не называй разницу между actual sales и baseline "точным влиянием рекламы".
+
+Используй:
+
+> Estimated incremental sales
+
+или:
+
+> Estimated impact
+
+Показывай confidence.
+
+В MVP можно использовать statistical baseline / mock ML model.
+
+Архитектура должна позволять заменить baseline на CatBoost в будущем.
+
+---
+
+# 13. ML architecture
+
+Основная ML-модель проекта — CatBoost.
+
+Но НЕ используй CatBoost как LLM replacement.
+
+Разделение ответственности:
+
+### CatBoost
+
+Используется для:
+
+* sales forecasting;
+* baseline prediction;
+* anomaly detection;
+* SKU potential scoring;
+* incremental sales estimation;
+* propensity / opportunity scoring.
+
+### LLM
+
+Используется для:
+
+* объяснения результатов;
+* формирования гипотез;
+* генерации рекомендаций;
+* natural language analysis;
+* ответа на вопросы пользователя.
+
+### Rules Engine
+
+Используется для:
+
+* deterministic business logic;
+* thresholds;
+* benchmarks;
+* validation;
+* guardrails.
+
+---
+
+# 14. MVP ML implementation
+
+Если полноценная CatBoost model training pipeline пока невозможна, НЕ симулируй наличие обученной ML-модели в интерфейсе.
+
+Создай интерфейс:
+
+`PredictionEngine`
+
+и реализацию:
+
+`BaselinePredictionEngine`
+
+которая работает на statistical baseline.
+
+Подготовь архитектуру:
+
+```text
+PredictionEngine
+    ↓
+BaselinePredictionEngine
+
+Future:
+CatBoostPredictionEngine
+```
+
+Таким образом позже CatBoost можно подключить без изменения UI.
+
+---
+
+# 15. Sales Analytics
+
+Раздел:
+
+# Товары
+
+Показывать:
+
+* SKU
+* Product
+* Category
+* Revenue
+* Orders
+* Units
+* AOV
+* Conversion
+* Advertising spend
+* ROAS
+* Stock
+* Price
+* Competitor price
+* Trend
+
+Добавить Product Opportunity Matrix.
+
+Категории:
+
+### SCALE
+
+Хорошая эффективность + потенциал увеличения трафика.
+
+### FIX
+
+Высокий traffic + низкая conversion.
+
+### DEFEND
+
+Хороший продукт, но усиливается конкурентное давление.
+
+### STOP
+
+Низкая эффективность и низкий потенциал.
+
+---
+
+# 16. Kaspi API integration
+
+Архитектура должна предусматривать реальное подключение Kaspi Seller API.
+
+Пользователь должен иметь возможность добавить:
+
+`Kaspi API Token`
+
+ВАЖНО:
+
+* не хранить token в frontend;
+* не показывать token после сохранения;
+* хранить секрет только на backend;
+* использовать environment variables / encrypted secrets;
+* никогда не логировать token;
+* использовать отдельный connector service.
+
+Создать abstraction:
+
+`KaspiConnector`
+
+Методы примерно:
+
+```typescript
+getOrders()
+getOrderEntries()
+getProducts()
+getSales()
+getInventory()
+```
+
+Если конкретный endpoint отсутствует в официальной API документации, НЕ придумывай его.
+
+Показывай:
+
+> Not available through current API
+
+и используй mock data для демонстрации.
+
+---
+
+# 17. Data architecture
+
+Не связывать UI напрямую с API.
+
+Архитектура:
+
+```text
+Kaspi API
+     ↓
+Connector
+     ↓
+Raw data
+     ↓
+Normalizer
+     ↓
+Database
+     ↓
+Analytics layer
+     ↓
+AI Agents
+     ↓
+UI
+```
+
+Используй PostgreSQL для persistent data.
+
+Создай отдельные таблицы / entities:
+
+* workspaces
+* users
+* integrations
+* products
+* orders
+* order_items
+* sales_daily
+* advertising_campaigns
+* advertising_daily
+* external_campaigns
+* competitor_snapshots
+* content_audits
+* events
+* recommendations
+* ai_insights
+
+---
+
+# 18. Competitor Intelligence
+
+Создай раздел:
+
+# Конкурентная среда
+
+Источником данных в будущем должен выступать Redstat MCP:
+
+`https://mcp.redstat.kz/mcp`
+
+ВАЖНО:
+
+Не придумывай методы Redstat MCP.
+
+Сначала создай отдельный:
+
+`RedstatConnector`
+
+и интерфейс:
+
+```typescript
+getCategoryData()
+getCompetitorData()
+getProductData()
+getMarketDynamics()
+```
+
+Если конкретный MCP method пока невозможно подтвердить или подключить, использовать mock adapter.
+
+Не делать вид, что данные Redstat реальные.
+
+UI должен показывать источник данных:
+
+`SOURCE: REDSTAT`
+
+или:
+
+`SOURCE: MOCK`
+
+---
+
+# 19. Competitor Agent
+
+Агент должен анализировать:
+
+* competitor price;
+* competitor position;
+* rating;
+* reviews;
+* estimated sales;
+* availability;
+* market share / sales index;
+* category dynamics.
+
+Формировать:
+
+## Competitive pressure
+
+LOW / MEDIUM / HIGH
+
+И гипотезы:
+
+> Competitor X снизил цену на 9% и улучшил позицию на 6 пунктов.
+
+Recommendation:
+
+> Не увеличивать CPC до восстановления price competitiveness.
+
+---
+
+# 20. Content Analysis
+
+Раздел:
+
+# Анализ контента
+
+Пользователь должен выбрать SKU.
+
+Показывать:
+
+## CONTENT SCORE
+
+0–100
+
+Разбивка:
+
+* Main image
+* Title
+* Description
+* Attributes
+* USP
+* Visual hierarchy
+* Reviews
+* Completeness
+
+Создать AI Content Agent.
+
+Он должен формировать:
+
+### Problems
+
+### Recommendations
+
+### Expected impact
+
+---
+
+# 21. AI Content Agent
+
+Архитектура должна предусматривать:
+
+Input:
+
+* product title;
+* description;
+* attributes;
+* images;
+* reviews;
+* rating.
+
+Output:
+
+```typescript
+{
+  score: number,
+  strengths: string[],
+  weaknesses: string[],
+  recommendations: string[],
+  priority: "HIGH" | "MEDIUM" | "LOW"
+}
+```
+
+Не выдавай субъективное мнение как объективный факт.
+
+Формулировки:
+
+> "AI assessment"
+
+> "Potential improvement"
+
+> "Hypothesis"
+
+---
+
+# 22. AI Agents
+
+Создай модульную архитектуру:
+
+```text
+agents/
+
+SalesAgent
+AdvertisingAgent
+ExternalMediaAgent
+CompetitorAgent
+ContentAgent
+InventoryAgent
+StrategyAgent
+```
+
+Каждый агент должен иметь:
+
+```typescript
+analyze(input): AgentResult
+```
+
+AgentResult:
+
+```typescript
+{
+  summary: string,
+  findings: Finding[],
+  hypotheses: Hypothesis[],
+  recommendations: Recommendation[],
+  confidence: number
+}
+```
+
+---
+
+# 23. Strategy Agent
+
+Это главный AI layer.
+
+Он получает результаты других агентов.
+
+Например:
+
+SalesAgent
++
+AdvertisingAgent
++
+CompetitorAgent
++
+ContentAgent
++
+InventoryAgent
+
+→ StrategyAgent
+
+StrategyAgent должен отвечать:
+
+1. What happened?
+2. Why?
+3. What matters most?
+4. What should we do?
+5. Expected impact?
+6. Confidence?
+
+---
+
+# 24. AI chat
+
+Добавь возможность спросить систему:
+
+> Почему продажи упали?
+
+> Какие SKU стоит масштабировать?
+
+> Почему ROAS снизился?
+
+> Какой конкурент сейчас представляет наибольшую угрозу?
+
+> Что произойдет, если увеличить рекламный бюджет на 20%?
+
+AI должен использовать данные приложения, а не придумывать ответы.
+
+Если данных недостаточно:
+
+> Недостаточно данных для уверенного вывода.
+
+Не hallucinate.
+
+---
+
+# 25. Recommendation confidence
+
+Каждая AI recommendation должна иметь:
+
+### Confidence
+
+Например:
+
+82%
+
+И объяснение:
+
+> High confidence — подтверждается 4 независимыми сигналами.
+
+или:
+
+> Medium confidence — недостаточно данных по external media attribution.
+
+---
+
+# 26. Data freshness
+
+В интерфейсе уже есть:
+
+`DATA / LIVE`
+
+и:
+
+`SYNC / 09:42`
+
+Сохрани этот элемент.
+
+Сделай реальные состояния:
+
+* LIVE
+* SYNCING
+* STALE
+* ERROR
+* MOCK
+
+Например:
+
+`DATA / MOCK`
+
+если используются демонстрационные данные.
+
+Не показывай `LIVE`, если реального подключения нет.
+
+Это принципиально важно.
+
+---
+
+# 27. Mock data
+
+Для MVP создай realistic mock dataset.
+
+Не используй случайные числа.
+
+Данные должны быть логически связаны.
+
+Например:
+
+* увеличение advertising spend может приводить к увеличению clicks;
+* clicks × conversion = orders;
+* orders × AOV ≈ revenue;
+* CPC = spend / clicks;
+* CPO = spend / orders;
+* ROAS = revenue / spend.
+
+Создай минимум:
+
+* 30 SKU;
+* 90 дней sales history;
+* 30 дней advertising history;
+* 10 competitors;
+* 10 external campaigns/events;
+* price history;
+* inventory history.
+
+Используй реалистичные сезонные колебания.
+
+---
+
+# 28. Analytics calculations
+
+Все базовые метрики должны считаться программно.
+
+Не хардкодить значения в UI.
+
+Формулы:
+
+```text
+CTR = Clicks / Impressions
+
+CPC = Spend / Clicks
+
+CVR = Orders / Clicks
+
+CPO = Spend / Orders
+
+ROAS = Revenue / Spend
+
+AOV = Revenue / Orders
+
+Revenue per click = Revenue / Clicks
+```
+
+Добавь защиту от division by zero.
+
+---
+
+# 29. Benchmarks
+
+Создай benchmark layer.
+
+Например:
+
+* account benchmark;
+* category benchmark;
+* placement benchmark.
+
+Не используй реальные отраслевые benchmark numbers как факт без источника.
+
+Для MVP использовать synthetic benchmark data и явно маркировать:
+
+`DEMO BENCHMARK`
+
+---
+
+# 30. Design requirements
+
+Сохрани текущий дизайн SHIFT/MARKET.
+
+Основные принципы:
+
+* dark background;
+* lime accent;
+* white / grey typography;
+* thin borders;
+* restrained cards;
+* large typography;
+* minimal rounded corners;
+* no gradients;
+* no excessive shadows;
+* no colorful dashboards;
+* no generic admin-panel aesthetic.
+
+Не использовать:
+
+* огромные pie charts;
+* excessive illustrations;
+* emojis;
+* cartoon icons;
+* rainbow charts;
+* unnecessary animations.
+
+Интерфейс должен выглядеть как:
+
+premium B2B analytics / fintech / intelligence platform.
+
+---
+
+# 31. UX requirements
+
+Пользователь должен понимать страницу за 5 секунд.
+
+Каждая страница должна отвечать на вопрос.
+
+Advertising:
+
+> Где покупать внимание?
+
+Products:
+
+> Какие товары масштабировать?
+
+External media:
+
+> Что реально влияет на продажи?
+
+Competitors:
+
+> Кто забирает спрос?
+
+Content:
+
+> Что мешает конверсии?
+
+Overview:
+
+> Что мне делать сегодня?
+
+---
+
+# 32. Do not overbuild
+
+Это MVP.
+
+НЕ нужно сейчас создавать:
+
+* сложную RBAC;
+* billing;
+* multi-tenant enterprise permissions;
+* mobile app;
+* advanced notification system;
+* dozens of integrations;
+* production-grade ML training infrastructure.
+
+Но код должен быть архитектурно готов к ним.
+
+---
+
+# 33. Technical quality
+
+Перед реализацией:
+
+1. Проанализируй существующий project structure.
+2. Не ломай существующие routes.
+3. Не удаляй существующий UI.
+4. Reuse existing components.
+5. Reuse existing styling system.
+6. Refactor only when necessary.
+7. Keep data layer separate from UI.
+8. Keep AI agents separate from API connectors.
+9. Keep calculations separate from components.
+10. Use TypeScript types throughout.
+
+---
+
+# 34. Error states
+
+Обязательно реализовать:
+
+* API error;
+* missing token;
+* expired token;
+* empty data;
+* stale data;
+* loading;
+* sync in progress;
+* unavailable connector;
+* insufficient data for AI recommendation.
+
+Каждое состояние должно быть понятно пользователю.
+
+---
+
+# 35. Loading states
+
+Не показывай пустой экран.
+
+Используй skeleton loaders.
+
+Для AI:
+
+> Анализируем данные…
+
+или
+
+> Проверяем продажи, рекламу и конкурентную среду…
+
+---
+
+# 36. Source transparency
+
+Каждая важная цифра должна иметь возможность показать источник.
+
+Например:
+
+`SOURCE: KASPI API`
+
+`SOURCE: KASPI ADS`
+
+`SOURCE: REDSTAT`
+
+`SOURCE: META`
+
+`SOURCE: DEMO DATA`
+
+Не создавай ложное ощущение реальной интеграции.
+
+---
+
+# 37. Demo mode
+
+Создай полноценный Demo Mode.
+
+В нём пользователь может открыть приложение без API token.
+
+В header:
+
+`DATA / DEMO`
+
+И все данные работают на mock dataset.
+
+Когда реальный Kaspi token подключен:
+
+`DATA / LIVE`
+
+---
+
+# 38. Settings / Integrations
+
+Создай:
+
+## Integrations
+
+### Kaspi
+
+Status:
+
+NOT CONNECTED / CONNECTED / ERROR
+
+Поле:
+
+Kaspi API Token
+
+Кнопки:
+
+Connect
+
+Test connection
+
+Sync now
+
+---
+
+### Redstat
+
+Status:
+
+NOT CONNECTED / CONNECTED
+
+---
+
+### External Media
+
+Meta
+
+Google
+
+TikTok
+
+Пока можно использовать Demo Connector.
+
+---
+
+# 39. Important security requirements
+
+НИКОГДА:
+
+* не хранить API token в localStorage;
+* не отправлять token в frontend;
+* не писать token в logs;
+* не отображать token;
+* не commit secrets в repository.
+
+Использовать server-side secrets / environment variables.
+
+---
+
+# 40. Final architecture
+
+Целевая архитектура:
+
+```text
+                    SHIFT / MARKET
+                         │
+                    FRONTEND
+                         │
+                    API / BACKEND
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+     KASPI           REDSTAT        MEDIA APIs
+   Connector        Connector       Connectors
+        │                │                │
+        └────────────────┼────────────────┘
+                         ↓
+                    DATA LAYER
+                         ↓
+                    ANALYTICS
+                         ↓
+             ┌───────────┴───────────┐
+             │                       │
+          ML ENGINE              RULE ENGINE
+             │                       │
+             └───────────┬───────────┘
+                         ↓
+                     AI AGENTS
+                         ↓
+                  STRATEGY AGENT
+                         ↓
+                RECOMMENDATION ENGINE
+                         ↓
+                       UI
+```
+
+---
+
+# 41. Implementation order
+
+Не пытайся реализовать всё одновременно.
+
+Работай в следующем порядке.
+
+## STEP 1
+
+Проанализировать существующий проект и сохранить текущий UI.
+
+## STEP 2
+
+Создать normalized data model.
+
+## STEP 3
+
+Создать realistic Demo Dataset.
+
+## STEP 4
+
+Создать Analytics Engine.
+
+## STEP 5
+
+Создать Recommendation Engine.
+
+## STEP 6
+
+Добавить AI Insights в существующую страницу `/advertising`.
+
+## STEP 7
+
+Создать `/overview`.
+
+## STEP 8
+
+Создать `/products`.
+
+## STEP 9
+
+Создать `/external-media` + Event Calendar.
+
+## STEP 10
+
+Создать `/competitors`.
+
+## STEP 11
+
+Создать `/content`.
+
+## STEP 12
+
+Создать connector architecture для Kaspi / Redstat / Media.
+
+## STEP 13
+
+Создать Demo Mode / Live Mode.
+
+## STEP 14
+
+Добавить AI Strategy Agent.
+
+---
+
+# 42. Acceptance criteria
+
+MVP считается успешным, если:
+
+### Dashboard
+
+* пользователь понимает состояние бизнеса за 5 секунд;
+* есть AI Executive Summary;
+* есть Top Actions.
+
+### Advertising
+
+* видны основные рекламные KPI;
+* placement comparison работает;
+* recommendation engine формирует рекомендации;
+* есть AI diagnosis.
+
+### Sales
+
+* есть динамика продаж;
+* есть SKU analysis;
+* есть opportunity matrix.
+
+### External media
+
+* можно создавать campaign events;
+* события отображаются на timeline;
+* можно сравнивать before/during/after;
+* считается estimated incremental impact.
+
+### Competitors
+
+* отображается конкурентная динамика;
+* есть competitive pressure;
+* есть tactical recommendations.
+
+### Content
+
+* есть content score;
+* есть AI assessment;
+* есть конкретные рекомендации.
+
+### Integrations
+
+* есть Kaspi connector abstraction;
+* есть Redstat connector abstraction;
+* есть demo connectors;
+* secrets безопасны.
+
+### AI
+
+* AI не придумывает данные;
+* AI использует только доступный dataset;
+* каждая рекомендация имеет confidence;
+* при недостатке данных AI сообщает об этом.
+
+---
+
+# 43. Очень важный product principle
+
+Не превращай приложение в "ещё один dashboard".
+
+Каждый экран должен отвечать:
+
+> SO WHAT?
+
+То есть после каждой аналитики пользователь должен понимать:
+
+**Что произошло?**
+
+↓
+
+**Почему?**
+
+↓
+
+**Что делать?**
+
+↓
+
+**Какой потенциальный эффект?**
+
+↓
+
+**Насколько мы уверены?**
+
+Именно это является главным отличием SHIFT/MARKET от обычных marketplace analytics tools.
+
+---
+
+# 44. После завершения
+
+После реализации:
+
+1. Проверь все routes.
+2. Проверь responsive behavior.
+3. Проверь loading states.
+4. Проверь error states.
+5. Проверь calculations.
+6. Проверь Demo Mode.
+7. Проверь security.
+8. Проверь отсутствие hardcoded KPI.
+9. Проверь TypeScript errors.
+10. Проверь, что существующий `/advertising` не сломан.
+
+В конце предоставь краткий технический отчет:
+
+* что было реализовано;
+* какие connectors работают реально;
+* какие работают в demo mode;
+* какие данные пока mock;
+* какие endpoints нужны для следующего этапа;
+* какие части готовы для production;
+* какие части требуют доработки.
+
+Не заявляй о реальной интеграции, если она фактически не подключена.

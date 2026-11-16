@@ -1,0 +1,272 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// Dates and times below assume the API runs with DEMO_SNAPSHOT_DATE=2026-08-18,
+// which pins the demo snapshot to its authored day (otherwise it follows today's date).
+import { sourceMessageCatalog, sourceMessageKeys, type Locale } from '../src/lib/i18n';
+
+type LocaleExpectation = {
+  locale: 'ru' | 'kk' | 'en';
+  languageText: string;
+  advertisingHeading: string;
+  refreshed: string;
+  activityDate: string;
+  ctr: string;
+  currency: string;
+  demoLabel: string;
+  signalLabel: string;
+  errorTitle: string;
+  errorBody: string;
+  retryLabel: string;
+  connectorStatus: string;
+  connectorDetail: string;
+};
+
+const expectations: LocaleExpectation[] = [
+  {
+    locale: 'ru',
+    languageText: 'Русский',
+    advertisingHeading: 'Рекламные каналы',
+    refreshed: 'ОБНОВЛЕНО 09:42',
+    activityDate: '17 авг.',
+    ctr: '4,57%',
+    currency: '92,40 ₸',
+    demoLabel: 'ДЕМО / ОЦЕНКА',
+    signalLabel: 'СИГНАЛ ИИ · ДЕМО-ОЦЕНКА',
+    errorTitle: 'Сигнал недоступен',
+    errorBody: 'Источник не вернул корректный снимок данных. Повторите подключение.',
+    retryLabel: 'Повторить',
+    connectorStatus: 'НЕ ПОДКЛЮЧЕНО',
+    connectorDetail: 'Прямое подключение появится позже. Сейчас можно загрузить отчёт продаж из файла.',
+  },
+  {
+    locale: 'kk',
+    languageText: 'Қазақша',
+    advertisingHeading: 'Жарнама арналары',
+    refreshed: 'ЖАҢАРТЫЛДЫ 09:42',
+    activityDate: '17 там.',
+    ctr: '4,57%',
+    currency: '92,40 ₸',
+    demoLabel: 'ДЕМО / БАҒАЛАУ',
+    signalLabel: 'AI СИГНАЛЫ · ДЕМО БАҒАЛАУ',
+    errorTitle: 'Сигнал қолжетімсіз',
+    errorBody: 'Дерек көзі дұрыс дерек үзіндісін қайтармады. Қайта қосып көріңіз.',
+    retryLabel: 'Қайталау',
+    connectorStatus: 'ҚОСЫЛМАҒАН',
+    connectorDetail: 'Тікелей қосылым кейінірек пайда болады. Қазір сату есебін файлдан жүктеуге болады.',
+  },
+  {
+    locale: 'en',
+    languageText: 'English',
+    advertisingHeading: 'Advertising channels',
+    refreshed: 'UPDATED 09:42 AM',
+    activityDate: 'Aug 17',
+    ctr: '4.57%',
+    currency: '₸92.40',
+    demoLabel: 'DEMO / ESTIMATED',
+    signalLabel: 'AI SIGNAL · DEMO ESTIMATE',
+    errorTitle: 'Signal unavailable',
+    errorBody: 'The source did not return a valid data snapshot. Try the connection again.',
+    retryLabel: 'Retry',
+    connectorStatus: 'NOT CONNECTED',
+    connectorDetail: 'A direct connection is coming later. You can upload a sales report from a file now.',
+  },
+];
+
+const channelIds = ['google', 'meta', 'tiktok', 'kaspi'];
+
+test('keeps every API source message key translated in every supported locale', async ({ request }) => {
+  const response = await request.get('/api/shift-market/integrations');
+  expect(response.ok()).toBeTruthy();
+  const integrations = await response.json();
+  const statuses = [integrations.kaspi, integrations.redstat, ...integrations.media];
+
+  for (const locale of ['ru', 'kk', 'en'] as Locale[]) {
+    for (const key of sourceMessageKeys) {
+      expect(sourceMessageCatalog[locale][key], `${locale} is missing ${key}`).toBeTruthy();
+    }
+  }
+
+  for (const status of statuses) {
+    expect(sourceMessageKeys, `API returned an unknown source message key: ${status.detail}`).toContain(status.detail);
+  }
+});
+
+async function chooseLanguage(
+  page: Page,
+  locale: LocaleExpectation['locale'],
+) {
+  await page.getByTestId('select-language').selectOption(locale);
+  await expect(page.locator('html')).toHaveAttribute('lang', locale);
+}
+
+// Guests land on the start page; the demo opens from there.
+async function openDemo(page: Page) {
+  await page.goto('/');
+  await page.evaluate(() => { window.localStorage.removeItem('shift-market-locale'); window.sessionStorage.clear(); });
+  await page.reload();
+  await page.getByTestId('button-demo').click();
+  await expect(page).toHaveURL(/\/overview$/);
+  await expect(page.getByTestId('select-language')).toHaveValue('ru');
+}
+
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.startsWith('seller:')) return;
+  await openDemo(page);
+});
+
+test('keeps the selected interface language after navigation and reload', async ({ page }) => {
+  await expect(page.getByText('Обзор', { exact: true }).first()).toBeVisible();
+
+  await chooseLanguage(page, 'kk');
+  await expect(page.getByText('Шолу', { exact: true }).first()).toBeVisible();
+  await page.getByTestId('link-nav-реклама').click();
+  await expect(page).toHaveURL(/\/advertising$/);
+  await expect(page.getByRole('heading', { name: 'Жарнама арналары', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('select-language')).toHaveValue('kk');
+  await expect(page.getByRole('heading', { name: 'Жарнама арналары', exact: true })).toBeVisible();
+
+  await chooseLanguage(page, 'en');
+  await expect(page.getByRole('heading', { name: 'Advertising channels', exact: true })).toBeVisible();
+  await page.getByTestId('link-nav-обзор').click();
+  await expect(page).toHaveURL(/\/overview$/);
+  await expect(page.getByRole('heading', { name: 'What to do today', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('select-language')).toHaveValue('en');
+  await expect(page.getByRole('heading', { name: 'What to do today', exact: true })).toBeVisible();
+
+  await chooseLanguage(page, 'ru');
+  await expect(page.getByText('Обзор', { exact: true }).first()).toBeVisible();
+});
+
+for (const expected of expectations) {
+  test(`formats advertising analytics and marks every channel as demo in ${expected.languageText}`, async ({ page }) => {
+    await chooseLanguage(page, expected.locale);
+    await page.getByTestId('link-nav-реклама').click();
+    await expect(page).toHaveURL(/\/advertising$/);
+    await expect(page.getByRole('heading', { name: expected.advertisingHeading, exact: true })).toBeVisible();
+
+    await expect(page.locator('.page-meta')).toContainText(expected.refreshed);
+    await expect(page.getByTestId('advertising-activity-google-1').locator('td').first()).toHaveText(expected.activityDate);
+
+    const googleMetrics = page.getByTestId('card-ad-channel-google').locator('.channel-metrics');
+    await expect(googleMetrics).toContainText('CTR');
+    await expect(googleMetrics).toContainText(expected.ctr);
+    await expect(googleMetrics).toContainText(expected.currency);
+
+    for (const channelId of channelIds) {
+      const card = page.getByTestId(`card-ad-channel-${channelId}`);
+      await expect(card).toBeVisible();
+      await expect(card).toContainText(expected.demoLabel);
+      await expect(card).toContainText(expected.signalLabel);
+    }
+  });
+}
+
+for (const expected of expectations) {
+  test(`keeps empty, failed, and connector states localized in ${expected.languageText}`, async ({ page }) => {
+    const rawApiMessage = 'Upstream connector diagnostic that must not reach the seller';
+    let responseMode: 'error' | 'empty' = 'error';
+
+    await chooseLanguage(page, expected.locale);
+    await page.route('**/api/shift-market/advertising', async (route) => {
+      if (responseMode === 'error') {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: rawApiMessage }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ source: 'DEMO DATA', channels: [], activities: [] }),
+      });
+    });
+
+    await page.getByTestId('link-nav-реклама').click();
+    const errorState = page.getByTestId('status-error');
+    await expect(errorState).toContainText(expected.errorTitle);
+    await expect(errorState).toContainText(expected.errorBody);
+    await expect(errorState).toContainText(expected.retryLabel);
+    await expect(errorState).toContainText(expected.locale === 'en' ? 'DATA / DEMO' : expected.locale === 'kk' ? 'ДЕРЕКТЕР / ДЕМО' : 'ДАННЫЕ / ДЕМО');
+    await expect(errorState).not.toContainText(rawApiMessage);
+
+    responseMode = 'empty';
+    await page.getByTestId('button-retry').click();
+    await expect(page.getByTestId('empty-channels')).toBeVisible();
+    await expect(page.getByTestId('status-data-source')).toHaveText(expected.locale === 'en' ? 'DATA / DEMO' : expected.locale === 'kk' ? 'ДЕРЕКТЕР / ДЕМО' : 'ДАННЫЕ / ДЕМО');
+    await expect(page.getByTestId('advertising-demo-notice')).toContainText(expected.locale === 'en' ? 'Demo data' : expected.locale === 'kk' ? 'Демо деректер' : 'Демо-данные');
+
+    await page.getByTestId('link-nav-settings').click();
+    const kaspiConnector = page.getByTestId('row-integration-Kaspi Seller API');
+    await expect(kaspiConnector).toContainText(expected.connectorStatus);
+    await expect(kaspiConnector).toContainText(expected.connectorDetail);
+  });
+}
+const assistantExpectations = [
+  { locale: 'ru' as const, question: 'Какие SKU стоит масштабировать?', answer: 'Масштабировать стоит эти товары', insufficient: 'Недостаточно данных для уверенного вывода.' },
+  { locale: 'kk' as const, question: 'Қай SKU-ларды ауқымдау керек?', answer: 'Мына тауарларды ауқымдау керек', insufficient: 'Сенімді қорытынды жасау үшін деректер жеткіліксіз.' },
+  { locale: 'en' as const, question: 'Which SKUs should I scale?', answer: 'These products are worth scaling', insufficient: 'Not enough data for a confident conclusion.' },
+];
+
+for (const expected of assistantExpectations) {
+  test(`answers from app data and admits missing data in ${expected.locale}`, async ({ page }) => {
+    await chooseLanguage(page, expected.locale);
+    await page.goto('/assistant');
+    const suggestions = page.getByTestId('assistant-suggestion');
+    await expect(suggestions.nth(1)).toHaveText(expected.question);
+    await suggestions.nth(1).click();
+    await expect(page.getByTestId('assistant-answer').first()).toContainText(expected.answer);
+    await suggestions.nth(4).click();
+    await expect(page.getByTestId('assistant-answer').nth(1)).toContainText(expected.insufficient);
+  });
+}
+
+test('explains every dashboard confidence with its supporting signals', async ({ page }) => {
+  const actions = page.locator('[data-testid^="card-action-"]');
+  await expect(actions.first()).toBeVisible();
+  const count = await actions.count();
+  for (let index = 0; index < count; index += 1) {
+    const basis = actions.nth(index).locator('.confidence-basis');
+    await basis.locator('summary').click();
+    await expect(basis.locator('li').first()).toBeVisible();
+    await expect(basis.locator('summary')).toContainText('Подтверждают');
+  }
+});
+
+test('guests without demo are sent to the start page', async ({ page }) => {
+  await page.evaluate(() => window.sessionStorage.clear());
+  await page.goto('/products');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId('link-register')).toBeVisible();
+});
+
+test('seller: registers, imports a Kaspi export and marks a recommendation', async ({ page }) => {
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`e2e-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+
+  await page.getByTestId('onboarding-upload').click();
+  await page.getByTestId('input-data-file').setInputFiles([new URL('./fixtures/kaspi-orders.csv', import.meta.url).pathname, new URL('./fixtures/products.csv', import.meta.url).pathname]);
+  await expect(page.getByTestId('import-card')).toHaveCount(2);
+  await expect(page.getByTestId('select-dataset').first()).toHaveValue('ORDERS');
+  await expect(page.getByTestId('select-dataset').nth(1)).toHaveValue('PRODUCTS');
+  await page.getByTestId('button-import-all').click();
+  await expect(page.getByText(/Загружено строк/)).toHaveCount(2);
+
+  await page.getByTestId('link-nav-обзор').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await expect(page.getByTestId('forecast')).toContainText('Крем для рук');
+  const firstAction = page.getByTestId('card-action-0');
+  await expect(firstAction).toContainText('ДОЗАКАЗАТЬ');
+  await firstAction.getByTestId('verdict-worked').click();
+  await expect(firstAction.getByTestId('verdict-worked')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('outcomes')).toContainText('Сработало');
+
+  await page.getByTestId('period-7').click();
+  await expect(page.getByTestId('period-7')).toHaveAttribute('aria-pressed', 'true');
+});

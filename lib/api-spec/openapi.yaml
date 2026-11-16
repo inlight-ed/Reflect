@@ -1,0 +1,1194 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Accounts and sessions
+  - name: data
+    description: Seller data imports and outcomes
+  - name: integrations
+    description: Connected services
+  - name: intelligence
+    description: Reflect demo intelligence
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: registerAccount
+      tags: [auth]
+      summary: Create an account with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterInput" }
+      responses:
+        "201":
+          description: Account created and signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUser" }
+        "400": { description: Invalid email or weak password, content: { application/json: { schema: { $ref: "#/components/schemas/AuthErrorBody" } } } }
+        "409": { description: Email already registered, content: { application/json: { schema: { $ref: "#/components/schemas/AuthErrorBody" } } } }
+        "503": { description: Accounts unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/AuthErrorBody" } } } }
+  /auth/login:
+    post:
+      operationId: loginAccount
+      tags: [auth]
+      summary: Sign in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUser" }
+        "401": { description: Wrong email or password, content: { application/json: { schema: { $ref: "#/components/schemas/AuthErrorBody" } } } }
+        "429": { description: Too many attempts }
+  /auth/logout:
+    post:
+      operationId: logoutAccount
+      tags: [auth]
+      summary: Sign out
+      responses:
+        "204": { description: Signed out }
+  /auth/logout-all:
+    post:
+      operationId: logoutEverywhere
+      tags: [auth]
+      summary: Sign out on every device (ends all sessions)
+      responses:
+        "204": { description: All sessions ended }
+        "401": { description: Sign in required }
+  /auth/me:
+    get:
+      operationId: getSession
+      tags: [auth]
+      summary: Current session and onboarding state
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionState" }
+  /data/import:
+    post:
+      operationId: importData
+      tags: [data]
+      summary: Import normalised rows from a file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImportInput" }
+      responses:
+        "200":
+          description: Imported
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportResult" }
+        "400": { description: No valid rows }
+        "401": { description: Sign in required }
+  /data/status:
+    get:
+      operationId: getDataStatus
+      tags: [data]
+      summary: What data the seller has loaded
+      responses:
+        "200":
+          description: Data status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataStatus" }
+        "401": { description: Sign in required }
+  /data:
+    delete:
+      operationId: deleteAllData
+      tags: [data]
+      summary: Delete all imported data of the signed-in seller
+      responses:
+        "204": { description: Deleted }
+        "401": { description: Sign in required }
+  /feedback:
+    get:
+      operationId: listFeedback
+      tags: [data]
+      summary: Recommendation outcomes with numbers before and after
+      responses:
+        "200":
+          description: Feedback
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FeedbackItem" }
+        "401": { description: Sign in required }
+    post:
+      operationId: createFeedback
+      tags: [data]
+      summary: Mark a recommendation as worked / did not work / too early
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackInput" }
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedbackItem" }
+        "401": { description: Sign in required }
+  /content/analysis:
+    get:
+      operationId: getCardAnalysis
+      tags: [intelligence]
+      summary: Card analysis from reviews, sales and logged card changes
+      parameters:
+        - { in: query, name: sku, required: false, schema: { type: string, maxLength: 80 } }
+      responses:
+        "200":
+          description: Card analysis
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardAnalysis" }
+  /content/events:
+    post:
+      operationId: createCardEvent
+      tags: [intelligence]
+      summary: Log a change to a product card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CardEventInput" }
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardEvent" }
+        "401": { description: Sign in required }
+  /integrations/{kind}:
+    put:
+      operationId: saveConnection
+      tags: [integrations]
+      summary: Save and test a connection
+      parameters:
+        - { in: path, name: kind, required: true, schema: { $ref: "#/components/schemas/ConnectionKind" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectionInput" }
+      responses:
+        "200":
+          description: Connection after testing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { description: Invalid input }
+        "401": { description: Sign in required }
+    delete:
+      operationId: deleteConnection
+      tags: [integrations]
+      summary: Remove a connection and its stored key
+      parameters:
+        - { in: path, name: kind, required: true, schema: { $ref: "#/components/schemas/ConnectionKind" } }
+      responses:
+        "204": { description: Removed }
+        "401": { description: Sign in required }
+  /integrations/{kind}/sync:
+    post:
+      operationId: syncConnection
+      tags: [integrations]
+      summary: Start pulling fresh data from a connected service
+      description: Starts the sync in the background and returns the connection with status SYNCING. Poll the connection until the status changes. A second call while a sync runs joins it.
+      parameters:
+        - { in: path, name: kind, required: true, schema: { $ref: "#/components/schemas/ConnectionKind" } }
+      responses:
+        "200":
+          description: Connection, usually with status SYNCING
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "401": { description: Sign in required }
+  /integrations/runs:
+    get:
+      operationId: getSyncRuns
+      tags: [integrations]
+      summary: Recent sync runs (newest first)
+      responses:
+        "200":
+          description: Run log
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SyncRun" }
+        "401": { description: Sign in required }
+  /shift-market/dashboard:
+    get:
+      operationId: getDashboard
+      tags: [intelligence]
+      summary: Get executive dashboard
+      parameters:
+        - { in: query, name: period, required: false, schema: { type: string, enum: ["7", "30", "90"] } }
+        - { in: query, name: compare, required: false, schema: { type: string, enum: [previous, year] } }
+      responses:
+        "200":
+          description: Executive dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+  /shift-market/advertising:
+    get:
+      operationId: getAdvertising
+      tags: [intelligence]
+      summary: Get advertising intelligence
+      parameters:
+        - { in: query, name: period, required: false, schema: { type: string, enum: ["7", "30", "90"] } }
+        - { in: query, name: compare, required: false, schema: { type: string, enum: [previous, year] } }
+      responses:
+        "200":
+          description: Advertising data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvertisingOverview"
+  /shift-market/products:
+    get:
+      operationId: getProducts
+      tags: [intelligence]
+      summary: Get product opportunity data
+      parameters:
+        - { in: query, name: period, required: false, schema: { type: string, enum: ["7", "30", "90"] } }
+        - { in: query, name: compare, required: false, schema: { type: string, enum: [previous, year] } }
+      responses:
+        "200":
+          description: Product data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductsOverview"
+  /shift-market/external-media:
+    get:
+      operationId: getExternalMedia
+      tags: [intelligence]
+      summary: Get external media impact data
+      responses:
+        "200":
+          description: External media data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalMediaOverview"
+  /shift-market/external-media/campaigns:
+    post:
+      operationId: createExternalCampaign
+      tags: [intelligence]
+      summary: Add an external campaign event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalCampaignInput"
+      responses:
+        "201":
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalCampaign"
+  /shift-market/competitors:
+    get:
+      operationId: getCompetitors
+      tags: [intelligence]
+      summary: Get competitor intelligence for a Kaspi SKU
+      parameters:
+        - in: query
+          name: kaspiSku
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        "200":
+          description: Competitor data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorsOverview"
+        "400":
+          description: Missing or invalid Kaspi SKU
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, enum: [INVALID_KASPI_SKU] }
+  /shift-market/content:
+    get:
+      operationId: getContent
+      tags: [intelligence]
+      summary: Get content analysis
+      responses:
+        "200":
+          description: Content data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentOverview"
+  /shift-market/ask:
+    post:
+      operationId: askAssistant
+      tags: [intelligence]
+      summary: Ask a question answered only from the app's data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskInput"
+      responses:
+        "200":
+          description: Assistant answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AskAnswer"
+        "400":
+          description: Invalid question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, enum: [INVALID_QUESTION] }
+        "429":
+          description: Too many requests
+  /shift-market/integrations:
+    get:
+      operationId: getIntegrations
+      tags: [intelligence]
+      summary: Get connector statuses
+      responses:
+        "200":
+          description: Integration statuses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationsOverview"
+  /shift-market/integrations/kaspi/test:
+    post:
+      operationId: testKaspiConnection
+      tags: [intelligence]
+      summary: Test the server-side Kaspi connector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KaspiConnectionInput"
+      responses:
+        "200":
+          description: Connector test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationStatus"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    DataSource:
+      type: string
+      enum: [DEMO DATA, MOCK, KASPI API, KASPI ADS, REDSTAT, META, USER DATA]
+    SourceMessageKey:
+      type: string
+      enum:
+        - connector.kaspi.not_connected
+        - connector.demo.active
+        - connector.redstat.methods_unconfirmed
+        - connector.kaspi.demo_endpoint_unconfigured
+        - connector.kaspi.token_required
+        - connector.kaspi.coming_soon
+        - connector.kaspi.connected
+        - connector.kaspi.invalid_token
+        - connector.kaspi.unavailable
+        - connector.kaspi.sign_in
+        - connector.moysklad.connected
+        - connector.moysklad.invalid_token
+        - connector.moysklad.unavailable
+        - connector.mcp.connected
+        - connector.mcp.unauthorized
+        - connector.mcp.unavailable
+        - connector.mcp.unsafe_url
+        - connector.redstat.unavailable
+        - connector.redstat.connect_in_settings
+        - connector.not_connected
+        - connector.sync.done
+        - connector.sync.truncated
+        - connector.sync.interrupted
+        - connector.encryption.reset
+    ConfidenceSignalKey:
+      type: string
+      enum:
+        - roas_above_benchmark
+        - roas_below_benchmark
+        - conversion_above_average
+        - conversion_below_average
+        - stock_sufficient
+        - demand_growing
+        - price_competitive
+        - competitor_undercuts
+        - traffic_above_average
+        - cpc_above_average
+        - ctr_above_average
+        - low_competitive_pressure
+        - enough_history
+        - stock_fresh
+        - trend_consistent
+        - cost_known
+        - commission_known
+        - margin_healthy
+        - ads_attributed
+        - price_stable
+        - campaign_finished
+        - no_overlap
+    ConfidenceBasis:
+      type: object
+      required: [supporting, total, signals]
+      properties:
+        supporting: { type: number, minimum: 0 }
+        total: { type: number, minimum: 0 }
+        signals:
+          type: array
+          items:
+            type: object
+            required: [key, met]
+            properties:
+              key: { $ref: "#/components/schemas/ConfidenceSignalKey" }
+              met: { type: boolean }
+    Insight:
+      type: object
+      required: [eyebrow, title, body, confidence, impact, severity]
+      properties:
+        eyebrow: { type: string }
+        title: { type: string }
+        body: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 100 }
+        impact: { type: string }
+        severity: { type: string, enum: [LOW, MEDIUM, HIGH] }
+        titleKey: { type: string }
+        bodyKey: { type: string }
+        impactAmount: { type: number }
+        params: { $ref: "#/components/schemas/TemplateParams" }
+        confidenceBasis: { $ref: "#/components/schemas/ConfidenceBasis" }
+    TimelineEvent:
+      type: object
+      required: [id, date, label, kind, detail]
+      properties:
+        id: { type: string }
+        date: { type: string }
+        label: { type: string }
+        kind: { type: string, enum: [SALE, ADS, MEDIA, PRICE, PROMO, CONTENT, COMPETITOR, IMPORT, FEEDBACK] }
+        detail: { type: string }
+    Metric:
+      type: object
+      required: [label, value, change, positive]
+      properties:
+        label: { type: string }
+        value: { type: string, description: Pre-formatted fallback; clients should prefer amount + unit }
+        amount: { type: number }
+        unit: { type: string, enum: [CURRENCY, COUNT, MULTIPLIER, DAYS] }
+        changePct: { type: [number, "null"] }
+        change: { type: string }
+        positive: { type: boolean }
+    DashboardAction:
+      type: object
+      required: [type, object, signal, explanation, recommendation, confidence, confidenceBasis, impact]
+      properties:
+        type: { type: string, enum: [SCALE, OPTIMIZE, DEFEND, FIX, WATCH, RESTOCK] }
+        confidenceBasis: { $ref: "#/components/schemas/ConfidenceBasis" }
+        key: { type: string }
+        sku: { type: string }
+        reasonKey: { type: string }
+        recommendationKey: { type: string }
+        params: { $ref: "#/components/schemas/TemplateParams" }
+        impactAmount: { type: number }
+        verdict: { $ref: "#/components/schemas/Verdict" }
+        object: { type: string }
+        signal: { type: string }
+        explanation: { type: string }
+        recommendation: { type: string }
+        confidence: { type: number }
+        impact: { type: string }
+    DashboardOverview:
+      type: object
+      required: [source, refreshedAt, summary, metrics, actions, timeline, mode]
+      properties:
+        mode: { $ref: "#/components/schemas/DataMode" }
+        period: { type: number }
+        compare: { type: string, enum: [previous, year] }
+        series:
+          type: array
+          items: { $ref: "#/components/schemas/SeriesPoint" }
+        forecast:
+          type: array
+          items: { $ref: "#/components/schemas/ForecastItem" }
+        assumptions: { $ref: "#/components/schemas/Assumptions" }
+        source: { $ref: "#/components/schemas/DataSource" }
+        refreshedAt: { type: string }
+        summary: { $ref: "#/components/schemas/Insight" }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/Metric" }
+        actions:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardAction" }
+        timeline:
+          type: array
+          items: { $ref: "#/components/schemas/TimelineEvent" }
+    Placement:
+      type: object
+      required: [name, spend, revenue, ctr, cpc, cvr, roas, status, recommendation]
+      properties:
+        name: { type: string }
+        spend: { type: number }
+        revenue: { type: number }
+        ctr: { type: number }
+        cpc: { type: number }
+        cvr: { type: number }
+        roas: { type: number }
+        status: { type: string, enum: [SCALE, KEEP, OPTIMIZE, REDUCE, STOP] }
+        recommendation: { type: string }
+    AdvertisingActivity:
+      type: object
+      required: [id, date, channel, eventType, explanation, estimatedImpact]
+      properties:
+        id: { type: string }
+        date: { type: string, format: date-time }
+        channel: { type: string }
+        eventType: { type: string }
+        explanation: { type: string }
+        estimatedImpact: { type: string }
+    AdvertisingChannel:
+      type: object
+      required: [id, name, source, impressions, clicks, ctr, cpc, estimatedOrders, signal, activities]
+      properties:
+        id: { type: string, enum: [GOOGLE, META, TIKTOK, KASPI] }
+        name: { type: string }
+        source: { $ref: "#/components/schemas/DataSource" }
+        impressions: { type: number }
+        clicks: { type: number }
+        ctr: { type: number }
+        cpc: { type: number }
+        estimatedOrders: { type: number }
+        signal: { $ref: "#/components/schemas/Insight" }
+        activities:
+          type: array
+          items: { $ref: "#/components/schemas/AdvertisingActivity" }
+    AdvertisingOverview:
+      type: object
+      required: [source, refreshedAt, primaryMetrics, secondaryMetrics, signal, placements, channels, activities, mode]
+      properties:
+        mode: { $ref: "#/components/schemas/DataMode" }
+        skuAds:
+          type: array
+          items: { $ref: "#/components/schemas/SkuAd" }
+        source: { $ref: "#/components/schemas/DataSource" }
+        refreshedAt: { type: string }
+        primaryMetrics:
+          type: array
+          items: { $ref: "#/components/schemas/Metric" }
+        secondaryMetrics:
+          type: array
+          items: { $ref: "#/components/schemas/Metric" }
+        signal: { $ref: "#/components/schemas/Insight" }
+        placements:
+          type: array
+          items: { $ref: "#/components/schemas/Placement" }
+        channels:
+          type: array
+          items: { $ref: "#/components/schemas/AdvertisingChannel" }
+        activities:
+          type: array
+          items: { $ref: "#/components/schemas/AdvertisingActivity" }
+    Product:
+      type: object
+      required: [sku, name, category, revenue, orders, units, opportunity]
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        category: { type: string }
+        revenue: { type: number }
+        orders: { type: number }
+        units: { type: number }
+        aov: { type: number }
+        conversion: { type: number, description: Share of clicks that became orders (0–1) }
+        clicks: { type: number }
+        spend: { type: number }
+        roas: { type: [number, "null"] }
+        stock: { type: [number, "null"] }
+        stockCoverDays: { type: [number, "null"], description: Days of sales the current stock covers }
+        price: { type: number }
+        competitorPrice: { type: number }
+        trend: { type: number }
+        opportunity: { type: string, enum: [SCALE, FIX, DEFEND, STOP, WATCH] }
+        trendPct: { type: [number, "null"] }
+        avgPrice: { type: [number, "null"] }
+        costPrice: { type: [number, "null"] }
+        unitMargin: { type: [number, "null"] }
+        marginPct: { type: [number, "null"] }
+        velocity: { type: number }
+        stockoutDate: { type: [string, "null"] }
+        reorderQty: { type: [number, "null"] }
+        leadTimeDays: { type: number }
+        adSpend: { type: number }
+        breakevenRoas: { type: [number, "null"] }
+        commissionAssumed: { type: boolean }
+        kaspiCode: { type: [string, "null"] }
+    ProductsOverview:
+      type: object
+      required: [source, refreshedAt, products, matrix, mode]
+      properties:
+        mode: { $ref: "#/components/schemas/DataMode" }
+        source: { $ref: "#/components/schemas/DataSource" }
+        refreshedAt: { type: string }
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/Product" }
+        matrix:
+          type: array
+          items:
+            type: object
+            required: [label, count, description]
+            properties:
+              label: { type: string }
+              count: { type: number }
+              description: { type: string }
+    ExternalCampaign:
+      type: object
+      required: [id, name, channel, startDate, endDate, budget, objective, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        channel: { type: string }
+        startDate: { type: string }
+        endDate: { type: string }
+        budget: { type: number }
+        objective: { type: string }
+        status: { type: string }
+    ExternalCampaignInput:
+      type: object
+      required: [name, channel, startDate, endDate, budget, objective]
+      properties:
+        name: { type: string, minLength: 1 }
+        channel: { type: string, minLength: 1 }
+        startDate: { type: string, minLength: 1 }
+        endDate: { type: string, minLength: 1 }
+        budget: { type: number, minimum: 0 }
+        objective: { type: string, minLength: 1 }
+    ImpactPeriod:
+      type: object
+      required: [label, gmv, orders, units, aov, growth]
+      properties:
+        label: { type: string }
+        gmv: { type: number }
+        orders: { type: number }
+        units: { type: number }
+        aov: { type: number }
+        growth: { type: number }
+    ExternalMediaOverview:
+      type: object
+      required: [source, refreshedAt, campaigns, insight, mode]
+      properties:
+        mode: { $ref: "#/components/schemas/DataMode" }
+        impacts:
+          type: array
+          items: { $ref: "#/components/schemas/CampaignImpact" }
+        source: { $ref: "#/components/schemas/DataSource" }
+        refreshedAt: { type: string }
+        campaigns:
+          type: array
+          items: { $ref: "#/components/schemas/ExternalCampaign" }
+        selectedImpact:
+          type: object
+          required: [campaignId, campaignName, periods, baseline, incremental, confidence]
+          properties:
+            campaignId: { type: string }
+            campaignName: { type: string }
+            periods:
+              type: array
+              items: { $ref: "#/components/schemas/ImpactPeriod" }
+            baseline: { type: number }
+            incremental: { type: number }
+            confidence: { type: number }
+        insight: { $ref: "#/components/schemas/Insight" }
+    CompetitorSellerOffer:
+      type: object
+      required: [name, price]
+      properties:
+        name: { type: string }
+        price: { type: number }
+        rating: { type: number }
+        reviews: { type: number }
+        availability: { type: string }
+        url: { type: string }
+    ComparableProduct:
+      type: object
+      required: [kaspiSku, name]
+      properties:
+        kaspiSku: { type: string }
+        name: { type: string }
+        price: { type: number }
+        sellerCount: { type: number, minimum: 0 }
+        saleQty: { type: number, minimum: 0 }
+        dataAsOf: { type: string, format: date }
+    CompetitorsOverview:
+      type: object
+      required: [source, status, refreshedAt, kaspiSku, sellers, alternatives]
+      properties:
+        source: { $ref: "#/components/schemas/DataSource" }
+        status:
+          type: string
+          enum: [READY, PARTIAL, NO_DATA, NOT_CONFIGURED, UNAVAILABLE]
+        refreshedAt: { type: string }
+        dataAsOf: { type: string, format: date }
+        kaspiSku: { type: string }
+        detail: { $ref: "#/components/schemas/SourceMessageKey" }
+        sellers:
+          type: array
+          items: { $ref: "#/components/schemas/CompetitorSellerOffer" }
+        alternatives:
+          type: array
+          items: { $ref: "#/components/schemas/ComparableProduct" }
+        insight: { $ref: "#/components/schemas/Insight" }
+    ContentScore:
+      type: object
+      required: [label, score, note]
+      properties:
+        label: { type: string }
+        score: { type: number }
+        note: { type: string }
+    ContentOverview:
+      type: object
+      required: [source, refreshedAt, selectedSku, score, breakdown, strengths, weaknesses, recommendations, priority]
+      properties:
+        source: { $ref: "#/components/schemas/DataSource" }
+        refreshedAt: { type: string }
+        selectedSku: { type: string }
+        score: { type: number }
+        breakdown:
+          type: array
+          items: { $ref: "#/components/schemas/ContentScore" }
+        strengths:
+          type: array
+          items: { type: string }
+        weaknesses:
+          type: array
+          items: { type: string }
+        recommendations:
+          type: array
+          items: { type: string }
+        priority: { type: string, enum: [HIGH, MEDIUM, LOW] }
+    IntegrationStatus:
+      type: object
+      required: [name, status, source, detail]
+      properties:
+        name: { type: string }
+        status: { type: string, enum: [NOT_CONNECTED, CONNECTED, ERROR, DEMO] }
+        source: { $ref: "#/components/schemas/DataSource" }
+        detail: { $ref: "#/components/schemas/SourceMessageKey" }
+    IntegrationsOverview:
+      type: object
+      required: [kaspi, redstat, media]
+      properties:
+        connections:
+          type: array
+          items: { $ref: "#/components/schemas/Connection" }
+        kaspi: { $ref: "#/components/schemas/IntegrationStatus" }
+        redstat: { $ref: "#/components/schemas/IntegrationStatus" }
+        media:
+          type: array
+          items: { $ref: "#/components/schemas/IntegrationStatus" }
+    TemplateParams:
+      type: object
+      additionalProperties:
+        oneOf:
+          - { type: string }
+          - { type: number }
+    DataMode:
+      type: string
+      enum: [DEMO, USER, EMPTY]
+    Verdict:
+      type: string
+      enum: [WORKED, NOT_WORKED, TOO_EARLY]
+    SeriesPoint:
+      type: object
+      required: [period, total, previous, orders]
+      properties:
+        period: { type: string }
+        total: { type: number }
+        previous: { type: number }
+        orders: { type: number }
+    ForecastItem:
+      type: object
+      required: [sku, name, stock, velocity, coverDays, stockoutDate, reorderQty, leadTimeDays]
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        stock: { type: number }
+        velocity: { type: number }
+        coverDays: { type: number }
+        stockoutDate: { type: string }
+        reorderQty: { type: number }
+        leadTimeDays: { type: number }
+    Assumptions:
+      type: object
+      required: [commissionAssumed, missingCosts, missingStock, productCount]
+      properties:
+        commissionAssumed: { type: boolean }
+        defaultCommissionPct: { type: number }
+        missingCosts: { type: number }
+        missingStock: { type: number }
+        productCount: { type: number }
+        costCoveragePct:
+          type: [number, "null"]
+          description: Share of the period's revenue from products with a known cost price, 0–100. Profit is preliminary below 100.
+        stockCoveragePct:
+          type: [number, "null"]
+          description: Share of the period's revenue from products with a known stock level, 0–100.
+        lastOrderAt:
+          type: [string, "null"]
+          description: Newest order in the data; shows how fresh the numbers are.
+    SkuAd:
+      type: object
+      required: [sku, name, spend, revenue]
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        spend: { type: number }
+        revenue: { type: number }
+        roas: { type: [number, "null"] }
+        breakevenRoas: { type: [number, "null"] }
+    CampaignImpact:
+      type: object
+      required: [campaignId, periods, baseline, incremental, confidence, confidenceBasis]
+      properties:
+        campaignId: { type: string }
+        periods:
+          type: array
+          items: { $ref: "#/components/schemas/ImpactPeriod" }
+        baseline: { type: number }
+        incremental: { type: number }
+        confidence: { type: number }
+        confidenceBasis: { $ref: "#/components/schemas/ConfidenceBasis" }
+    AuthUser:
+      type: object
+      required: [id, email]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: [string, "null"] }
+    AuthErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, enum: [INVALID_EMAIL, WEAK_PASSWORD, EMAIL_TAKEN, INVALID_CREDENTIALS, ACCOUNTS_UNAVAILABLE, RATE_LIMITED] }
+    RegisterInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, minLength: 3, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 200 }
+        name: { type: string, maxLength: 80 }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, minLength: 3, maxLength: 254 }
+        password: { type: string, minLength: 1, maxLength: 200 }
+    SessionState:
+      type: object
+      required: [accountsEnabled, hasData]
+      properties:
+        user: { $ref: "#/components/schemas/AuthUser" }
+        accountsEnabled: { type: boolean }
+        hasData: { type: boolean }
+        hasProducts: { type: boolean }
+        hasConnections: { type: boolean }
+    OrderRowInput:
+      type: object
+      required: [orderedAt, sku, quantity, amount]
+      properties:
+        orderCode: { type: [string, "null"], maxLength: 80 }
+        orderedAt: { type: string, maxLength: 40 }
+        sku: { type: string, minLength: 1, maxLength: 120 }
+        productName: { type: [string, "null"], maxLength: 400 }
+        quantity: { type: number }
+        amount: { type: number }
+        status: { type: [string, "null"], maxLength: 80 }
+    ProductRowInput:
+      type: object
+      required: [sku]
+      properties:
+        sku: { type: string, minLength: 1, maxLength: 120 }
+        name: { type: [string, "null"], maxLength: 400 }
+        category: { type: [string, "null"], maxLength: 200 }
+        kaspiCode: { type: [string, "null"], maxLength: 60 }
+        costPrice: { type: [number, "null"] }
+        stock: { type: [number, "null"] }
+        leadTimeDays: { type: [number, "null"] }
+        commissionPct: { type: [number, "null"] }
+    AdRowInput:
+      type: object
+      required: [day, spend]
+      properties:
+        day: { type: string, maxLength: 40 }
+        sku: { type: [string, "null"], maxLength: 120 }
+        channel: { type: [string, "null"], maxLength: 80 }
+        spend: { type: number }
+    ImportInput:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [ORDERS, PRODUCTS, ADS] }
+        fileName: { type: string, maxLength: 200 }
+        orders:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/OrderRowInput" }
+        products:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/ProductRowInput" }
+        ads:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/AdRowInput" }
+    ImportResult:
+      type: object
+      required: [accepted, skipped]
+      properties:
+        accepted: { type: number }
+        skipped: { type: number }
+    DataImport:
+      type: object
+      required: [id, kind, source, rows, createdAt]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [ORDERS, PRODUCTS, ADS] }
+        source: { type: string }
+        fileName: { type: [string, "null"] }
+        rows: { type: number }
+        createdAt: { type: string }
+    DataStatus:
+      type: object
+      required: [orders, products, ads, imports]
+      properties:
+        orders: { type: number }
+        products: { type: number }
+        ads: { type: number }
+        firstOrderAt: { type: [string, "null"] }
+        lastOrderAt: { type: [string, "null"] }
+        imports:
+          type: array
+          items: { $ref: "#/components/schemas/DataImport" }
+    FeedbackInput:
+      type: object
+      required: [actionKey, actionType, object, verdict]
+      properties:
+        actionKey: { type: string, maxLength: 200 }
+        actionType: { type: string, maxLength: 20 }
+        sku: { type: string, maxLength: 120 }
+        object: { type: string, maxLength: 300 }
+        verdict: { $ref: "#/components/schemas/Verdict" }
+    FeedbackItem:
+      type: object
+      required: [id, actionKey, actionType, object, verdict, createdAt]
+      properties:
+        id: { type: string }
+        actionKey: { type: string }
+        actionType: { type: string }
+        sku: { type: [string, "null"] }
+        object: { type: string }
+        verdict: { $ref: "#/components/schemas/Verdict" }
+        createdAt: { type: string }
+        beforePerDay: { type: [number, "null"] }
+        afterPerDay: { type: [number, "null"] }
+        changePct: { type: [number, "null"] }
+        daysAfter: { type: number }
+    CardEventInput:
+      type: object
+      required: [sku, kind]
+      properties:
+        sku: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [PHOTO, TITLE, DESCRIPTION, PRICE, OTHER] }
+        note: { type: string, maxLength: 300 }
+        happenedAt: { type: string, maxLength: 40 }
+    CardEvent:
+      type: object
+      required: [id, sku, kind, happenedAt]
+      properties:
+        id: { type: string }
+        sku: { type: string }
+        kind: { type: string, enum: [PHOTO, TITLE, DESCRIPTION, PRICE, OTHER] }
+        note: { type: [string, "null"] }
+        happenedAt: { type: string }
+        beforePerDay: { type: [number, "null"] }
+        afterPerDay: { type: [number, "null"] }
+        changePct: { type: [number, "null"] }
+        daysAfter: { type: number }
+    CheckItem:
+      type: object
+      required: [key, status]
+      properties:
+        key: { type: string }
+        status: { type: string, enum: [PASS, WARN, UNKNOWN] }
+        params: { $ref: "#/components/schemas/TemplateParams" }
+    ReviewSummary:
+      type: object
+      required: [count]
+      properties:
+        averageRating: { type: [number, "null"] }
+        count: { type: number }
+        positive: { type: [number, "null"] }
+        negative: { type: [number, "null"] }
+    ReviewThemes:
+      type: object
+      required: [praise, complaints, mode]
+      properties:
+        praise:
+          type: array
+          items: { type: string }
+        complaints:
+          type: array
+          items: { type: string }
+        mode: { type: string, enum: [AI, RULES] }
+    CardAnalysis:
+      type: object
+      required: [mode, products, checklist, events, source]
+      properties:
+        mode: { $ref: "#/components/schemas/DataMode" }
+        source: { $ref: "#/components/schemas/DataSource" }
+        detail: { $ref: "#/components/schemas/SourceMessageKey" }
+        products:
+          type: array
+          items:
+            type: object
+            required: [sku, name]
+            properties:
+              sku: { type: string }
+              name: { type: string }
+              kaspiCode: { type: [string, "null"] }
+        sku: { type: string }
+        name: { type: string }
+        kaspiCode: { type: [string, "null"] }
+        kaspiUrl: { type: string }
+        revenue: { type: number }
+        trendPct: { type: [number, "null"] }
+        checklist:
+          type: array
+          items: { $ref: "#/components/schemas/CheckItem" }
+        reviews: { $ref: "#/components/schemas/ReviewSummary" }
+        themes: { $ref: "#/components/schemas/ReviewThemes" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/CardEvent" }
+    ConnectionKind:
+      type: string
+      enum: [KASPI_API, MOYSKLAD, REDSTAT_MCP, CUSTOM_MCP]
+    ConnectionInput:
+      type: object
+      properties:
+        url: { type: string, maxLength: 500 }
+        secret: { type: string, maxLength: 4096 }
+    McpTool:
+      type: object
+      required: [name, description]
+      properties:
+        name: { type: string }
+        description: { type: string }
+    Connection:
+      type: object
+      required: [kind, status]
+      properties:
+        kind: { $ref: "#/components/schemas/ConnectionKind" }
+        url: { type: [string, "null"] }
+        secretHint: { type: [string, "null"] }
+        status: { type: string, enum: [CONNECTED, ERROR, SYNCING, NOT_CONNECTED] }
+        detail: { $ref: "#/components/schemas/SourceMessageKey" }
+        lastSyncAt: { type: [string, "null"] }
+        imported: { type: number }
+        tools:
+          type: array
+          items: { $ref: "#/components/schemas/McpTool" }
+    SyncRun:
+      type: object
+      required: [id, kind, status, startedAt]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/ConnectionKind" }
+        status: { type: string, enum: [RUNNING, DONE, FAILED] }
+        detail: { $ref: "#/components/schemas/SourceMessageKey" }
+        rows: { type: [number, "null"] }
+        startedAt: { type: string }
+        finishedAt: { type: [string, "null"] }
+    AskInput:
+      type: object
+      required: [question, locale]
+      properties:
+        question: { type: string, minLength: 2, maxLength: 500 }
+        locale: { type: string, enum: [ru, kk, en] }
+    AskAnswer:
+      type: object
+      required: [answer, mode, insufficientData, references]
+      properties:
+        answer: { type: string }
+        mode: { type: string, enum: [AI, RULES] }
+        insufficientData: { type: boolean }
+        references:
+          type: array
+          items: { type: string }
+    KaspiConnectionInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, minLength: 1, maxLength: 4096 }
+

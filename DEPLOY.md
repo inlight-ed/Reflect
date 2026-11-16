@@ -1,0 +1,133 @@
+# Reflect на своём сервере
+
+Инструкция переносит Reflect с Replit на любой сервер с Docker. На сервере работают четыре контейнера:
+
+| Контейнер | Что делает |
+|---|---|
+| `app` | Reflect: API и сайт в одном процессе |
+| `db` | PostgreSQL 18, данные лежат в томе `pgdata` |
+| `caddy` | HTTPS-сертификат (Let's Encrypt, выпускается сам) и проксирование на `app` |
+| `backup` | каждую ночь в 03:00 сохраняет базу в папку `backups/`, хранит 14 дней |
+
+База наружу не открыта. Снаружи доступны только порты 80 и 443.
+
+---
+
+## 1. Что понадобится
+
+- **Сервер.** Ubuntu 22.04 или 24.04, процессор **x86-64 (amd64)**, 2 vCPU, 4 ГБ памяти, 40 ГБ диска.
+  - Серверы на ARM не подойдут: сборка рассчитана на x86-64.
+- **Домен или поддомен**, например `app.reflect.kz`, с доступом к его DNS.
+- **Доступ к серверу по SSH.**
+- **Значение `ENCRYPTION_KEY` из Replit** (Secrets). Оно нужно, чтобы сохранённые токены Kaspi, МоегоСклада и MCP продолжили работать. Без него всё остальное перенесётся, но продавцам придётся ввести токены заново.
+
+**Где взять сервер:**
+- **В Казахстане:** PS Cloud, QazCloud, Kazteleport, VK Cloud (зона в Казахстане). Так данные продавцов хранятся в РК, а закон о персональных данных требует хранить данные граждан на территории страны. Как это относится к вашему случаю, уточните у юриста.
+- **За рубежом:** Hetzner, DigitalOcean и другие. Обычно дешевле, но вопрос локализации данных остаётся открытым.
+
+## 2. Направить домен на сервер
+
+В DNS домена создайте **A-запись**: имя `app` (или `@` для корня), значение — IP сервера. Подождите 5–30 минут, пока запись разойдётся. Проверить можно командой `ping app.reflect.kz`: она должна показать IP вашего сервера.
+
+## 3. Загрузить Reflect на сервер
+
+С вашего компьютера:
+
+```bash
+scp Reflect-v0.14.zip root@IP_СЕРВЕРА:/opt/
+ssh root@IP_СЕРВЕРА
+apt-get update && apt-get install -y unzip
+cd /opt && unzip Reflect-v0.14.zip -d reflect && cd reflect
+```
+
+Если код лежит в GitHub, вместо архива: `git clone https://github.com/…/Commerce-Intelligence-Platform.git /opt/reflect`.
+
+## 4. Установить и запустить
+
+```bash
+cd /opt/reflect
+./deploy/install.sh
+```
+
+Скрипт:
+1. ставит Docker, если его нет;
+2. спрашивает домен и `ENCRYPTION_KEY` (вставьте значение из Replit; если данные не переносите, нажмите Enter, и ключ сгенерируется);
+3. создаёт `.env` со случайным паролем базы;
+4. собирает образ (5–10 минут при первом запуске);
+5. создаёт таблицы и запускает сервис.
+
+Через минуту откройте `https://ваш-домен`. Для AI-ответов в «Спросить Reflect» добавьте в `.env` строку `ANTHROPIC_API_KEY=…` и выполните `docker compose up -d`.
+
+**Закройте лишние порты:**
+
+```bash
+ufw allow 22 && ufw allow 80 && ufw allow 443 && ufw --force enable
+```
+
+## 5. Перенести данные с Replit
+
+Это нужно, если в Replit уже есть продавцы и загруженные данные. Сначала остановите приём новых данных в Replit, чтобы ничего не потерялось между копированием и переключением.
+
+**Вариант А: адрес базы Replit доступен снаружи.** Так бывает у production-базы опубликованного приложения: её адрес обычно содержит `neon.tech` или похожий хост, а не `helium`.
+
+```bash
+SOURCE_DATABASE_URL='postgresql://…?sslmode=require' ./deploy/migrate-from-replit.sh
+```
+
+**Вариант Б: база доступна только внутри Replit.** Так устроена база разработки, адрес вида `postgresql://…@helium/heliumdb`.
+
+1. В Replit откройте **Shell** и выполните:
+   ```bash
+   pg_dump "$DATABASE_URL" -Fc --no-owner --no-acl -f reflect.dump
+   ```
+2. Скачайте `reflect.dump` из дерева файлов Replit и скопируйте на сервер: `scp reflect.dump root@IP_СЕРВЕРА:/opt/reflect/`.
+3. На сервере:
+   ```bash
+   ./deploy/restore.sh reflect.dump
+   ```
+
+В обоих случаях скрипт заменяет текущую базу на сервере, потому что переносить нужно до начала работы на новом месте. Затем он обновляет схему и перезапускает приложение. Продавцы входят со своими прежними паролями.
+
+> Если после переноса в настройках подключений написано «Ключ шифрования сервера изменился», значит `ENCRYPTION_KEY` в `.env` отличается от того, что был в Replit. Исправьте значение и выполните `docker compose up -d`.
+
+## 6. Ежедневная работа
+
+| Задача | Команда (из `/opt/reflect`) |
+|---|---|
+| Состояние сервисов | `docker compose ps` |
+| Логи приложения | `docker compose logs -f app` |
+| Перезапуск | `docker compose restart app` |
+| Остановить всё | `docker compose down` (данные сохраняются) |
+| Установить новую версию | заменить код (`unzip -o …` или `git pull`), затем `./deploy/update.sh` |
+| Восстановить из копии | `./deploy/restore.sh backups/reflect-ГГГГ-ММ-ДД_ЧЧММ.dump` |
+
+`update.sh` перед обновлением сохраняет копию базы в `backups/before-update-….dump`. Сервис будет недоступен около 10 секунд.
+
+**Резервные копии лежат на том же диске**, что и база. Если сервер выйдет из строя, пропадут и они. Раз в день копируйте папку `backups/` в другое место, например в объектное хранилище провайдера (rclone, s3cmd) или на другой сервер (`rsync`).
+
+## 7. Если что-то не так
+
+| Признак | Что проверить |
+|---|---|
+| Сайт не открывается, нет HTTPS | A-запись указывает на сервер; порты 80 и 443 открыты; `docker compose logs caddy` |
+| `app` постоянно перезапускается | `docker compose logs app`. Если там сказано «ENCRYPTION_KEY must be set», заполните его в `.env` |
+| Ошибка при `docker compose build`: Docker Hub недоступен | Укажите зеркало реестра в `/etc/docker/daemon.json` (`"registry-mirrors"`) или соберите с `--build-arg NODE_IMAGE=зеркало/node:22-bookworm-slim` |
+| «Ключ шифрования сервера изменился» | `ENCRYPTION_KEY` не совпадает с прежним (см. раздел 5) |
+| Нужно сменить ключ шифрования | Старый ключ впишите в `ENCRYPTION_KEY_PREVIOUS`, новый — в `ENCRYPTION_KEY`, затем `docker compose up -d`. Токены перешифруются сами |
+
+## 8. Без Docker (для опытных)
+
+Нужны Node.js 22, pnpm 10 и PostgreSQL 16 или новее.
+
+```bash
+pnpm install --frozen-lockfile
+PORT=5173 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/shift-market run build
+NODE_ENV=production pnpm --filter @workspace/api-server run build
+DATABASE_URL=… pnpm --filter @workspace/db run push
+NODE_ENV=production PORT=8080 STATIC_DIR=artifacts/shift-market/dist/public \
+  DATABASE_URL=… ENCRYPTION_KEY=… node artifacts/api-server/dist/index.mjs
+```
+
+Запускайте процесс через systemd или pm2, а впереди поставьте Nginx или Caddy для HTTPS. Проверка готовности: `GET /api/readyz` отвечает `200`, когда работают и процесс, и база.
+
+Replit-версия продолжает работать как раньше: файлы `.replit` и `artifact.toml` остались на месте.

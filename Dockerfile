@@ -23,9 +23,10 @@ RUN pnpm install --offline --frozen-lockfile
 RUN PORT=5173 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/shift-market run build \
  && NODE_ENV=production pnpm --filter @workspace/api-server run build
 
-# ---------- migrate: applies the database schema (docker compose run --rm migrate) ----------
+# ---------- migrate: applies versioned SQL migrations from lib/db/migrations (docker compose run --rm migrate) ----------
+# Each file is applied once and recorded, so a schema change never drops data by surprise.
 FROM build AS migrate
-CMD ["pnpm", "--filter", "@workspace/db", "run", "push"]
+CMD ["pnpm", "--filter", "@workspace/db", "run", "migrate"]
 
 # ---------- runtime: only the bundled server and the static site ----------
 FROM ${NODE_IMAGE} AS runtime

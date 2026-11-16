@@ -123,7 +123,7 @@ SOURCE_DATABASE_URL='postgresql://…?sslmode=require' ./deploy/migrate-from-rep
 pnpm install --frozen-lockfile
 PORT=5173 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/shift-market run build
 NODE_ENV=production pnpm --filter @workspace/api-server run build
-DATABASE_URL=… pnpm --filter @workspace/db run push
+DATABASE_URL=… pnpm --filter @workspace/db run migrate
 NODE_ENV=production PORT=8080 STATIC_DIR=artifacts/shift-market/dist/public \
   DATABASE_URL=… ENCRYPTION_KEY=… node artifacts/api-server/dist/index.mjs
 ```
@@ -131,3 +131,14 @@ NODE_ENV=production PORT=8080 STATIC_DIR=artifacts/shift-market/dist/public \
 Запускайте процесс через systemd или pm2, а впереди поставьте Nginx или Caddy для HTTPS. Проверка готовности: `GET /api/readyz` отвечает `200`, когда работают и процесс, и база.
 
 Replit-версия продолжает работать как раньше: файлы `.replit` и `artifact.toml` остались на месте.
+
+## 9. Изменение схемы базы (для разработчиков)
+
+Схема меняется только через версионные миграции, а не через `drizzle-kit push`: `push` сравнивает базу со схемой и может удалить колонку вместе с данными, а миграция — это SQL-файл, который можно прочитать до применения.
+
+1. Измените таблицы в `lib/db/src/schema/`.
+2. Выполните `pnpm --filter @workspace/db run generate`. Появится новый файл в `lib/db/migrations/`. Откройте его и проверьте: если в нём есть `DROP`, данные будут удалены.
+3. Закоммитьте файл вместе с изменением схемы.
+4. На сервере `./deploy/update.sh` сначала делает резервную копию, затем применяет только новые миграции (`docker compose run --rm migrate`).
+
+Первая миграция (`0000_init.sql`) безопасна и для пустой базы, и для базы, где таблицы уже есть (например, восстановленной из Replit): существующие объекты она пропускает.

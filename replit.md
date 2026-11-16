@@ -12,12 +12,12 @@ AI commerce intelligence for Kaspi sellers and brands. The MVP turns marketplace
 - `pnpm run test` — unit tests (analytics formulas, import parsing, statuses, encryption, log scrubbing, SSRF guard)
 - `TEST_API_URL=http://localhost:8080/api pnpm --filter @workspace/api-server run test` — also runs API tests against a live server with a database: seller data isolation, sign-up race, single sync per click, sign out everywhere
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/db run migrate` — apply versioned SQL migrations from `lib/db/migrations`; after changing the schema run `pnpm --filter @workspace/db run generate` first and commit the new file. `push` remains for throwaway local databases only
 - Required env:
   - `DATABASE_URL` — Postgres. Accounts, imports, campaigns and connections need it; without it the app runs as a demo only.
   - `ENCRYPTION_KEY` — any long random string (Secrets). Encrypts Kaspi / MoySklad / MCP keys at rest. In production the API refuses to start without it (or `SESSION_SECRET`).
   - To rotate it: put the old value in `ENCRYPTION_KEY_PREVIOUS` (comma-separated for several) and the new one in `ENCRYPTION_KEY`; saved keys keep working and are re-encrypted when next read.
-- After schema changes run `pnpm --filter @workspace/db run push` (post-merge does it for dev; make sure the production database gets the same tables).
+- After schema changes run `generate`, review the SQL file, commit it, then `migrate` (post-merge does it for dev; production gets it through `docker compose run --rm migrate`).
 - Optional env:
   - `ANTHROPIC_API_KEY` (or Replit AI integration `AI_INTEGRATIONS_ANTHROPIC_API_KEY` + `AI_INTEGRATIONS_ANTHROPIC_BASE_URL`) — turns on model answers in "Ask Reflect"; without it the assistant answers with data-driven rules
   - `ASSISTANT_MODEL` — defaults to `claude-sonnet-5-5`
@@ -89,7 +89,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 ## Gotchas
 
 - Keep `lib/api-spec/openapi.yaml` and generated client/Zod files in sync by running codegen after contract changes.
-- Campaigns persist only when `DATABASE_URL` is set and `pnpm --filter @workspace/db run push` has created `external_campaigns`.
+- Campaigns persist only when `DATABASE_URL` is set and the migrations have created `external_campaigns`.
 - Campaigns, imports, feedback and connections belong to a user; guests cannot write anything.
 - Server-side imports cap at 5000 rows per request; the web app sends larger files in chunks.
 - The Kaspi export column names are matched by aliases in `artifacts/shift-market/src/lib/importer.ts`. If a real export uses a different header, add it there — the mapping UI covers it meanwhile.

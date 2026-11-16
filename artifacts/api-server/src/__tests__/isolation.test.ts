@@ -72,8 +72,15 @@ describe("seller data isolation", { skip }, () => {
     assert.ok(!response.text.includes(NAME_A));
   });
 
-  it("B deleting their data or connections leaves A untouched", async () => {
-    assert.equal((await b.call("DELETE", "/data")).status < 300, true);
+  it("sellers cannot delete their data or account through the API (administrator only)", async () => {
+    for (const path of ["/data", "/auth/account", "/account"]) {
+      assert.equal((await b.call("DELETE", path)).status, 404, `DELETE ${path}`);
+    }
+    // ...and the failed attempts removed nothing of A's or B's.
+    assert.ok((await b.call("GET", "/data/status")).text.includes("orders"));
+  });
+
+  it("B disconnecting their own integration leaves A untouched", async () => {
     await b.call("DELETE", "/integrations/KASPI_API");
     const products = await a.call("GET", "/shift-market/products");
     assert.ok(products.text.includes(SKU_A));
@@ -88,7 +95,7 @@ describe("seller data isolation", { skip }, () => {
 
   it("requires sign-in for seller endpoints", async () => {
     const anonymous = new Client();
-    for (const [method, path] of [["GET", "/data/status"], ["GET", "/feedback"], ["GET", "/integrations/runs"], ["POST", "/data/import"], ["DELETE", "/data"], ["POST", "/integrations/KASPI_API/sync"]] as const) {
+    for (const [method, path] of [["GET", "/data/status"], ["GET", "/feedback"], ["GET", "/integrations/runs"], ["POST", "/data/import"], ["POST", "/integrations/KASPI_API/sync"]] as const) {
       assert.equal((await anonymous.call(method, path, method === "GET" ? undefined : {})).status, 401, `${method} ${path}`);
     }
   });

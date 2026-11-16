@@ -210,7 +210,7 @@ jobs:
 
       - name: Off-site copy (to a local folder standing in for remote storage)
         run: |
-          BACKUP_REMOTE=/tmp/remote BACKUP_OFFSITE_EVERY_HOURS=1 docker compose --profile offsite up -d offsite
+          BACKUP_REMOTE=/tmp/remote BACKUP_OFFSITE_EVERY_HOURS=1 BACKUP_OFFSITE_MIN_AGE=1s docker compose --profile offsite up -d offsite
           for i in $(seq 1 30); do
             docker compose logs offsite 2>&1 | grep -q "offsite: copied" && break
             sleep 2

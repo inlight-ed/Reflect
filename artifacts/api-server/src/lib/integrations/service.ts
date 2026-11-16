@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, lt, sql } from "drizzle-orm";
 import type { SourceMessageKey } from "@workspace/api-zod";
+import { limitConcurrency } from "../concurrency";
 import { database } from "../database";
 import { logger, safeError } from "../logger";
 import { importOrders, importProducts } from "../user-data";
@@ -88,6 +89,12 @@ export async function removeConnection(userId: string, kind: IntegrationKind) {
 
 const STALE_SYNC_MS = 15 * 60_000;
 /**
+ * Syncs running at once on this instance (SYNC_CONCURRENCY, default 4). Each seller already has at
+ * most one sync per source; this caps the total, so 50 sellers pressing "Sync" together do not
+ * send 50 crawls to Kaspi and MoySklad at the same moment. The rest wait their turn.
+ */
+export const syncSlots = limitConcurrency(Math.max(1, Number(process.env["SYNC_CONCURRENCY"]) || 4));
+/**
  * Kaspi orders change status for up to 3 days after they are created, and the API cannot filter
  * by change date, so each sync re-reads the last 3 days before the previous complete sync, plus a
  * day of margin.
@@ -127,7 +134,12 @@ export async function startSync(userId: string, kind: IntegrationKind) {
   const inserted = await db.insert(syncRunsTable).values({ id: runId, userId, kind, status: "RUNNING" }).onConflictDoNothing().returning({ id: syncRunsTable.id });
   if (!inserted.length) return { ...(await view(userId, kind)), status: "SYNCING" as const };
   await updateIntegrationStatus(userId, kind, "SYNCING", null);
-  void runSync(userId, kind, runId, stored).catch((err) => logger.error({ err: safeError(err), kind }, "Sync crashed"));
+  // Queued behind other sellers' syncs; the run counts as started when it gets a slot, so a long
+  // wait in the queue is not mistaken for a run that died.
+  void syncSlots.run(
+    () => runSync(userId, kind, runId, stored),
+    async () => { await db.update(syncRunsTable).set({ startedAt: new Date() }).where(eq(syncRunsTable.id, runId)); },
+  ).catch((err) => logger.error({ err: safeError(err), kind }, "Sync crashed"));
   return { ...(await view(userId, kind)), status: "SYNCING" as const };
 }
 

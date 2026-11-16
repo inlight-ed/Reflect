@@ -308,3 +308,20 @@ test('forgot password: same answer for any address, link from the sign-in form',
   await page.getByTestId('button-reset-submit').click();
   await expect(page.getByTestId('reset-error')).toContainText('Ссылка недействительна');
 });
+
+test('first screen: a Kaspi token loads orders and the plan without any file', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`token-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('wrong-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('onboarding-connect-kaspi_api').getByRole('alert')).toBeVisible();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  // The first sync runs in the background; the overview appears when it is done.
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('chart-data-as-of')).toBeVisible();
+});

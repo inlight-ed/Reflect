@@ -21,14 +21,26 @@ export type AdInput = { day: string; sku?: string | null; channel?: string | nul
 
 export class ImportValidationError extends Error {}
 
-function parseDate(value: string): Date | undefined {
+/** A date built from parts must come back with the same parts, otherwise 31.02 would silently become 3 March. */
+function exactDate(year: string, month: string, day: string, time: string): Date | undefined {
+  const [y, m, d] = [Number(year), Number(month), Number(day)];
+  const date = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${time}+05:00`);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const local = new Date(date.getTime() + 5 * 3_600_000);
+  return local.getUTCFullYear() === y && local.getUTCMonth() + 1 === m && local.getUTCDate() === d ? date : undefined;
+}
+
+/** Returns undefined (never an Invalid Date) when the text is not a real calendar date. */
+export function parseDate(value: string): Date | undefined {
   const text = value.trim();
   const dotted = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:[ T](\d{1,2}):(\d{2}))?/);
   if (dotted) {
     const [, d, m, y, hh = "12", mm = "00"] = dotted;
-    return new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hh.padStart(2, "0")}:${mm}:00+05:00`);
+    if (Number(hh) > 23 || Number(mm) > 59) return undefined;
+    return exactDate(y!, m!, d!, `${hh.padStart(2, "0")}:${mm}:00`);
   }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return new Date(`${text}T12:00:00+05:00`);
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return exactDate(iso[1]!, iso[2]!, iso[3]!, "12:00:00");
   if (/^\d{12,13}$/.test(text)) return new Date(Number(text));
   const parsed = new Date(text);
   return Number.isNaN(parsed.valueOf()) ? undefined : parsed;

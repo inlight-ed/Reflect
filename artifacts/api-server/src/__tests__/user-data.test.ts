@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeOrders, normalizeStatus } from "../lib/user-data";
+import { normalizeOrders, normalizeStatus, parseDate } from "../lib/user-data";
 
 describe("normalizeStatus", () => {
   it("maps Kaspi and spreadsheet statuses in three languages", () => {
@@ -43,5 +43,30 @@ describe("normalizeOrders", () => {
       { orderedAt: "2099-01-01", sku: "A", quantity: 1, amount: 1 },
     ], "FILE");
     assert.equal(result.length, 0);
+  });
+});
+
+describe("parseDate", () => {
+  it("returns undefined for dates that do not exist instead of an Invalid Date or a shifted day", () => {
+    for (const text of ["01.13.2026", "13.13.2026", "31.02.2026", "30.02.2026", "31.04.2026", "2026-02-31", "2026-13-01", "15.08.2026 25:00", "15.08.2026 10:75", "not a date"]) {
+      assert.equal(parseDate(text), undefined, text);
+    }
+  });
+
+  it("keeps valid dates, including 29 February in a leap year", () => {
+    assert.equal(parseDate("29.02.2028")?.toISOString(), "2028-02-29T07:00:00.000Z");
+    assert.equal(parseDate("2026-08-14")?.toISOString(), "2026-08-14T07:00:00.000Z");
+    assert.equal(parseDate("15.08.2026 14:30")?.toISOString(), "2026-08-15T09:30:00.000Z");
+  });
+});
+
+describe("normalizeOrders with bad dates", () => {
+  it("skips the bad row and keeps the rest instead of throwing", () => {
+    const result = normalizeOrders([
+      { orderCode: "1", orderedAt: "01.13.2026", sku: "A", quantity: 1, amount: 100 },
+      { orderCode: "2", orderedAt: "31.02.2026", sku: "A", quantity: 1, amount: 100 },
+      { orderCode: "3", orderedAt: "15.08.2026", sku: "A", quantity: 1, amount: 100 },
+    ], "FILE");
+    assert.deepEqual(result.map((row) => row.orderCode), ["3"]);
   });
 });

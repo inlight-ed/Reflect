@@ -1,0 +1,6 @@
+# Try Reflect on your own computer or in a GitHub Codespace, without a domain or HTTPS.
+# Started by deploy/try-local.sh; it only adds a port to the normal stack.
+services:
+  app:
+    ports:
+      - "8080:8080"

@@ -288,6 +288,15 @@ jobs:
           docker compose --profile offsite stop offsite
           if docker compose --profile offsite run --rm -e BACKUP_REMOTE= offsite 2>&1 | grep -q "BACKUP_REMOTE is not set"; then echo ok; else exit 1; fi
 
+      - name: Test setup on a fresh checkout (deploy/try-local.sh, http://localhost:8080)
+        run: |
+          docker compose down -v
+          rm -f .env
+          sh deploy/try-local.sh
+          curl -fsS http://localhost:8080/api/readyz
+          curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
+          sh deploy/try-local.sh reset
+
       - name: Logs
         if: failure()
         run: docker compose logs --tail=100

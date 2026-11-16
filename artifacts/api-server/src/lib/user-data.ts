@@ -174,14 +174,15 @@ export async function hasUserOrders(userId: string) {
   return rows.length > 0;
 }
 
+/** Deletes a seller's imported data. All or nothing: a failure half way leaves everything in place. */
 export async function deleteUserData(userId: string) {
   const { db, ordersTable, productsTable, adSpendTable, importsTable, feedbackTable, cardEventsTable } = await database();
-  await Promise.all([
-    db.delete(ordersTable).where(eq(ordersTable.userId, userId)),
-    db.delete(productsTable).where(eq(productsTable.userId, userId)),
-    db.delete(adSpendTable).where(eq(adSpendTable.userId, userId)),
-    db.delete(importsTable).where(eq(importsTable.userId, userId)),
-    db.delete(feedbackTable).where(eq(feedbackTable.userId, userId)),
-    db.delete(cardEventsTable).where(eq(cardEventsTable.userId, userId)),
-  ]);
+  await db.transaction(async (tx) => {
+    await tx.delete(ordersTable).where(eq(ordersTable.userId, userId));
+    await tx.delete(productsTable).where(eq(productsTable.userId, userId));
+    await tx.delete(adSpendTable).where(eq(adSpendTable.userId, userId));
+    await tx.delete(importsTable).where(eq(importsTable.userId, userId));
+    await tx.delete(feedbackTable).where(eq(feedbackTable.userId, userId));
+    await tx.delete(cardEventsTable).where(eq(cardEventsTable.userId, userId));
+  });
 }

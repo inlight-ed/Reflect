@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  # The web build reads these (vite.config.ts); the site is served from the root.
+  PORT: "5173"
+  BASE_PATH: "/"
+
+jobs:
+  checks:
+    name: Types, translations, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Translations (ru / kk / en)
+        run: pnpm --filter @workspace/scripts run check:i18n
+
+      - name: Unit tests
+        run: pnpm run test
+
+      - name: Database migrations match the schema
+        run: |
+          pnpm --filter @workspace/db run generate
+          if [ -n "$(git status --porcelain lib/db/migrations)" ]; then
+            echo "The schema in lib/db/src/schema changed without a migration." >&2
+            echo "Run: pnpm --filter @workspace/db run generate, review the SQL and commit it." >&2
+            git status --porcelain lib/db/migrations >&2
+            exit 1
+          fi
+
+      - name: Build
+        run: |
+          NODE_ENV=production pnpm --filter @workspace/shift-market run build
+          NODE_ENV=production pnpm --filter @workspace/api-server run build
+
+  api-tests:
+    name: API tests with PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: reflect
+          POSTGRES_USER: reflect
+          POSTGRES_PASSWORD: reflect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U reflect -d reflect"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://reflect:reflect@localhost:5432/reflect
+      ENCRYPTION_KEY: ci-only-encryption-key-not-a-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm --filter @workspace/db run migrate
+
+      - name: Apply migrations again (must be a no-op)
+        run: pnpm --filter @workspace/db run migrate
+
+      - name: Build and start the API
+        run: |
+          NODE_ENV=production pnpm --filter @workspace/api-server run build
+          NODE_ENV=production PORT=8080 node artifacts/api-server/dist/index.mjs > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/api/readyz >/dev/null && exit 0
+            sleep 1
+          done
+          echo "API did not become ready" >&2
+          cat api.log >&2
+          exit 1
+
+      - name: Data isolation, sign-up race, sync lock, sign out everywhere
+        env:
+          TEST_API_URL: http://127.0.0.1:8080/api
+        run: pnpm --filter @workspace/api-server run test
+
+      - name: API log
+        if: failure()
+        run: cat api.log

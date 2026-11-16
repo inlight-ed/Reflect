@@ -1,7 +1,8 @@
-import { CheckCircle2, CircleDashed, Database, FileSpreadsheet, PlugZap, UploadCloud } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, CircleDashed, Database, FileSpreadsheet, KeyRound, LoaderCircle, PlugZap } from 'lucide-react';
 import { Link } from 'wouter';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useListFeedback, type Assumptions, type ForecastItem, type SeriesPoint } from '@workspace/api-client-react';
+import { useGetIntegrations, useListFeedback, useSaveConnection, useSyncConnection, type Assumptions, type ForecastItem, type SeriesPoint } from '@workspace/api-client-react';
 import { fill, formatCompactCurrency, formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
 import { usePeriod, type CompareValue, type PeriodValue } from '@/lib/period';
 import { useSession } from '@/lib/session';
@@ -129,22 +130,102 @@ export function Outcomes() {
   );
 }
 
+/**
+ * Connects a source with its token right on the first screen, then starts the first sync and waits
+ * for it, so a new seller gets a plan for the day without exporting a single file.
+ */
+function TokenConnect({ kind }: { kind: 'KASPI_API' | 'MOYSKLAD' }) {
+  const { t, sourceT } = useI18n();
+  const { refresh } = useSession();
+  const save = useSaveConnection();
+  const sync = useSyncConnection();
+  const [token, setToken] = useState('');
+  const [phase, setPhase] = useState<'idle' | 'checking' | 'syncing'>('idle');
+  const [error, setError] = useState('');
+  const [syncStartedAt, setSyncStartedAt] = useState(0);
+  const integrations = useGetIntegrations({ query: { enabled: phase === 'syncing', refetchInterval: 2000 } as never });
+
+  useEffect(() => {
+    // Only answers fetched after the sync started count; the cache may still hold the old status.
+    if (phase !== 'syncing' || integrations.dataUpdatedAt <= syncStartedAt) return;
+    const connection = integrations.data?.connections?.find((item) => item.kind === kind);
+    if (!connection || connection.status === 'SYNCING') return;
+    setPhase('idle');
+    if (connection.status === 'ERROR') { setError(connection.detail ? sourceT(connection.detail) : t('conn.error.input')); return; }
+    setToken('');
+    void refresh();
+  }, [integrations.data, integrations.dataUpdatedAt, syncStartedAt, phase, kind, refresh, sourceT, t]);
+
+  const submit = async () => {
+    if (!token.trim()) return;
+    setError('');
+    setPhase('checking');
+    try {
+      const connection = await save.mutateAsync({ kind, data: { secret: token.trim() } });
+      if (connection.status !== 'CONNECTED') {
+        setPhase('idle');
+        setError(connection.detail ? sourceT(connection.detail) : t('conn.error.input'));
+        return;
+      }
+      await sync.mutateAsync({ kind });
+      setSyncStartedAt(Date.now());
+      setPhase('syncing');
+    } catch {
+      setPhase('idle');
+      setError(t('conn.error.input'));
+    }
+  };
+
+  const id = `onboarding-token-${kind.toLowerCase()}`;
+  return (
+    <form className="token-connect" onSubmit={(event) => { event.preventDefault(); void submit(); }} data-testid={`onboarding-connect-${kind.toLowerCase()}`}>
+      <label htmlFor={id} className="sr-only">{t('onboarding.token.label')}</label>
+      <div className="token-row">
+        <KeyRound size={15} aria-hidden className="token-icon" />
+        <input id={id} type="password" autoComplete="off" spellCheck={false} placeholder={t('onboarding.token.placeholder')} value={token} maxLength={4096} disabled={phase !== 'idle'} onChange={(event) => setToken(event.target.value)} data-testid={`input-onboarding-${kind.toLowerCase()}`} />
+        <button type="submit" className="btn" disabled={phase !== 'idle' || !token.trim()}>
+          {phase === 'idle' ? t('onboarding.token.connect') : <><LoaderCircle size={14} className="spin" aria-hidden /> {t(phase === 'checking' ? 'onboarding.token.checking' : kind === 'KASPI_API' ? 'onboarding.token.syncing.kaspi' : 'onboarding.token.syncing.moysklad')}</>}
+        </button>
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </form>
+  );
+}
+
 export function Onboarding() {
   const { locale, t } = useI18n();
   const { session } = useSession();
+  const integrations = useGetIntegrations();
   const steps = [
-    { done: Boolean(session?.hasData), icon: UploadCloud, title: 'onboarding.step1.title', body: 'onboarding.step1.body', action: <Link href="/data" className="btn" data-testid="onboarding-upload">{t('onboarding.go.upload')}</Link> },
-    { done: Boolean(session?.hasProducts), icon: FileSpreadsheet, title: 'onboarding.step2.title', body: 'onboarding.step2.body', action: <button type="button" className="btn secondary" onClick={() => void downloadTemplate(locale)} data-testid="onboarding-template">{t('onboarding.go.template')}</button> },
-    { done: Boolean(session?.hasConnections), icon: PlugZap, title: 'onboarding.step3.title', body: 'onboarding.step3.body', action: <Link href="/settings" className="btn secondary">{t('onboarding.go.connect')}</Link> },
+    {
+      done: Boolean(session?.hasData), icon: PlugZap, title: 'onboarding.step1.title', body: 'onboarding.step1.body',
+      form: <TokenConnect kind="KASPI_API" />,
+      alt: <Link href="/data" className="onboarding-alt" data-testid="onboarding-upload">{t('onboarding.alt.upload')}</Link>,
+    },
+    {
+      done: Boolean(session?.hasProducts), icon: FileSpreadsheet, title: 'onboarding.step2.title', body: 'onboarding.step2.body',
+      form: <TokenConnect kind="MOYSKLAD" />,
+      alt: <button type="button" className="onboarding-alt" onClick={() => void downloadTemplate(locale)} data-testid="onboarding-template">{t('onboarding.alt.template')}</button>,
+    },
+    {
+      done: Boolean(integrations.data?.connections?.some((connection) => connection.kind === 'REDSTAT_MCP' && connection.status === 'CONNECTED')), icon: Database, title: 'onboarding.step3.title', body: 'onboarding.step3.body',
+      action: <Link href="/settings" className="btn secondary">{t('onboarding.go.connect')}</Link>,
+    },
   ];
+  const current = steps.findIndex((step) => !step.done);
   return (
     <section className="onboarding" data-testid="onboarding">
       <div className="onboarding-head"><h2>{t('onboarding.title')}</h2><p>{t('onboarding.subtitle')}</p></div>
       <ol className="onboarding-steps">
-        {steps.map(({ done, icon: Icon, title, body, action }, index) => (
-          <li key={title} className={done ? 'done' : ''}>
-            <div className="step-index">{done ? <CheckCircle2 size={18} /> : index === steps.findIndex((step) => !step.done) ? <Icon size={18} /> : <CircleDashed size={18} />}</div>
-            <div className="step-copy"><h3>{t(title)}</h3><p>{t(body)}</p></div>
+        {steps.map(({ done, icon: Icon, title, body, form, alt, action }, index) => (
+          <li key={title} className={`${done ? 'done' : ''} ${index === current ? 'current' : ''}`}>
+            <div className="step-index">{done ? <CheckCircle2 size={18} /> : index === current ? <Icon size={18} /> : <CircleDashed size={18} />}</div>
+            <div className="step-copy">
+              <h3>{t(title)}</h3>
+              <p>{t(body)}</p>
+              {!done && form}
+              {!done && alt}
+            </div>
             <div className="step-action">{done ? <span className="positive">{t('onboarding.done')}</span> : action}</div>
           </li>
         ))}

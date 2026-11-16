@@ -162,9 +162,12 @@ jobs:
           NODE_ENV=production pnpm --filter @workspace/api-server run build
 
       # The API serves the built site, as in production. The demo dates are pinned for the tests.
+      # A stand-in for the Kaspi seller API, so the token-first sign-up is tested without a real shop.
       - name: Start the app
         run: |
+          node artifacts/shift-market/e2e/fake-kaspi.mjs 8099 > fake-kaspi.log 2>&1 &
           NODE_ENV=production PORT=8080 STATIC_DIR=artifacts/shift-market/dist/public DEMO_SNAPSHOT_DATE=2026-08-18 \
+            KASPI_API_BASE=http://127.0.0.1:8099/shop/api/v2 \
             node artifacts/api-server/dist/index.mjs > app.log 2>&1 &
           for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8080/api/readyz >/dev/null && exit 0
@@ -177,6 +180,7 @@ jobs:
       - name: Languages, demo, sign-up, import, recommendations in a real browser
         env:
           SHIFT_MARKET_TEST_BASE_URL: http://localhost:8080
+          FAKE_KASPI: "1"
         run: pnpm --filter @workspace/shift-market run test:e2e
 
       - name: App log

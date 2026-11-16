@@ -273,6 +273,8 @@ export interface DashboardOverview {
   assumptions?: Assumptions;
   source: DataSource;
   refreshedAt: string;
+  /** Moment the seller's data reaches (last imported order or last Kaspi sync); analysis windows end here. */
+  dataAsOf?: string;
   summary: Insight;
   metrics: Metric[];
   actions: DashboardAction[];
@@ -645,6 +647,8 @@ export const AuthErrorBodyError = {
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   ACCOUNTS_UNAVAILABLE: 'ACCOUNTS_UNAVAILABLE',
   RATE_LIMITED: 'RATE_LIMITED',
+  INVALID_RESET_LINK: 'INVALID_RESET_LINK',
+  TEMPORARILY_UNAVAILABLE: 'TEMPORARILY_UNAVAILABLE',
 } as const;
 
 export interface AuthErrorBody {
@@ -664,6 +668,31 @@ export interface RegisterInput {
   password: string;
   /** @maxLength 80 */
   name?: string;
+}
+
+export interface OkResponse {
+  ok: boolean;
+}
+
+export interface PasswordResetRequest {
+  /**
+     * @minLength 3
+     * @maxLength 254
+     */
+  email: string;
+}
+
+export interface PasswordResetInput {
+  /**
+     * @minLength 20
+     * @maxLength 200
+     */
+  token: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  password: string;
 }
 
 export interface LoginInput {

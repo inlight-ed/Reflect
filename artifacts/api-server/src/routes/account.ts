@@ -4,10 +4,13 @@ import {
   CreateFeedbackBody,
   ImportDataBody,
   LoginAccountBody,
+  RequestPasswordResetBody,
+  ResetPasswordBody,
   RegisterAccountBody,
   SaveConnectionBody,
 } from "@workspace/api-zod";
-import { AuthError, login, logout, register, requireUser, SESSION_COOKIE, setSessionCookie, logoutEverywhere } from "../lib/auth";
+import { AuthError, createSession, login, logout, register, requireUser, SESSION_COOKIE, setSessionCookie, logoutEverywhere } from "../lib/auth";
+import { requestPasswordReset, resetPassword } from "../lib/password-reset";
 import { HashingBusyError } from "../lib/security";
 import { createCardEvent } from "../lib/cards";
 import { hasDatabase } from "../lib/database";
@@ -21,6 +24,7 @@ const router: IRouter = Router();
 
 const authLimit = rateLimit({ name: "auth", windowMs: 15 * 60_000, max: 20, shared: true });
 const importLimit = rateLimit({ name: "import", windowMs: 60 * 60_000, max: 120, shared: true });
+const resetLimit = rateLimit({ name: "password-reset", windowMs: 60 * 60_000, max: 10, shared: true });
 const syncLimit = rateLimit({ name: "sync", windowMs: 60 * 60_000, max: 30, shared: true });
 
 function authError(res: Response, error: unknown) {
@@ -62,6 +66,37 @@ router.post("/auth/login", authLimit, async (req, res) => {
   }
   try {
     const { user, session } = await login(parsed.data.email, parsed.data.password);
+    setSessionCookie(res, session.token, session.expiresAt);
+    res.json(user);
+  } catch (error) {
+    authError(res, error);
+  }
+});
+
+// Same answer whether or not the address has an account, so the form cannot be used to find users.
+router.post("/auth/password-reset/request", resetLimit, async (req, res) => {
+  const parsed = RequestPasswordResetBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "INVALID_EMAIL" });
+    return;
+  }
+  try {
+    await requestPasswordReset(parsed.data.email);
+    res.status(202).json({ ok: true });
+  } catch (error) {
+    authError(res, error);
+  }
+});
+
+router.post("/auth/password-reset", resetLimit, async (req, res) => {
+  const parsed = ResetPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.some((issue: { path: PropertyKey[] }) => issue.path[0] === "password") ? "WEAK_PASSWORD" : "INVALID_RESET_LINK" });
+    return;
+  }
+  try {
+    const user = await resetPassword(parsed.data.token, parsed.data.password);
+    const session = await createSession(user.id);
     setSessionCookie(res, session.token, session.expiresAt);
     res.json(user);
   } catch (error) {

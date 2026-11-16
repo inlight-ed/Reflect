@@ -17,6 +17,18 @@ export const sessionsTable = pgTable("sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("sessions_user_idx").on(table.userId)]);
 
+/**
+ * One-time password reset links. Only the sha256 of the token is stored, so a database leak does
+ * not hand out working links. A link works once and expires after an hour.
+ */
+export const passwordResetsTable = pgTable("password_resets", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("password_resets_user_idx").on(table.userId)]);
+
 /** Catalogue facts the marketplace does not know: cost, stock, lead time, commission. */
 export const productsTable = pgTable("products", {
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),

@@ -283,6 +283,8 @@ test('seller: registers, imports a Kaspi export and marks a recommendation', asy
 
   await page.getByTestId('link-nav-обзор').click();
   await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  // The chart ends where the data ends and says so, instead of dropping to zero after the export.
+  await expect(page.getByTestId('chart-data-as-of')).toContainText('данные по');
   await expect(page.getByTestId('forecast')).toContainText('Крем для рук');
   const firstAction = page.getByTestId('card-action-0');
   await expect(firstAction).toContainText('ДОЗАКАЗАТЬ');
@@ -292,4 +294,17 @@ test('seller: registers, imports a Kaspi export and marks a recommendation', asy
 
   await page.getByTestId('period-7').click();
   await expect(page.getByTestId('period-7')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('forgot password: same answer for any address, link from the sign-in form', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByTestId('link-forgot-password').click();
+  await expect(page).toHaveURL(/forgot-password/);
+  await page.getByTestId('input-reset-email').fill(`nobody-${Date.now()}@example.kz`);
+  await page.getByTestId('button-reset-request').click();
+  await expect(page.getByTestId('reset-sent')).toContainText('Проверьте почту');
+  await page.goto('/reset-password?token=not-a-real-token-but-long-enough');
+  await page.getByTestId('input-new-password').fill('new-password-123');
+  await page.getByTestId('button-reset-submit').click();
+  await expect(page.getByTestId('reset-error')).toContainText('Ссылка недействительна');
 });

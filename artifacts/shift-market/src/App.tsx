@@ -25,6 +25,8 @@ const AssistantPage = lazy(() => import('@/pages/assistant'));
 const DataPage = lazy(() => import('@/pages/data'));
 const LandingPage = lazy(() => import('@/pages/landing'));
 const AuthPage = lazy(() => import('@/pages/auth'));
+const ForgotPasswordPage = lazy(() => import('@/pages/password-reset').then((module) => ({ default: module.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('@/pages/password-reset').then((module) => ({ default: module.ResetPasswordPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +83,8 @@ function Router() {
   return <Suspense fallback={<Splash />}><Switch>
     <Route path="/">{loading ? <Splash /> : signedIn || demo ? <Redirect to="/overview" /> : <LandingPage />}</Route>
     <Route path="/login">{signedIn ? <Redirect to="/overview" /> : <AuthPage mode="login" />}</Route>
+    <Route path="/forgot-password">{signedIn ? <Redirect to="/overview" /> : <ForgotPasswordPage />}</Route>
+    <Route path="/reset-password"><ResetPasswordPage /></Route>
     <Route path="/register">{signedIn ? <Redirect to="/overview" /> : <AuthPage mode="register" />}</Route>
     <Route><Gate><AppRoutes /></Gate></Route>
   </Switch></Suspense>;

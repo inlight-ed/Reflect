@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { hasPersistentKey } from "./lib/security";
-import { pruneRateLimits } from "./middlewares/rate-limit";
+import { scheduleMaintenance } from "./lib/maintenance";
 
 const rawPort = process.env["PORT"];
 
@@ -43,5 +43,5 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   });
 }
 
-// Expired shared rate-limit counters are removed hourly.
-setInterval(() => void pruneRateLimits().catch(() => undefined), 60 * 60_000).unref();
+// Daily housekeeping: expired sessions, old sync log, stale counters.
+scheduleMaintenance();

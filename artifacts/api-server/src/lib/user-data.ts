@@ -173,16 +173,3 @@ export async function hasUserOrders(userId: string) {
   const rows = await db.select({ code: ordersTable.orderCode }).from(ordersTable).where(eq(ordersTable.userId, userId)).limit(1);
   return rows.length > 0;
 }
-
-/** Deletes a seller's imported data. All or nothing: a failure half way leaves everything in place. */
-export async function deleteUserData(userId: string) {
-  const { db, ordersTable, productsTable, adSpendTable, importsTable, feedbackTable, cardEventsTable } = await database();
-  await db.transaction(async (tx) => {
-    await tx.delete(ordersTable).where(eq(ordersTable.userId, userId));
-    await tx.delete(productsTable).where(eq(productsTable.userId, userId));
-    await tx.delete(adSpendTable).where(eq(adSpendTable.userId, userId));
-    await tx.delete(importsTable).where(eq(importsTable.userId, userId));
-    await tx.delete(feedbackTable).where(eq(feedbackTable.userId, userId));
-    await tx.delete(cardEventsTable).where(eq(cardEventsTable.userId, userId));
-  });
-}

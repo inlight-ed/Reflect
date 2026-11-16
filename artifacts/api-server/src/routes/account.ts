@@ -12,7 +12,7 @@ import { createCardEvent } from "../lib/cards";
 import { hasDatabase } from "../lib/database";
 import { CONNECTION_KINDS, ConnectionInputError, connectionViews, recentSyncRuns, removeConnection, saveConnection, startSync } from "../lib/integrations/service";
 import type { IntegrationKind } from "../lib/integrations/store";
-import { deleteUserData, hasUserOrders, importAds, importOrders, importProducts, ImportValidationError } from "../lib/user-data";
+import { hasUserOrders, importAds, importOrders, importProducts, ImportValidationError } from "../lib/user-data";
 import { createFeedback, dataStatus, listUserFeedback } from "../lib/workspace";
 import { rateLimit } from "../middlewares/rate-limit";
 
@@ -24,7 +24,12 @@ const syncLimit = rateLimit({ name: "sync", windowMs: 60 * 60_000, max: 30, shar
 
 function authError(res: Response, error: unknown) {
   if (!(error instanceof AuthError)) throw error;
-  const status = error.code === "EMAIL_TAKEN" ? 409 : error.code === "INVALID_CREDENTIALS" ? 401 : error.code === "ACCOUNTS_UNAVAILABLE" ? 503 : 400;
+  const status = error.code === "EMAIL_TAKEN" ? 409 : error.code === "INVALID_CREDENTIALS" ? 401 : error.code === "ACCOUNTS_UNAVAILABLE" ? 503 : error.code === "TOO_MANY_ATTEMPTS" ? 429 : 400;
+  if (error.code === "TOO_MANY_ATTEMPTS") {
+    res.setHeader("Retry-After", error.retryAfterSeconds ?? 900);
+    res.status(status).json({ error: "RATE_LIMITED" });
+    return;
+  }
   res.status(status).json({ error: error.code });
 }
 
@@ -111,11 +116,6 @@ router.post("/data/import", requireUser, importLimit, async (req, res) => {
 
 router.get("/data/status", requireUser, async (req, res) => {
   res.json(await dataStatus(req.user!.id));
-});
-
-router.delete("/data", requireUser, async (req, res) => {
-  await deleteUserData(req.user!.id);
-  res.status(204).end();
 });
 
 router.get("/feedback", requireUser, async (req, res) => {

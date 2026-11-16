@@ -2,6 +2,7 @@ import { and, eq, gt, lt } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { database, hasDatabase } from "./database";
+import { hitSharedCounter } from "../middlewares/rate-limit";
 import { hashPassword, newToken, sha256, timingDummyHash, verifyPassword } from "./security";
 
 export type SessionUser = { id: string; email: string; name: string | null };
@@ -19,10 +20,17 @@ export const SESSION_COOKIE = "reflect_session";
 const SESSION_DAYS = 30;
 
 export class AuthError extends Error {
-  constructor(public code: "EMAIL_TAKEN" | "INVALID_CREDENTIALS" | "WEAK_PASSWORD" | "INVALID_EMAIL" | "ACCOUNTS_UNAVAILABLE") {
+  constructor(public code: "EMAIL_TAKEN" | "INVALID_CREDENTIALS" | "WEAK_PASSWORD" | "INVALID_EMAIL" | "ACCOUNTS_UNAVAILABLE" | "TOO_MANY_ATTEMPTS", public retryAfterSeconds?: number) {
     super(code);
   }
 }
+
+/** Sign-in attempts allowed for one email address per window; a correct password resets the count. */
+export const LOGIN_MAX_ATTEMPTS = 3;
+export const LOGIN_WINDOW_MS = 15 * 60_000;
+// The key is a hash so the shared counter table never holds addresses. Unknown emails are counted
+// in exactly the same way, so the limit reveals nothing about which accounts exist.
+const loginKey = (email: string) => `login:${sha256(email)}`;
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -81,6 +89,10 @@ export async function register(emailInput: string, password: string, name?: stri
 export async function login(emailInput: string, password: string) {
   if (!hasDatabase()) throw new AuthError("ACCOUNTS_UNAVAILABLE");
   const email = normalizeEmail(emailInput);
+  // The attempt is counted before the password is checked, in one atomic statement, so parallel
+  // guesses cannot get past the limit. Over the limit the password is not even looked at.
+  const attempt = await hitSharedCounter(loginKey(email), LOGIN_WINDOW_MS);
+  if (attempt.count > LOGIN_MAX_ATTEMPTS) throw new AuthError("TOO_MANY_ATTEMPTS", Math.max(1, Math.ceil((attempt.resetAt - Date.now()) / 1000)));
   const { db, usersTable } = await database();
   const [row] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!row) {
@@ -88,7 +100,13 @@ export async function login(emailInput: string, password: string) {
     throw new AuthError("INVALID_CREDENTIALS");
   }
   if (!(await verifyPassword(password, row.passwordHash))) throw new AuthError("INVALID_CREDENTIALS");
+  await clearLoginAttempts(email);
   return { user: { id: row.id, email: row.email, name: row.name }, session: await createSession(row.id) };
+}
+
+async function clearLoginAttempts(email: string) {
+  const { db, rateLimitsTable } = await database();
+  await db.delete(rateLimitsTable).where(eq(rateLimitsTable.key, loginKey(email)));
 }
 
 /** Ends every session of the user (all browsers and devices). Returns how many were ended. */

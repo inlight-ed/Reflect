@@ -88,6 +88,37 @@ services:
       db:
         condition: service_healthy
 
+  # Optional and off by default: copies ./backups to a storage somewhere else (S3-compatible, SFTP, ...)
+  # so the backups survive the loss of this server. Fill BACKUP_REMOTE and RCLONE_CONFIG_* in .env
+  # (DEPLOY.md, section 13), then:  docker compose --profile offsite up -d offsite
+  # Only the variables listed here reach the container, not the database password or ENCRYPTION_KEY.
+  offsite:
+    image: rclone/rclone:1
+    profiles: ["offsite"]
+    restart: unless-stopped
+    environment:
+      - BACKUP_REMOTE
+      - BACKUP_OFFSITE_EVERY_HOURS
+      - BACKUP_REMOTE_KEEP_DAYS
+      - BACKUP_OFFSITE_MIN_AGE
+      - RCLONE_CONFIG_OFFSITE_TYPE
+      - RCLONE_CONFIG_OFFSITE_PROVIDER
+      - RCLONE_CONFIG_OFFSITE_ENDPOINT
+      - RCLONE_CONFIG_OFFSITE_REGION
+      - RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID
+      - RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY
+      - RCLONE_CONFIG_OFFSITE_HOST
+      - RCLONE_CONFIG_OFFSITE_USER
+      - RCLONE_CONFIG_OFFSITE_PASS
+      - RCLONE_CONFIG_OFFSITECRYPT_TYPE
+      - RCLONE_CONFIG_OFFSITECRYPT_REMOTE
+      - RCLONE_CONFIG_OFFSITECRYPT_PASSWORD
+      - RCLONE_CONFIG_OFFSITECRYPT_PASSWORD2
+    volumes:
+      - ./backups:/backups:ro
+      - ./deploy/offsite.sh:/offsite.sh:ro
+    entrypoint: ["/bin/sh", "/offsite.sh"]
+
 volumes:
   pgdata:
   caddy_data:

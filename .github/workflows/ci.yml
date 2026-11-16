@@ -1,9 +1,9 @@
 name: CI
 
+# Every push runs the checks, so a branch is tested before its pull request is even opened.
 on:
   push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -117,3 +117,112 @@ jobs:
       - name: API log
         if: failure()
         run: cat api.log
+
+  docker:
+    name: Docker deployment (compose, backups, admin scripts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          sed -i "s|^DOMAIN=.*|DOMAIN=localhost|; s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=ci-$(openssl rand -hex 8)|; s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$(openssl rand -hex 32)|" .env
+          mkdir -p backups
+
+      - name: Build images
+        run: docker compose build app migrate
+
+      - name: Database up, migrations (twice)
+        run: |
+          docker compose up -d db
+          docker compose run --rm migrate
+          docker compose run --rm migrate
+
+      - name: Start app and backup service
+        run: |
+          docker compose up -d app backup
+          for i in $(seq 1 40); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q app)")
+            [ "$status" = "healthy" ] && echo "app healthy" && exit 0
+            sleep 3
+          done
+          docker compose logs app
+          exit 1
+
+      - name: First backup appears
+        run: |
+          for i in $(seq 1 30); do ls backups/reflect-*.dump >/dev/null 2>&1 && break; sleep 2; done
+          ls -la backups
+          ls backups/reflect-*.dump
+
+      - name: Backup restores into a temporary database
+        run: ./deploy/verify-backup.sh
+
+      - name: Admin scripts (data-only, whole account, unlock)
+        run: |
+          psql_db() { docker compose exec -T db psql -U reflect -d reflect -At -v ON_ERROR_STOP=1 "$@"; }
+          psql_db -c "insert into users(id,email,password_hash) values ('ci-user','ci@example.kz','x')"
+          psql_db -c "insert into orders(user_id,order_code,line_key,ordered_at,sku,quantity,amount,status,source) values ('ci-user','1','A#1',now(),'A',1,100,'SOLD','FILE')"
+          psql_db -c "insert into integrations(user_id,kind,status) values ('ci-user','KASPI_API','CONNECTED')"
+
+          printf 'ci@example.kz\n' | ./deploy/delete-account.sh --data-only ci@example.kz
+          [ "$(psql_db -c "select count(*) from orders where user_id='ci-user'")" = "0" ] || { echo "orders were not deleted"; exit 1; }
+          [ "$(psql_db -c "select count(*) from users where id='ci-user'")" = "1" ] || { echo "--data-only removed the account"; exit 1; }
+          [ "$(psql_db -c "select count(*) from integrations where user_id='ci-user'")" = "1" ] || { echo "--data-only removed the connection"; exit 1; }
+
+          # wrong confirmation must delete nothing
+          printf 'nope\n' | ./deploy/delete-account.sh ci@example.kz && { echo "deleted without confirmation"; exit 1; } || true
+          [ "$(psql_db -c "select count(*) from users where id='ci-user'")" = "1" ] || { echo "account removed without confirmation"; exit 1; }
+
+          printf 'ci@example.kz\n' | ./deploy/delete-account.sh ci@example.kz
+          [ "$(psql_db -c "select count(*) from users where id='ci-user'")" = "0" ] || { echo "account was not deleted"; exit 1; }
+          [ "$(psql_db -c "select count(*) from integrations where user_id='ci-user'")" = "0" ] || { echo "connection survived account deletion"; exit 1; }
+          ls backups/before-delete-*.dump
+
+          key="login:$(printf '%s' 'locked@example.kz' | sha256sum | cut -d' ' -f1)"
+          psql_db -c "insert into rate_limits(key,count,reset_at) values ('$key',4,now() + interval '10 minutes')"
+          ./deploy/unlock-login.sh locked@example.kz | grep -q "Unlocked"
+          [ "$(psql_db -c "select count(*) from rate_limits where key='$key'")" = "0" ] || { echo "login block was not lifted"; exit 1; }
+
+      - name: Restore a backup over the database, app comes back
+        run: |
+          dump=$(ls -t backups/reflect-*.dump | head -1)
+          printf 'y\n' | ./deploy/restore.sh "$dump"
+          for i in $(seq 1 40); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q app)")" = "healthy" ] && exit 0
+            sleep 3
+          done
+          docker compose logs app
+          exit 1
+
+      - name: update.sh (backup, rebuild, migrate, restart)
+        run: |
+          ./deploy/update.sh
+          ls backups/before-update-*.dump
+          for i in $(seq 1 40); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q app)")" = "healthy" ] && exit 0
+            sleep 3
+          done
+          docker compose logs app
+          exit 1
+
+      - name: Off-site copy (to a local folder standing in for remote storage)
+        run: |
+          BACKUP_REMOTE=/tmp/remote BACKUP_OFFSITE_EVERY_HOURS=1 BACKUP_OFFSITE_MIN_AGE=1s docker compose --profile offsite up -d offsite
+          for i in $(seq 1 30); do
+            docker compose logs offsite 2>&1 | grep -q "offsite: copied" && break
+            sleep 2
+          done
+          docker compose logs offsite
+          docker compose exec -T offsite ls /tmp/remote | grep -q "reflect-"
+
+      - name: Off-site service refuses to start without a target
+        run: |
+          docker compose --profile offsite stop offsite
+          if docker compose --profile offsite run --rm -e BACKUP_REMOTE= offsite 2>&1 | grep -q "BACKUP_REMOTE is not set"; then echo ok; else exit 1; fi
+
+      - name: Logs
+        if: failure()
+        run: docker compose logs --tail=100

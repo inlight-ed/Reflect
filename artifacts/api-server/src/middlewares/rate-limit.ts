@@ -5,6 +5,22 @@ import { database, hasDatabase } from "../lib/database";
 type Options = { windowMs: number; max: number; name: string; shared?: boolean };
 
 /**
+ * Adds one hit to a counter kept in PostgreSQL and returns the new count and when the window
+ * ends. One atomic statement, so parallel requests (and parallel API instances) cannot slip past.
+ */
+export async function hitSharedCounter(key: string, windowMs: number) {
+  const { db } = await database();
+  const result = await db.execute<{ count: number; reset_at: Date | string }>(sql`
+    insert into rate_limits (key, count, reset_at) values (${key}, 1, now() + ${`${windowMs} milliseconds`}::interval)
+    on conflict (key) do update set
+      count = case when rate_limits.reset_at <= now() then 1 else rate_limits.count + 1 end,
+      reset_at = case when rate_limits.reset_at <= now() then now() + ${`${windowMs} milliseconds`}::interval else rate_limits.reset_at end
+    returning count, reset_at`);
+  const row = result.rows[0]!;
+  return { count: Number(row.count), resetAt: new Date(row.reset_at).getTime() };
+}
+
+/**
  * Fixed-window limiter. Keyed by the signed-in user when there is one, otherwise by IP.
  *
  * `shared: true` keeps the counters in Postgres so the limit holds across API instances
@@ -32,17 +48,7 @@ export function rateLimit({ windowMs, max, name, shared = false }: Options) {
     return entry;
   };
 
-  const remote = async (key: string) => {
-    const { db } = await database();
-    const result = await db.execute<{ count: number; reset_at: Date | string }>(sql`
-      insert into rate_limits (key, count, reset_at) values (${key}, 1, now() + ${`${windowMs} milliseconds`}::interval)
-      on conflict (key) do update set
-        count = case when rate_limits.reset_at <= now() then 1 else rate_limits.count + 1 end,
-        reset_at = case when rate_limits.reset_at <= now() then now() + ${`${windowMs} milliseconds`}::interval else rate_limits.reset_at end
-      returning count, reset_at`);
-    const row = result.rows[0]!;
-    return { count: Number(row.count), resetAt: new Date(row.reset_at).getTime() };
-  };
+  const remote = (key: string) => hitSharedCounter(key, windowMs);
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const now = Date.now();
@@ -63,11 +69,4 @@ export function rateLimit({ windowMs, max, name, shared = false }: Options) {
     }
     next();
   };
-}
-
-/** Deletes expired counters; called occasionally so the table stays small. */
-export async function pruneRateLimits() {
-  if (!hasDatabase()) return;
-  const { db } = await database();
-  await db.execute(sql`delete from rate_limits where reset_at < now() - interval '1 day'`);
 }

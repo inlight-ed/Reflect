@@ -90,7 +90,7 @@ services:
 
   # Optional and off by default: copies ./backups to a storage somewhere else (S3-compatible, SFTP, ...)
   # so the backups survive the loss of this server. Fill BACKUP_REMOTE and RCLONE_CONFIG_* in .env
-  # (DEPLOY.md, section 13), then:  docker compose --profile offsite up -d offsite
+  # (DEPLOY.md, section 14), then:  docker compose --profile offsite up -d offsite
   # Only the variables listed here reach the container, not the database password or ENCRYPTION_KEY.
   offsite:
     image: rclone/rclone:1

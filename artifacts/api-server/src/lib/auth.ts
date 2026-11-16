@@ -20,7 +20,7 @@ export const SESSION_COOKIE = "reflect_session";
 const SESSION_DAYS = 30;
 
 export class AuthError extends Error {
-  constructor(public code: "EMAIL_TAKEN" | "INVALID_CREDENTIALS" | "WEAK_PASSWORD" | "INVALID_EMAIL" | "ACCOUNTS_UNAVAILABLE" | "TOO_MANY_ATTEMPTS", public retryAfterSeconds?: number) {
+  constructor(public code: "EMAIL_TAKEN" | "INVALID_CREDENTIALS" | "WEAK_PASSWORD" | "INVALID_EMAIL" | "ACCOUNTS_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "INVALID_RESET_LINK", public retryAfterSeconds?: number) {
     super(code);
   }
 }
@@ -40,7 +40,7 @@ export function validateCredentials(email: string, password: string) {
   if (password.length < 8 || password.length > 200) throw new AuthError("WEAK_PASSWORD");
 }
 
-async function createSession(userId: string) {
+export async function createSession(userId: string) {
   const { db, sessionsTable } = await database();
   // Housekeeping: drop this user's expired sessions whenever a new one starts.
   await db.delete(sessionsTable).where(and(eq(sessionsTable.userId, userId), lt(sessionsTable.expiresAt, new Date())));

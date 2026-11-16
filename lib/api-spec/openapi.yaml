@@ -69,6 +69,40 @@ paths:
               schema: { $ref: "#/components/schemas/AuthUser" }
         "401": { description: Wrong email or password, content: { application/json: { schema: { $ref: "#/components/schemas/AuthErrorBody" } } } }
         "429": { description: Too many attempts }
+  /auth/password-reset/request:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      summary: Send a one-time password reset link to the email (same answer whether or not the account exists)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordResetRequest" }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResponse" }
+        "429": { description: Too many requests }
+  /auth/password-reset:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      summary: Set a new password from a reset link; ends every session and signs in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordResetInput" }
+      responses:
+        "200":
+          description: Password changed, signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUser" }
+        "400": { description: "Invalid or used link, or weak password", content: { application/json: { schema: { $ref: "#/components/schemas/AuthErrorBody" } } } }
   /auth/logout:
     post:
       operationId: logoutAccount
@@ -566,6 +600,7 @@ components:
         assumptions: { $ref: "#/components/schemas/Assumptions" }
         source: { $ref: "#/components/schemas/DataSource" }
         refreshedAt: { type: string }
+        dataAsOf: { type: string, description: "Moment the seller's data reaches (last imported order or last Kaspi sync); analysis windows end here." }
         summary: { $ref: "#/components/schemas/Insight" }
         metrics:
           type: array
@@ -922,7 +957,7 @@ components:
       type: object
       required: [error]
       properties:
-        error: { type: string, enum: [INVALID_EMAIL, WEAK_PASSWORD, EMAIL_TAKEN, INVALID_CREDENTIALS, ACCOUNTS_UNAVAILABLE, RATE_LIMITED] }
+        error: { type: string, enum: [INVALID_EMAIL, WEAK_PASSWORD, EMAIL_TAKEN, INVALID_CREDENTIALS, ACCOUNTS_UNAVAILABLE, RATE_LIMITED, INVALID_RESET_LINK, TEMPORARILY_UNAVAILABLE] }
     RegisterInput:
       type: object
       required: [email, password]
@@ -930,6 +965,22 @@ components:
         email: { type: string, minLength: 3, maxLength: 254 }
         password: { type: string, minLength: 8, maxLength: 200 }
         name: { type: string, maxLength: 80 }
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, minLength: 3, maxLength: 254 }
+    PasswordResetInput:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string, minLength: 20, maxLength: 200 }
+        password: { type: string, minLength: 1, maxLength: 200 }
     LoginInput:
       type: object
       required: [email, password]

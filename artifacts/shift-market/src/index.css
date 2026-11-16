@@ -638,6 +638,10 @@ a.btn { text-decoration:none; }
 .auth-submit { width:100%; padding:12px; }
 .auth-switch { color:#c3c8cf; font-size:13px; text-align:center; }
 .auth-switch:hover { color:var(--app-accent); }
+.auth-forgot { justify-self:end; margin-top:-6px; color:var(--app-text-muted); font-size:12px; }
+.auth-forgot:hover { color:var(--app-accent); }
+.auth-lead { margin:0; color:var(--app-text-muted); font-size:14px; line-height:1.5; }
+.auth-icon { color:var(--app-accent); }
 
 /* ======================= Landing ======================= */
 .landing { min-height:100dvh; background:radial-gradient(900px 500px at 75% 10%, rgba(231,178,79,.10), transparent), radial-gradient(700px 400px at 10% 90%, rgba(185,217,75,.06), transparent), var(--app-bg); color:#e7eaf0; }
@@ -742,3 +746,5 @@ a.btn { text-decoration:none; }
 @media (prefers-reduced-motion: reduce) { .reveal-panel, .reveal-chevron, .reveal-content { transition:none; } }
 /* Opening one card must not stretch its neighbour into an empty box. */
 .action-grid, .ad-channel-grid { align-items:start; }
+
+.chart-asof { margin-left:10px; color:var(--app-text-muted); font:11px var(--app-font-mono); font-weight:400; }

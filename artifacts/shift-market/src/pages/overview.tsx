@@ -26,7 +26,7 @@ export default function OverviewPage() {
   const metrics = Array.isArray(dashboard.metrics) ? dashboard.metrics : [];
   const actions = Array.isArray(dashboard.actions) ? dashboard.actions : [];
   const timeline = Array.isArray(dashboard.timeline) ? dashboard.timeline : [];
-  const head = <PageHead eyebrow={formatLongDate(now, locale)} title={greetingKey(now)} subtitle="Рынок изменился за ночь. Вот где ваше внимание принесёт больше всего результата." source={dashboard.source ?? demoSource} refreshedAt={dashboard.refreshedAt} action={dashboard.mode === 'USER' ? <PeriodBar /> : undefined} />;
+  const head = <PageHead eyebrow={formatLongDate(now, locale)} title={greetingKey(now)} subtitle="Вот где ваше внимание сегодня принесёт больше всего результата." source={dashboard.source ?? demoSource} refreshedAt={dashboard.refreshedAt} action={dashboard.mode === 'USER' ? <PeriodBar /> : undefined} />;
 
   if (dashboard.mode === 'EMPTY') {
     return <PageFrame>{head}<Onboarding /></PageFrame>;
@@ -43,7 +43,7 @@ export default function OverviewPage() {
         <SummaryCard insight={dashboard.summary} />
         <SectionTitle title={t('Пульс бизнеса')} note={t(`compare.${dashboard.compare ?? 'previous'}`)} />
         <MetricCards metrics={metrics} />
-        {dashboard.series && <><div className="section-gap" /><RevenueChart series={dashboard.series} /></>}
+        {dashboard.series && <><div className="section-gap" /><RevenueChart series={dashboard.series} dataAsOf={dashboard.dataAsOf} /></>}
         <SectionTitle title={t('forecast.title')} note={t('forecast.note')} />
         <ForecastList items={dashboard.forecast ?? []} />
         <Outcomes />

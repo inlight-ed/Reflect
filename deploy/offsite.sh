@@ -1,10 +1,10 @@
 #!/bin/sh
 # Runs inside the optional "offsite" container (docker compose --profile offsite up -d offsite):
 # copies the dumps from /backups to a remote storage kept somewhere else, so losing this server does not
-# lose the backups. Nothing happens until BACKUP_REMOTE is set in .env (see DEPLOY.md, section 13).
+# lose the backups. Nothing happens until BACKUP_REMOTE is set in .env (see DEPLOY.md, section 14).
 set -eu
 if [ -z "${BACKUP_REMOTE:-}" ]; then
-  echo "offsite: BACKUP_REMOTE is not set in .env, nothing to do. See DEPLOY.md, section 13." >&2
+  echo "offsite: BACKUP_REMOTE is not set in .env, nothing to do. See DEPLOY.md, section 14." >&2
   exit 1
 fi
 echo "offsite: copying /backups to $BACKUP_REMOTE every ${BACKUP_OFFSITE_EVERY_HOURS:-6} h"

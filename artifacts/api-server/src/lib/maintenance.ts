@@ -6,7 +6,7 @@ import { logger, safeError } from "./logger";
 const SYNC_LOG_DAYS = 90;
 const DAY_MS = 24 * 60 * 60_000;
 
-export type MaintenanceResult = { sessions: number; syncRuns: number; stuckSyncs: number; counters: number };
+export type MaintenanceResult = { sessions: number; syncRuns: number; stuckSyncs: number; counters: number; resetLinks: number };
 
 /**
  * Daily housekeeping: removes what only ever grows.
@@ -28,7 +28,8 @@ export async function runMaintenance(): Promise<MaintenanceResult | null> {
     const syncRuns = await count(sql`delete from sync_runs where status <> 'RUNNING' and finished_at < now() - ${`${SYNC_LOG_DAYS} days`}::interval`);
     const stuckSyncs = await count(sql`update sync_runs set status = 'FAILED', detail = 'connector.sync.interrupted', finished_at = now() where status = 'RUNNING' and started_at < now() - interval '1 day'`);
     const counters = await count(sql`delete from rate_limits where reset_at < now() - interval '1 day'`);
-    return { sessions, syncRuns, stuckSyncs, counters };
+    const resetLinks = await count(sql`delete from password_resets where expires_at < now() - interval '1 day'`);
+    return { sessions, syncRuns, stuckSyncs, counters, resetLinks };
   });
 }
 

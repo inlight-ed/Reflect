@@ -295,6 +295,17 @@ jobs:
           sh deploy/try-local.sh
           curl -fsS http://localhost:8080/api/readyz
           curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
+          # Admin password reset link: created by the script, accepted by the app.
+          json='Content-Type: application/json'
+          origin='Origin: http://localhost:8080'
+          curl -fsS -o /dev/null -H "$json" -H "$origin" -d '{"email":"reset-ci@example.kz","password":"old-password-1"}' http://localhost:8080/api/auth/register
+          link=$(bash deploy/reset-password.sh reset-ci@example.kz | tail -n1)
+          token=${link##*token=}
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "$json" -H "$origin" -d "{\"token\":\"$token\",\"password\":\"new-password-2\"}" http://localhost:8080/api/auth/password-reset)
+          test "$code" = "200"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "$json" -H "$origin" -d "{\"token\":\"$token\",\"password\":\"new-password-3\"}" http://localhost:8080/api/auth/password-reset)
+          test "$code" = "400"
+          if bash deploy/reset-password.sh nobody@example.kz; then exit 1; fi
           sh deploy/try-local.sh reset
 
       - name: Logs

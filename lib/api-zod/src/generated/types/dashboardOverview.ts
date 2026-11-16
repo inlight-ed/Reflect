@@ -25,6 +25,8 @@ export interface DashboardOverview {
   assumptions?: Assumptions;
   source: DataSource;
   refreshedAt: string;
+  /** Moment the seller's data reaches (last imported order or last Kaspi sync); analysis windows end here. */
+  dataAsOf?: string;
   summary: Insight;
   metrics: Metric[];
   actions: DashboardAction[];

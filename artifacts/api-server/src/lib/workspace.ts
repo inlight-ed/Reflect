@@ -5,6 +5,7 @@ import { count, desc, eq, max, min } from "drizzle-orm";
  * translation keys + params; the browser localises it.
  */
 import { randomUUID } from "node:crypto";
+import { getIntegration } from "./integrations/store";
 import {
   dataCoverage,
   beforeAfter,
@@ -71,9 +72,25 @@ function summaryInsight(metrics: ReturnType<typeof overviewMetrics>, actions: Re
   };
 }
 
+/**
+ * The moment the seller's data reaches. A file covers orders up to its last line; a Kaspi API sync
+ * covers everything up to the moment it ran. Analysing up to "now" instead would count the days
+ * after an export as days with no sales: the revenue line would drop to zero and sales would look
+ * like they collapsed. With the API connected the moment keeps moving, so a real drop still shows.
+ */
+async function dataAsOf(userId: string, data: Awaited<ReturnType<typeof loadUserData>>, now = new Date()) {
+  let latest = 0;
+  for (const line of data.lines) latest = Math.max(latest, line.orderedAt.getTime());
+  const kaspi = await getIntegration(userId, "KASPI_API").catch(() => undefined);
+  const synced = typeof kaspi?.meta?.completeThrough === "string" ? new Date(kaspi.meta.completeThrough).getTime() : 0;
+  // +1 ms: windows end exclusively, the latest order itself belongs inside.
+  const end = Math.max(latest + 1, synced);
+  return new Date(Math.min(now.getTime(), end > 1 ? end : now.getTime()));
+}
+
 export async function userDashboard(userId: string, period: Period, compare: Compare) {
   const data = await loadUserData(userId);
-  const now = new Date();
+  const now = await dataAsOf(userId, data);
   const stats = skuStats(data.lines, data.catalog, data.ads, now, period, compare);
   const actions = recommendations(stats, now);
   const feedback = await feedbackRows(userId);
@@ -93,6 +110,7 @@ export async function userDashboard(userId: string, period: Period, compare: Com
     mode: data.hasOrders ? ("USER" as const) : ("EMPTY" as const),
     source: SOURCE,
     refreshedAt: (data.imports[0]?.createdAt ?? now).toISOString(),
+    dataAsOf: data.hasOrders ? now.toISOString() : undefined,
     period,
     compare,
     summary: summaryInsight(metrics, actions, period),
@@ -123,7 +141,7 @@ export async function userDashboard(userId: string, period: Period, compare: Com
 
 export async function userProducts(userId: string, period: Period, compare: Compare) {
   const data = await loadUserData(userId);
-  const stats = skuStats(data.lines, data.catalog, data.ads, new Date(), period, compare);
+  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(userId, data), period, compare);
   const count = (label: string) => stats.filter((s) => s.opportunity === label).length;
   return {
     mode: data.hasOrders ? ("USER" as const) : ("EMPTY" as const),
@@ -170,7 +188,7 @@ export async function userProducts(userId: string, period: Period, compare: Comp
 
 export async function userAdvertising(userId: string, period: Period, compare: Compare) {
   const data = await loadUserData(userId);
-  const stats = skuStats(data.lines, data.catalog, data.ads, new Date(), period, compare);
+  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(userId, data), period, compare);
   const withAds = stats.filter((s) => s.adSpend > 0).sort((a, b) => b.adSpend - a.adSpend);
   const spend = withAds.reduce((sum, s) => sum + s.adSpend, 0);
   const revenue = withAds.reduce((sum, s) => sum + s.revenue, 0);

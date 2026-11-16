@@ -66,6 +66,45 @@ export const LoginAccountResponse = zod.object({
 
 
 /**
+ * @summary Send a one-time password reset link to the email (same answer whether or not the account exists)
+ */
+export const requestPasswordResetBodyEmailMin = 3;
+export const requestPasswordResetBodyEmailMax = 254;
+
+
+
+export const RequestPasswordResetBody = zod.object({
+  "email": zod.string().min(requestPasswordResetBodyEmailMin).max(requestPasswordResetBodyEmailMax)
+})
+
+export const RequestPasswordResetResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Set a new password from a reset link; ends every session and signs in
+ */
+export const resetPasswordBodyTokenMin = 20;
+export const resetPasswordBodyTokenMax = 200;
+
+export const resetPasswordBodyPasswordMax = 200;
+
+
+
+export const ResetPasswordBody = zod.object({
+  "token": zod.string().min(resetPasswordBodyTokenMin).max(resetPasswordBodyTokenMax),
+  "password": zod.string().min(1).max(resetPasswordBodyPasswordMax)
+})
+
+export const ResetPasswordResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "name": zod.string().nullish()
+})
+
+
+/**
  * @summary Sign out
  */
 export const LogoutAccountResponse = zod.void()
@@ -462,6 +501,7 @@ export const GetDashboardResponse = zod.object({
 }).optional(),
   "source": zod.enum(['DEMO DATA', 'MOCK', 'KASPI API', 'KASPI ADS', 'REDSTAT', 'META', 'USER DATA']),
   "refreshedAt": zod.string(),
+  "dataAsOf": zod.string().optional().describe('Moment the seller\'s data reaches (last imported order or last Kaspi sync); analysis windows end here.'),
   "summary": zod.object({
   "eyebrow": zod.string(),
   "title": zod.string(),

@@ -2,7 +2,7 @@ import { CheckCircle2, CircleDashed, Database, FileSpreadsheet, PlugZap, UploadC
 import { Link } from 'wouter';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useListFeedback, type Assumptions, type ForecastItem, type SeriesPoint } from '@workspace/api-client-react';
-import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
+import { fill, formatCompactCurrency, formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
 import { usePeriod, type CompareValue, type PeriodValue } from '@/lib/period';
 import { useSession } from '@/lib/session';
 import { axisTick, chartColors, gridProps, tooltipProps } from '@/lib/chart-theme';
@@ -27,13 +27,13 @@ export function PeriodBar() {
   );
 }
 
-export function RevenueChart({ series }: { series: SeriesPoint[] }) {
+export function RevenueChart({ series, dataAsOf }: { series: SeriesPoint[]; dataAsOf?: string }) {
   const { locale, t } = useI18n();
   const { period } = usePeriod();
   return (
     <section className="card card-pad revenue-chart" data-testid="revenue-chart">
       <div className="chart-head">
-        <span className="card-title">{t(period === '90' ? 'chart.revenue.week' : 'chart.revenue')}</span>
+        <span className="card-title">{t(period === '90' ? 'chart.revenue.week' : 'chart.revenue')}{dataAsOf && <span className="chart-asof" data-testid="chart-data-as-of">{fill(t('chart.dataAsOf'), { date: formatDate(dataAsOf, locale) })}</span>}</span>
         <span className="chart-legend"><i className="swatch current" />{t('chart.current')}<i className="swatch previous" />{t('chart.previous')}</span>
       </div>
       <div className="chart-body">

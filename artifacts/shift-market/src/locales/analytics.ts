@@ -135,7 +135,6 @@ export const analytics: Catalog = {
   "media.signal.body": ["База — средняя выручка за 14 дней до старта. Это оценка, а не доказанная причина: на продажи влияют и другие события.", "Негіз — басталғанға дейінгі 14 күндік орташа түсім. Бұл бағалау, дәлелденген себеп емес: сатуға басқа оқиғалар да әсер етеді.", "The baseline is average revenue in the 14 days before launch. It is an estimate, not proof: other events also affect sales."],
   "media.signin": ["Войдите, чтобы добавлять свои кампании.", "Өз науқандарыңызды қосу үшін кіріңіз.", "Sign in to add your own campaigns."],
   "media.noImpact": ["Кампания ещё не началась — эффект появится после старта.", "Науқан әлі басталған жоқ — әсер басталғаннан кейін пайда болады.", "The campaign has not started yet; impact appears after launch."],
-  "competitors.connect": ["Подключите RedStat в настройках — тогда здесь появятся продавцы карточки и аналоги.", "Баптауларда RedStat-ты қосыңыз — сонда мұнда карточка сатушылары мен баламалар пайда болады.", "Connect RedStat in Settings to see the card’s sellers and alternatives here."],
   "competitors.openSettings": ["Открыть настройки", "Баптауларды ашу", "Open Settings"],
   "signal.enough_history": ["Достаточно истории: 14+ дней и 10+ продаж", "Тарих жеткілікті: 14+ күн және 10+ сату", "Enough history: 14+ days and 10+ sales"],
   "signal.stock_fresh": ["Остатки обновлены за последнюю неделю", "Қалдықтар соңғы аптада жаңартылған", "Stock updated within the last week"],

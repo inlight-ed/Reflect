@@ -36,7 +36,7 @@ function authError(res: Response, error: unknown) {
 router.post("/auth/register", authLimit, async (req, res) => {
   const parsed = RegisterAccountBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues.some((issue) => issue.path[0] === "password") ? "WEAK_PASSWORD" : "INVALID_EMAIL" });
+    res.status(400).json({ error: parsed.error.issues.some((issue: { path: PropertyKey[] }) => issue.path[0] === "password") ? "WEAK_PASSWORD" : "INVALID_EMAIL" });
     return;
   }
   try {

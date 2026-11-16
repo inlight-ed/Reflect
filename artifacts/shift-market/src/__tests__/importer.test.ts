@@ -44,3 +44,11 @@ describe('buildRows', () => {
     assert.equal(buildRows(candidate).products?.[0]?.commissionPct, 12);
   });
 });
+
+describe('amount limits', () => {
+  it('skips negative and absurdly large amounts instead of importing them', () => {
+    const { orders, valid } = buildRows(detect('orders.csv', [...kaspiRows, { ...kaspiRows[0], 'Сумма': '-500' }, { ...kaspiRows[0], 'Сумма': '9e300' }, { ...kaspiRows[0], 'Количество': '-1' }]));
+    assert.equal(valid, 2);
+    assert.equal(orders?.length, 2);
+  });
+});

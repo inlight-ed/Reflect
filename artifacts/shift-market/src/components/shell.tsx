@@ -84,7 +84,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
         <div className="topbar-right">
           <span className="clock">{locale === 'ru' ? 'АЛМАТЫ' : t('ALMATY')} · {clock}</span>
-          <LanguageSelect className="top-language-select" testIdValue="select-language-mobile" />
+          <LanguageSelect className="top-language-select shell-mobile-language" testIdValue="select-language-mobile" />
           <button className="top-action" onClick={() => void queryClient.invalidateQueries()} data-testid="button-refresh-workspace" aria-label={t('Обновить данные')} title={t('Обновить данные')}><RefreshCw size={15} /></button>
         </div>
       </header>

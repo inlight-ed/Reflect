@@ -123,7 +123,7 @@ export function buildRows(candidate: SheetCandidate): { orders?: OrderRowInput[]
       const sku = toText(get(row, 'sku'));
       const quantity = toNumber(get(row, 'quantity')) ?? 1;
       const amount = toNumber(get(row, 'amount'));
-      if (!orderedAt || !sku || amount === null) return undefined;
+      if (!orderedAt || !sku || amount === null || amount < 0 || amount > 1e10 || quantity < 0 || quantity > 1e7) return undefined;
       return { orderCode: toText(get(row, 'orderCode')), orderedAt: orderedAt.slice(0, 40), sku: sku.slice(0, 120), productName: toText(get(row, 'productName'))?.slice(0, 400) ?? null, quantity, amount, status: toText(get(row, 'status'))?.slice(0, 80) ?? null };
     }).filter((row): row is OrderRowInput => Boolean(row));
     return { orders, valid: orders.length };

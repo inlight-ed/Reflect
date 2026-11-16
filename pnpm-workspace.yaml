@@ -75,6 +75,10 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Security: pull patched transitive versions (pnpm audit --prod)
+  proxy-addr: "^2.0.8"
+  body-parser: "^2.4.0"
+  fast-uri: "^3.1.7"
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"

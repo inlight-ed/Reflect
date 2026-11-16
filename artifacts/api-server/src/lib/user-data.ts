@@ -46,6 +46,9 @@ export function parseDate(value: string): Date | undefined {
   return Number.isNaN(parsed.valueOf()) ? undefined : parsed;
 }
 
+export const MAX_AMOUNT = 1e10;
+export const MAX_QUANTITY = 1e7;
+
 export function normalizeOrders(rows: OrderInput[], source: string) {
   const occurrences = new Map<string, number>();
   const result = [];
@@ -54,6 +57,8 @@ export function normalizeOrders(rows: OrderInput[], source: string) {
     const sku = row.sku?.trim();
     if (!orderedAt || !sku || !Number.isFinite(row.quantity) || !Number.isFinite(row.amount)) continue;
     if (orderedAt.getTime() > Date.now() + 86_400_000 || orderedAt.getFullYear() < 2015) continue;
+    // Refund lines and corrupt cells must not turn into zero-value orders or overflow sums.
+    if (row.quantity < 0 || row.amount < 0 || row.quantity > MAX_QUANTITY || row.amount > MAX_AMOUNT) continue;
     const day = orderedAt.toISOString().slice(0, 10);
     const orderCode = row.orderCode?.trim() || `F-${day}-${hash(`${sku}|${row.quantity}|${row.amount}`)}`;
     const base = `${orderCode}|${sku}`;
@@ -65,8 +70,8 @@ export function normalizeOrders(rows: OrderInput[], source: string) {
       orderedAt,
       sku: sku.slice(0, 80),
       productName: row.productName?.trim().slice(0, 300) || null,
-      quantity: Math.max(0, row.quantity),
-      amount: Math.max(0, row.amount),
+      quantity: row.quantity,
+      amount: row.amount,
       status: normalizeStatus(row.status),
       source,
     });

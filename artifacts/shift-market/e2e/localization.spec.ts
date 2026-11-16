@@ -3,6 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 // Dates and times below assume the API runs with DEMO_SNAPSHOT_DATE=2026-08-18,
 // which pins the demo snapshot to its authored day (otherwise it follows today's date).
 import { sourceMessageCatalog, sourceMessageKeys, type Locale } from '../src/lib/i18n';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 type LocaleExpectation = {
   locale: 'ru' | 'kk' | 'en';
@@ -243,6 +246,25 @@ test('guests without demo are sent to the start page', async ({ page }) => {
   await expect(page.getByTestId('link-register')).toBeVisible();
 });
 
+/**
+ * The orders fixture has fixed dates. Stock forecasts only look at recent sales, so the dates are
+ * shifted to end yesterday; otherwise this test starts failing a few weeks after the fixture was made.
+ */
+function freshOrdersFixture(): string {
+  const source = readFileSync(new URL('./fixtures/kaspi-orders.csv', import.meta.url), 'utf8');
+  const stamp = /(\d{2})\.(\d{2})\.(\d{4})/g;
+  const days = [...source.matchAll(stamp)].map((match) => Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1])));
+  const shift = Math.floor((Date.now() - 86_400_000 - Math.max(...days)) / 86_400_000) * 86_400_000;
+  const two = (value: number) => String(value).padStart(2, '0');
+  const shifted = source.replace(stamp, (_all, day, month, year) => {
+    const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)) + shift);
+    return `${two(date.getUTCDate())}.${two(date.getUTCMonth() + 1)}.${date.getUTCFullYear()}`;
+  });
+  const path = join(mkdtempSync(join(tmpdir(), 'reflect-e2e-')), 'kaspi-orders.csv');
+  writeFileSync(path, shifted);
+  return path;
+}
+
 test('seller: registers, imports a Kaspi export and marks a recommendation', async ({ page }) => {
   await page.goto('/register');
   await page.getByTestId('input-email').fill(`e2e-${Date.now()}@example.kz`);
@@ -251,7 +273,7 @@ test('seller: registers, imports a Kaspi export and marks a recommendation', asy
   await expect(page.getByTestId('onboarding')).toBeVisible();
 
   await page.getByTestId('onboarding-upload').click();
-  await page.getByTestId('input-data-file').setInputFiles([new URL('./fixtures/kaspi-orders.csv', import.meta.url).pathname, new URL('./fixtures/products.csv', import.meta.url).pathname]);
+  await page.getByTestId('input-data-file').setInputFiles([freshOrdersFixture(), new URL('./fixtures/products.csv', import.meta.url).pathname]);
   await expect(page.getByTestId('import-card')).toHaveCount(2);
   await expect(page.getByTestId('select-dataset').first()).toHaveValue('ORDERS');
   await expect(page.getByTestId('select-dataset').nth(1)).toHaveValue('PRODUCTS');

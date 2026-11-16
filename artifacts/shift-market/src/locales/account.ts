@@ -35,7 +35,6 @@ export const account: Catalog = {
   "auth.error.RATE_LIMITED": ["Слишком много попыток. Подождите 15 минут.", "Әрекеттер тым көп. 15 минут күтіңіз.", "Too many attempts. Wait 15 minutes."],
   "auth.error.generic": ["Не получилось. Повторите попытку.", "Болмады. Қайталап көріңіз.", "Something went wrong. Try again."],
   "auth.logout": ["Выйти", "Шығу", "Sign out"],
-  "auth.account": ["Аккаунт", "Аккаунт", "Account"],
   "demo.banner": ["Вы смотрите демо на вымышленных данных.", "Сіз ойдан шығарылған деректердегі демоны көріп отырсыз.", "You are viewing a demo with made-up data."],
   "demo.banner.cta": ["Загрузить свои данные", "Өз деректеріңізді жүктеу", "Use my data"],
   "demo.exit": ["Выйти из демо", "Демодан шығу", "Leave demo"],

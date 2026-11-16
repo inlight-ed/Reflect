@@ -530,6 +530,92 @@ export const CompetitorsOverviewStatus = {
   UNAVAILABLE: 'UNAVAILABLE',
 } as const;
 
+export interface MarketProduct {
+  kaspiSku: string;
+  name: string;
+  brand?: string;
+  branded?: boolean;
+  categoryId?: string;
+  category?: string;
+  path?: string;
+  price?: number;
+  revenue?: number;
+  orders?: number;
+  sellerCount?: number;
+  reviews?: number;
+  rating?: number;
+  segment?: string;
+  lifeStage?: string;
+  /**
+     * Growth as RedStat publishes it; null when the months cannot be compared
+     * @nullable
+     */
+  revenueChangePct?: number | null;
+  kaspiUrl?: string;
+  redstatUrl?: string;
+}
+
+export interface MarketSegment {
+  index: number;
+  name: string;
+  skuCount: number;
+  revenue: number;
+  revenueSharePct: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  avgSellers?: number;
+  noBrandPct?: number;
+}
+
+export interface MarketBrand {
+  name: string;
+  revenue: number;
+  orders?: number;
+  skuCount?: number;
+  redstatUrl?: string;
+}
+
+export interface MarketCategory {
+  id: string;
+  name: string;
+  kaspiUrl?: string;
+  redstatUrl?: string;
+  segments: MarketSegment[];
+  brands: MarketBrand[];
+}
+
+export interface MarketPoint {
+  /** First day of the month, YYYY-MM-01 */
+  month: string;
+  revenue: number;
+  orders?: number;
+  /** False when RedStat says this month must not be compared with the previous one */
+  comparable: boolean;
+  note?: string;
+}
+
+export interface MarketDynamics {
+  points: MarketPoint[];
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  peakMonth?: number;
+  seasonClass?: string;
+  forecastPublished: boolean;
+}
+
+export interface MarketContext {
+  /** The RedStat month the figures belong to, YYYY-MM-01 */
+  month: string;
+  /** RedStat's own caveat about this month, passed on as written */
+  note?: string;
+  product?: MarketProduct;
+  category?: MarketCategory;
+  dynamics?: MarketDynamics;
+}
+
 export interface CompetitorsOverview {
   source: DataSource;
   status: CompetitorsOverviewStatus;
@@ -540,6 +626,7 @@ export interface CompetitorsOverview {
   sellers: CompetitorSellerOffer[];
   alternatives: ComparableProduct[];
   insight?: Insight;
+  market?: MarketContext;
 }
 
 export interface ContentScore {

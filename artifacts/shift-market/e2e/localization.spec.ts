@@ -325,3 +325,24 @@ test('first screen: a Kaspi token loads orders and the plan without any file', a
   await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('chart-data-as-of')).toBeVisible();
 });
+
+test('competitors: the card in its market from RedStat, without growth claims across broken months', async ({ page }) => {
+  test.skip(!process.env.FAKE_REDSTAT, 'needs the fake RedStat MCP server (FAKE_REDSTAT=1, see e2e/fake-redstat.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`market-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+  const connect = await page.request.put('/api/integrations/REDSTAT_MCP', { data: { url: 'http://127.0.0.1:8098/mcp' } });
+  expect(connect.status()).toBe(200);
+  await page.goto('/competitors');
+  await page.getByTestId('input-competitor-sku').fill('102277651');
+  await page.getByTestId('button-analyze-competitors').click();
+  await expect(page.getByTestId('market-product')).toContainText('EVO Laboratoires');
+  await expect(page.getByTestId('market-change')).toContainText('42,7');
+  await expect(page.getByTestId('market-segments').locator('tr.yours')).toContainText('Бюджетный');
+  await expect(page.getByTestId('market-dynamics')).toBeVisible();
+  await expect(page.getByTestId('market-brands')).toContainText('MIXIT');
+  await page.getByTestId('market-note').click();
+  await expect(page.getByTestId('market-product')).toContainText('неполный');
+});

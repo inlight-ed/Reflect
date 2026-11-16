@@ -10,6 +10,7 @@ import type { CompetitorSellerOffer } from './competitorSellerOffer';
 import type { CompetitorsOverviewStatus } from './competitorsOverviewStatus';
 import type { DataSource } from './dataSource';
 import type { Insight } from './insight';
+import type { MarketContext } from './marketContext';
 import type { SourceMessageKey } from './sourceMessageKey';
 
 export interface CompetitorsOverview {
@@ -22,4 +23,5 @@ export interface CompetitorsOverview {
   sellers: CompetitorSellerOffer[];
   alternatives: ComparableProduct[];
   insight?: Insight;
+  market?: MarketContext;
 }

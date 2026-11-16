@@ -162,12 +162,15 @@ jobs:
           NODE_ENV=production pnpm --filter @workspace/api-server run build
 
       # The API serves the built site, as in production. The demo dates are pinned for the tests.
-      # A stand-in for the Kaspi seller API, so the token-first sign-up is tested without a real shop.
+      # Stand-ins for the Kaspi seller API and RedStat's MCP server, so sign-up by token and the
+      # market view are tested without a real shop or RedStat account. MCP_ALLOW_PRIVATE lets the
+      # API reach the local RedStat stand-in; production never sets it.
       - name: Start the app
         run: |
           node artifacts/shift-market/e2e/fake-kaspi.mjs 8099 > fake-kaspi.log 2>&1 &
+          node artifacts/shift-market/e2e/fake-redstat.mjs 8098 > fake-redstat.log 2>&1 &
           NODE_ENV=production PORT=8080 STATIC_DIR=artifacts/shift-market/dist/public DEMO_SNAPSHOT_DATE=2026-08-18 \
-            KASPI_API_BASE=http://127.0.0.1:8099/shop/api/v2 \
+            KASPI_API_BASE=http://127.0.0.1:8099/shop/api/v2 MCP_ALLOW_PRIVATE=1 \
             node artifacts/api-server/dist/index.mjs > app.log 2>&1 &
           for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8080/api/readyz >/dev/null && exit 0
@@ -181,6 +184,7 @@ jobs:
         env:
           SHIFT_MARKET_TEST_BASE_URL: http://localhost:8080
           FAKE_KASPI: "1"
+          FAKE_REDSTAT: "1"
         run: pnpm --filter @workspace/shift-market run test:e2e
 
       - name: App log

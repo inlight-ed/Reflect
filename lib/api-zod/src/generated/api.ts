@@ -899,6 +899,8 @@ export const getCompetitorsResponseInsightConfidenceBasisSupportingMin = 0;
 
 export const getCompetitorsResponseInsightConfidenceBasisTotalMin = 0;
 
+export const getCompetitorsResponseMarketDynamicsPeakMonthMax = 12;
+
 
 
 export const GetCompetitorsResponse = zod.object({
@@ -942,6 +944,67 @@ export const GetCompetitorsResponse = zod.object({
   "key": zod.enum(['roas_above_benchmark', 'roas_below_benchmark', 'conversion_above_average', 'conversion_below_average', 'stock_sufficient', 'demand_growing', 'price_competitive', 'competitor_undercuts', 'traffic_above_average', 'cpc_above_average', 'ctr_above_average', 'low_competitive_pressure', 'enough_history', 'stock_fresh', 'trend_consistent', 'cost_known', 'commission_known', 'margin_healthy', 'ads_attributed', 'price_stable', 'campaign_finished', 'no_overlap']),
   "met": zod.boolean()
 }))
+}).optional()
+}).optional(),
+  "market": zod.object({
+  "month": zod.string().describe('The RedStat month the figures belong to, YYYY-MM-01'),
+  "note": zod.string().optional().describe('RedStat\'s own caveat about this month, passed on as written'),
+  "product": zod.object({
+  "kaspiSku": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string().optional(),
+  "branded": zod.boolean().optional(),
+  "categoryId": zod.string().optional(),
+  "category": zod.string().optional(),
+  "path": zod.string().optional(),
+  "price": zod.number().optional(),
+  "revenue": zod.number().optional(),
+  "orders": zod.number().optional(),
+  "sellerCount": zod.number().optional(),
+  "reviews": zod.number().optional(),
+  "rating": zod.number().optional(),
+  "segment": zod.string().optional(),
+  "lifeStage": zod.string().optional(),
+  "revenueChangePct": zod.number().nullish().describe('Growth as RedStat publishes it; null when the months cannot be compared'),
+  "kaspiUrl": zod.string().optional(),
+  "redstatUrl": zod.string().optional()
+}).optional(),
+  "category": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kaspiUrl": zod.string().optional(),
+  "redstatUrl": zod.string().optional(),
+  "segments": zod.array(zod.object({
+  "index": zod.int(),
+  "name": zod.string(),
+  "skuCount": zod.number(),
+  "revenue": zod.number(),
+  "revenueSharePct": zod.number(),
+  "avgPrice": zod.number(),
+  "minPrice": zod.number(),
+  "maxPrice": zod.number(),
+  "avgSellers": zod.number().optional(),
+  "noBrandPct": zod.number().optional()
+})),
+  "brands": zod.array(zod.object({
+  "name": zod.string(),
+  "revenue": zod.number(),
+  "orders": zod.number().optional(),
+  "skuCount": zod.number().optional(),
+  "redstatUrl": zod.string().optional()
+}))
+}).optional(),
+  "dynamics": zod.object({
+  "points": zod.array(zod.object({
+  "month": zod.string().describe('First day of the month, YYYY-MM-01'),
+  "revenue": zod.number(),
+  "orders": zod.number().optional(),
+  "comparable": zod.boolean().describe('False when RedStat says this month must not be compared with the previous one'),
+  "note": zod.string().optional()
+})),
+  "peakMonth": zod.int().min(1).max(getCompetitorsResponseMarketDynamicsPeakMonthMax).optional(),
+  "seasonClass": zod.string().optional(),
+  "forecastPublished": zod.boolean()
 }).optional()
 }).optional()
 })

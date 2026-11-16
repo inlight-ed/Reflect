@@ -827,6 +827,94 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ComparableProduct" }
         insight: { $ref: "#/components/schemas/Insight" }
+        market: { $ref: "#/components/schemas/MarketContext" }
+    MarketProduct:
+      type: object
+      required: [kaspiSku, name]
+      properties:
+        kaspiSku: { type: string }
+        name: { type: string }
+        brand: { type: string }
+        branded: { type: boolean }
+        categoryId: { type: string }
+        category: { type: string }
+        path: { type: string }
+        price: { type: number }
+        revenue: { type: number }
+        orders: { type: number }
+        sellerCount: { type: number }
+        reviews: { type: number }
+        rating: { type: number }
+        segment: { type: string }
+        lifeStage: { type: string }
+        revenueChangePct: { type: [number, "null"], description: "Growth as RedStat publishes it; null when the months cannot be compared" }
+        kaspiUrl: { type: string }
+        redstatUrl: { type: string }
+    MarketSegment:
+      type: object
+      required: [index, name, skuCount, revenue, revenueSharePct, avgPrice, minPrice, maxPrice]
+      properties:
+        index: { type: integer }
+        name: { type: string }
+        skuCount: { type: number }
+        revenue: { type: number }
+        revenueSharePct: { type: number }
+        avgPrice: { type: number }
+        minPrice: { type: number }
+        maxPrice: { type: number }
+        avgSellers: { type: number }
+        noBrandPct: { type: number }
+    MarketBrand:
+      type: object
+      required: [name, revenue]
+      properties:
+        name: { type: string }
+        revenue: { type: number }
+        orders: { type: number }
+        skuCount: { type: number }
+        redstatUrl: { type: string }
+    MarketCategory:
+      type: object
+      required: [id, name, segments, brands]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kaspiUrl: { type: string }
+        redstatUrl: { type: string }
+        segments:
+          type: array
+          items: { $ref: "#/components/schemas/MarketSegment" }
+        brands:
+          type: array
+          items: { $ref: "#/components/schemas/MarketBrand" }
+    MarketPoint:
+      type: object
+      required: [month, revenue, comparable]
+      properties:
+        month: { type: string, description: "First day of the month, YYYY-MM-01" }
+        revenue: { type: number }
+        orders: { type: number }
+        comparable: { type: boolean, description: "False when RedStat says this month must not be compared with the previous one" }
+        note: { type: string }
+    MarketDynamics:
+      type: object
+      required: [points, forecastPublished]
+      properties:
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/MarketPoint" }
+        peakMonth: { type: integer, minimum: 1, maximum: 12 }
+        seasonClass: { type: string }
+        forecastPublished: { type: boolean }
+    MarketContext:
+      type: object
+      required: [month]
+      properties:
+        month: { type: string, description: "The RedStat month the figures belong to, YYYY-MM-01" }
+        note: { type: string, description: "RedStat's own caveat about this month, passed on as written" }
+        product: { $ref: "#/components/schemas/MarketProduct" }
+        category: { $ref: "#/components/schemas/MarketCategory" }
+        dynamics: { $ref: "#/components/schemas/MarketDynamics" }
     ContentScore:
       type: object
       required: [label, score, note]

@@ -11,6 +11,7 @@ import { analytics } from './analytics';
 import { cards } from './cards';
 import { data } from './data';
 import { integrations } from './integrations';
+import { market } from './market';
 import { source } from './source';
 import type { Catalog } from './types';
 import { ui } from './ui';
@@ -18,7 +19,7 @@ import { ui } from './ui';
 export type { Catalog, Triple } from './types';
 export { source };
 
-export const domains: Record<string, Catalog> = { ui, account, data, analytics, cards, integrations, source };
+export const domains: Record<string, Catalog> = { ui, account, data, analytics, cards, integrations, market, source };
 
 export const locales = ['ru', 'kk', 'en'] as const;
 export type Locale = (typeof locales)[number];

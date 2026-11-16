@@ -1,2 +1,0 @@
-- [SHIFT/MARKET demo boundary](shift-market-demo-boundary.md) — keep demo data visibly separate from live connector claims while preserving connector-ready interfaces.
-- [Demo localization contract](localization-demo-contract.md) — translate every system and demo value across ru, kk, and en; do not translate user-entered campaign names.

@@ -3,9 +3,24 @@ import { lookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import { BlockList, isIP, type LookupFunction } from "node:net";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 
 export class UnsafeUrlError extends Error {}
+
+/** Largest response pinnedFetch will read from a user-supplied server. */
+export const MAX_REMOTE_BYTES = 10 * 1024 * 1024;
+
+/** Passes bytes through and fails the stream once more than `limit` have gone by. */
+function limitBytes(limit: number) {
+  let seen = 0;
+  return new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      seen += chunk.length;
+      if (seen > limit) done(new UnsafeUrlError("RESPONSE_TOO_LARGE"));
+      else done(null, chunk);
+    },
+  });
+}
 
 /**
  * Addresses a user-supplied URL must never reach: private, loopback, link-local (incl. cloud
@@ -111,19 +126,19 @@ export async function pinnedFetch(input: string | URL | Request, init: RequestIn
         for (const item of Array.isArray(value) ? value : [value]) responseHeaders.append(key, item);
       }
       const nullBody = status === 204 || status === 304 || init.method === "HEAD";
-      resolve(new Response(nullBody ? null : (Readable.toWeb(response) as ReadableStream), { status, statusText: response.statusMessage, headers: responseHeaders }));
+      resolve(new Response(nullBody ? null : (Readable.toWeb(response.pipe(limitBytes(MAX_REMOTE_BYTES))) as ReadableStream), { status, statusText: response.statusMessage, headers: responseHeaders }));
     });
     request.on("error", reject);
     request.end(payload);
   });
 }
 
+/**
+ * fetch() with a deadline that also covers reading the body (AbortSignal.timeout keeps running
+ * after the headers arrive, so a stalled response body cannot hang the caller). Redirects are
+ * refused unless the caller opts in, so credentials in headers are never replayed elsewhere.
+ */
 export async function fetchWithTimeout(url: string, init: RequestInit & { timeoutMs?: number } = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? 15_000);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
+  const { timeoutMs = 15_000, ...rest } = init;
+  return fetch(url, { redirect: "error", ...rest, signal: AbortSignal.timeout(timeoutMs) });
 }

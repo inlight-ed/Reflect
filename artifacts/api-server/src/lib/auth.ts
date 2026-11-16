@@ -106,6 +106,7 @@ export async function logout(token: string | undefined) {
 
 /** Reads the session cookie and attaches req.user. Never fails the request. */
 export async function attachUser(req: Request, _res: Response, next: NextFunction) {
+  if (req.user) return next();
   const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
   if (!token || !hasDatabase()) return next();
   try {

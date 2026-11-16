@@ -3,7 +3,7 @@ import path from "node:path";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { attachUser, sameOriginWrites } from "./lib/auth";
+import { attachUser, requireUser, sameOriginWrites } from "./lib/auth";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -53,7 +53,8 @@ app.use((_req, res, next) => {
 
 app.use(cookieParser());
 // Imports carry up to 5000 rows per request; everything else stays small.
-app.use("/api/data/import", express.json({ limit: "3mb" }));
+// Only signed-in sellers may send a body this large, so check the session before parsing it.
+app.use("/api/data/import", attachUser, requireUser, express.json({ limit: "3mb" }));
 app.use(express.json({ limit: "32kb" }));
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 

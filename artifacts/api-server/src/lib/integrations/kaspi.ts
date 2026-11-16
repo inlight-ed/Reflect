@@ -24,6 +24,8 @@ type JsonApiResource = { id: string; type?: string; attributes?: Record<string, 
 
 async function kaspiGet(path: string, token: string) {
   const url = path.startsWith("http") ? path : `${BASE()}${path}`;
+  // Links inside a response are followed only on the Kaspi host: the token must not go anywhere else.
+  if (new URL(url).origin !== new URL(BASE()).origin) throw new KaspiError("BAD_RESPONSE");
   let response: Response;
   try {
     response = await fetchWithTimeout(url, { headers: { "X-Auth-Token": token, "Content-Type": "application/vnd.api+json", Accept: "application/vnd.api+json" }, timeoutMs: 20_000 });

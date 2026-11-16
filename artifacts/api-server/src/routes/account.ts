@@ -24,7 +24,12 @@ const syncLimit = rateLimit({ name: "sync", windowMs: 60 * 60_000, max: 30, shar
 
 function authError(res: Response, error: unknown) {
   if (!(error instanceof AuthError)) throw error;
-  const status = error.code === "EMAIL_TAKEN" ? 409 : error.code === "INVALID_CREDENTIALS" ? 401 : error.code === "ACCOUNTS_UNAVAILABLE" ? 503 : 400;
+  const status = error.code === "EMAIL_TAKEN" ? 409 : error.code === "INVALID_CREDENTIALS" ? 401 : error.code === "ACCOUNTS_UNAVAILABLE" ? 503 : error.code === "TOO_MANY_ATTEMPTS" ? 429 : 400;
+  if (error.code === "TOO_MANY_ATTEMPTS") {
+    res.setHeader("Retry-After", error.retryAfterSeconds ?? 900);
+    res.status(status).json({ error: "RATE_LIMITED" });
+    return;
+  }
   res.status(status).json({ error: error.code });
 }
 

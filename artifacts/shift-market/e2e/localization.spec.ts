@@ -232,10 +232,11 @@ test('explains every dashboard confidence with its supporting signals', async ({
   await expect(actions.first()).toBeVisible();
   const count = await actions.count();
   for (let index = 0; index < count; index += 1) {
-    const basis = actions.nth(index).locator('.confidence-basis');
-    await basis.locator('summary').click();
-    await expect(basis.locator('li').first()).toBeVisible();
-    await expect(basis.locator('summary')).toContainText('Подтверждают');
+    const toggle = actions.nth(index).getByTestId('reveal-action');
+    await expect(toggle).toContainText('Подтверждают');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(actions.nth(index).locator('.confidence-basis li').first()).toBeVisible();
   }
 });
 

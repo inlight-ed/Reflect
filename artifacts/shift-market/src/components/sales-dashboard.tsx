@@ -13,7 +13,7 @@ import {
   type SalesPoint,
   type SalesSeries,
 } from '@/lib/sales-report';
-import { SectionTitle } from './common';
+import { Reveal, SectionTitle } from './common';
 
 // v2: series are read from the file. Reports saved by v1 (fixed distributors) are discarded.
 const salesStorageKey = 'shift-market-sales-report-v2';
@@ -81,19 +81,22 @@ export function SalesDashboard() {
   return <>
     <section className="sales-dashboard" id="sales-report" ref={sectionRef} data-testid="sales-dashboard">
       <div className="sales-dashboard-head">
-        <div><div className="eyebrow">{t(report ? 'ЗАГРУЖЕННЫЙ ОТЧЁТ' : 'ДЕМО-ДАННЫЕ')}</div><h2>{t('Динамика заказов бренда')}</h2><p>{t('Главная диаграмма суммирует заказы по дистрибьюторам за каждый период.')}</p></div>
+        <div><div className="eyebrow">{t(report ? 'ЗАГРУЖЕННЫЙ ОТЧЁТ' : 'ДЕМО-ДАННЫЕ')}</div><h2>{t('Динамика заказов бренда')}</h2></div>
         <div className="report-actions">
           <label className="btn secondary upload-button" htmlFor="sales-report-upload"><UploadCloud size={14} /> {t('Загрузить отчёт')}</label>
           <input id="sales-report-upload" type="file" accept=".csv,.xlsx,.xls" onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} data-testid="input-sales-report" />
           {report && <button className="btn secondary clear-report" onClick={resetReport} data-testid="button-clear-sales-report"><Trash2 size={14} /> {t('Очистить')}</button>}
         </div>
       </div>
-      <div className="report-meta">
-        <span><FileSpreadsheet size={13} /> {activeReport.fileName}</span>
-        <span>{formatNumber(activeReport.rowsProcessed, locale)} {t('строк обработано')}</span>
-        <span>{report ? t('Источник: загруженный файл') : t('Источник: демонстрационный отчёт')}</span>
-        <span className="privacy-note"><ShieldCheck size={13} /> {t('Файл обрабатывается в браузере и никуда не отправляется.')}</span>
-      </div>
+      <Reveal className="report-reveal" label={t('О файле')} meta={activeReport.fileName} testId="reveal-report">
+        <p className="report-note">{t('Главная диаграмма суммирует заказы по дистрибьюторам за каждый период.')}</p>
+        <div className="report-meta">
+          <span><FileSpreadsheet size={13} /> {activeReport.fileName}</span>
+          <span>{formatNumber(activeReport.rowsProcessed, locale)} {t('строк обработано')}</span>
+          <span>{report ? t('Источник: загруженный файл') : t('Источник: демонстрационный отчёт')}</span>
+          <span className="privacy-note"><ShieldCheck size={13} /> {t('Файл обрабатывается в браузере и никуда не отправляется.')}</span>
+        </div>
+      </Reveal>
       {notice && <div className={`report-notice ${failed ? 'error' : ''}`} role="status" data-testid="status-sales-report">{notice}</div>}
       <div className="sales-summary-strip">
         <div><span>{t('Заказы за последний период')}</span><strong>{formatNumber(latest?.total ?? 0, locale)}</strong></div>

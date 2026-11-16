@@ -43,13 +43,16 @@ export default function ProductsPage() {
       {head}
       <div className={`grid ${seller ? 'grid-5' : 'grid-4'}`}>
         {matrix.length ? matrix.map((item, index) => (
-          <button type="button" className={`card metric-card matrix-summary ${filter === item.label ? 'active' : ''}`} key={`${item.label}-${index}`} onClick={() => setFilter(filter === item.label ? 'ALL' : item.label as Filter)} data-testid={`matrix-summary-${index}`}>
+          <button type="button" className={`card metric-card matrix-summary ${filter === item.label ? 'active' : ''}`} key={`${item.label}-${index}`} title={t(item.description)} onClick={() => setFilter(filter === item.label ? 'ALL' : item.label as Filter)} data-testid={`matrix-summary-${index}`}>
             <div className="eyebrow">{t(statusLabel(item.label))}</div>
             <div className="metric-value">{item.count}</div>
-            <div className="neutral matrix-summary-note">{t(item.description)}</div>
           </button>
         )) : <div className="card"><EmptyState label="items" /></div>}
       </div>
+      {(() => {
+        const active = matrix.find((item) => item.label === filter);
+        return active ? <p className="matrix-filter-note fade-in" key={active.label} data-testid="matrix-filter-note">{t(active.description)}</p> : null;
+      })()}
       <SectionTitle title={t('Матрица возможностей')} note={t('динамика и экономика')} />
       <div className="card card-pad">
         <div className="matrix-frame">

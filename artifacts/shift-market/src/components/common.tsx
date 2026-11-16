@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Check, CloudOff, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Check, ChevronDown, CloudOff, RefreshCw, X } from 'lucide-react';
 import { getGetDashboardQueryKey, getListFeedbackQueryKey, useCreateFeedback, type DashboardAction, type Insight, type Metric, type TemplateParams, type TimelineEvent, type Verdict } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { fill, formatCompactCurrency, formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
@@ -74,7 +74,7 @@ export function statusLabel(value: string) {
  * A term with a tap/hover explanation, so non-marketers can read the numbers.
  * The bubble is positioned against the viewport so scrolling tables never clip it.
  */
-export function Hint({ term, children }: { term: GlossaryTerm; children?: ReactNode }) {
+export function Hint({ term, text, children }: { term?: GlossaryTerm; text?: string; children?: ReactNode }) {
   const { t } = useI18n();
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLSpanElement>(null);
@@ -127,9 +127,9 @@ export function Hint({ term, children }: { term: GlossaryTerm; children?: ReactN
         onClick={(event) => { event.stopPropagation(); if (open && !canHover) hide(); else show(); }}
         onFocus={(event) => { if (event.currentTarget.matches(':focus-visible')) show(); }}
         onBlur={hide}
-        data-testid={`hint-${term.toLowerCase()}`}
+        data-testid={term ? `hint-${term.toLowerCase()}` : 'hint-info'}
       >?</button>
-      {position && createPortal(<span role="tooltip" id={bubbleId} className="hint-bubble" style={{ top: position.top, left: position.left }}>{t(`glossary.${term}`)}</span>, document.body)}
+      {position && createPortal(<span role="tooltip" id={bubbleId} className="hint-bubble" style={{ top: position.top, left: position.left }}>{term ? t(`glossary.${term}`) : text}</span>, document.body)}
     </span>
   );
 }
@@ -229,6 +229,28 @@ export function MetricCards({ metrics }: { metrics: Metric[] }) {
   );
 }
 
+/**
+ * Keeps details one click away: a small toggle that slides the content open.
+ * Collapsed content stays in the page but is inert, so keyboard and screen readers skip it.
+ */
+export function Reveal({ label, meta, children, className = '', testId }: { label?: string; meta?: ReactNode; children: ReactNode; className?: string; testId?: string }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  return (
+    <div className={`reveal ${open ? 'open' : ''} ${className}`}>
+      <button type="button" className="reveal-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)} data-testid={testId}>
+        <span>{open ? t('Свернуть') : (label ?? t('Подробнее'))}</span>
+        {meta && <span className="reveal-meta">{meta}</span>}
+        <ChevronDown size={13} className="reveal-chevron" aria-hidden />
+      </button>
+      <div className="reveal-panel" id={panelId} aria-hidden={!open} inert={!open}>
+        <div className="reveal-inner"><div className="reveal-content">{children}</div></div>
+      </div>
+    </div>
+  );
+}
+
 export function SummaryCard({ insight, compact = false }: { insight: Insight; compact?: boolean }) {
   const { t } = useI18n();
   const text = useText();
@@ -242,12 +264,12 @@ export function SummaryCard({ insight, compact = false }: { insight: Insight; co
         <span className="eyebrow">{t(insight.eyebrow || 'Сигнал ИИ')}</span>
       </div>
       <h2 className="summary-title">{title}</h2>
-      <p className="summary-body">{body}</p>
       <div className="summary-foot">
         <span className="confidence"><Hint term="confidence">{t('УВЕРЕННОСТЬ')} {insight.confidence}%</Hint></span>
         {impact !== '—' && <span className="impact">{t('ОЖИДАЕМЫЙ ЭФФЕКТ')} {impact}</span>}
         <span>{t(insight.severity === 'HIGH' ? 'ВЫСОКИЙ' : insight.severity === 'MEDIUM' ? 'СРЕДНИЙ' : 'НИЗКИЙ')} {t('СИГНАЛ')}</span>
       </div>
+      {body && <Reveal testId="reveal-summary"><p className="summary-body">{body}</p></Reveal>}
     </div>
   );
 }
@@ -255,8 +277,8 @@ export function SummaryCard({ insight, compact = false }: { insight: Insight; co
 export function ConfidenceBasisView({ basis }: { basis: DashboardAction['confidenceBasis'] }) {
   const { t } = useI18n();
   return (
-    <details className="confidence-basis">
-      <summary>{t('Почему такая уверенность')} · {fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: basis.supporting, total: basis.total })}</summary>
+    <div className="confidence-basis">
+      <span className="confidence-basis-title">{t('Почему такая уверенность')}</span>
       <ul>
         {basis.signals.map((signal) => (
           <li key={signal.key} className={signal.met ? 'met' : 'unmet'}>
@@ -266,7 +288,7 @@ export function ConfidenceBasisView({ basis }: { basis: DashboardAction['confide
           </li>
         ))}
       </ul>
-    </details>
+    </div>
   );
 }
 
@@ -315,14 +337,16 @@ export function ActionCard({ action, index }: { action: DashboardAction; index: 
         <span className="eyebrow">{impact}</span>
       </div>
       <div className="action-object">{t(action.object)}</div>
-      <p className="action-explanation">{explanation}</p>
       <div className="action-recommendation"><strong>{t('Далее:')}</strong> {recommendation}</div>
       <div className="confidence-bar">
         <span><Hint term="confidence">{t('уверенность')}</Hint></span>
         <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={action.confidence} aria-label={t('уверенность')}><span style={{ width: `${action.confidence}%` }} /></div>
         <span>{action.confidence}%</span>
       </div>
-      {action.confidenceBasis && <ConfidenceBasisView basis={action.confidenceBasis} />}
+      <Reveal testId="reveal-action" label={t('Почему')} meta={action.confidenceBasis ? fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: action.confidenceBasis.supporting, total: action.confidenceBasis.total }) : undefined}>
+        <p className="action-explanation">{explanation}</p>
+        {action.confidenceBasis && <ConfidenceBasisView basis={action.confidenceBasis} />}
+      </Reveal>
       {signedIn && <FeedbackButtons action={action} />}
     </div>
   );

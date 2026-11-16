@@ -17,28 +17,53 @@ export function assertImportable(file: { name: string; size: number }) {
   if (!FORMATS.has(fileExtension(file.name))) throw new Error('import.error.format');
 }
 
-function csvRows(text: string) {
-  const head = text.split('\n').slice(0, 3).join('\n');
-  const delimiter = head.split(';').length > head.split(',').length ? ';' : head.includes('\t') ? '\t' : ',';
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter((line) => line.trim());
-  const parseLine = (line: string) => {
-    const cells: string[] = [];
-    let current = '';
-    let quoted = false;
-    for (let index = 0; index < line.length; index += 1) {
-      const char = line[index];
-      if (char === '"') {
-        if (quoted && line[index + 1] === '"') { current += '"'; index += 1; } else quoted = !quoted;
-      } else if (char === delimiter && !quoted) { cells.push(current.trim()); current = ''; } else current += char;
-    }
+/** Picks the delimiter from the first line, ignoring anything inside quotes. */
+function detectDelimiter(text: string) {
+  const counts: Record<string, number> = { ',': 0, ';': 0, '\t': 0 };
+  let quoted = false;
+  for (const char of text) {
+    if (char === '"') quoted = !quoted;
+    else if (!quoted && char in counts) counts[char] += 1;
+    else if (!quoted && (char === '\n' || char === '\r')) break;
+  }
+  const best = Object.entries(counts).sort((left, right) => right[1] - left[1])[0];
+  return best[1] > 0 ? best[0] : ',';
+}
+
+/** RFC 4180 style parser: quoted cells may contain delimiters, doubled quotes and line breaks. */
+export function parseCsv(input: string): string[][] {
+  const text = input.replace(/^\uFEFF/, '');
+  const delimiter = detectDelimiter(text);
+  const rows: string[][] = [];
+  let cells: string[] = [];
+  let current = '';
+  let quoted = false;
+  const endRow = () => {
     cells.push(current.trim());
-    return cells;
+    current = '';
+    if (cells.some((cell) => cell !== '')) rows.push(cells);
+    cells = [];
   };
-  const headers = parseLine(lines[0] ?? '');
-  return lines.slice(1).map((line) => {
-    const cells = parseLine(line);
-    return Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? '']));
-  });
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"') {
+        if (text[index + 1] === '"') { current += '"'; index += 1; } else quoted = false;
+      } else current += char;
+    } else if (char === '"') quoted = true;
+    else if (char === delimiter) { cells.push(current.trim()); current = ''; }
+    else if (char === '\n' || char === '\r') {
+      if (char === '\r' && text[index + 1] === '\n') index += 1;
+      endRow();
+    } else current += char;
+  }
+  endRow();
+  return rows;
+}
+
+function csvRows(text: string) {
+  const [headers = [], ...body] = parseCsv(text);
+  return body.map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ''])));
 }
 
 /** Finds the header row in sheets that start with a title block (common in marketplace exports). */

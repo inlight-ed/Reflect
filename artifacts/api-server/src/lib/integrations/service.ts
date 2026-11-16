@@ -87,6 +87,12 @@ export async function removeConnection(userId: string, kind: IntegrationKind) {
 }
 
 const STALE_SYNC_MS = 15 * 60_000;
+/**
+ * Kaspi orders change status for up to 3 days after they are created, and the API cannot filter
+ * by change date, so each sync re-reads the last 3 days before the previous complete sync, plus a
+ * day of margin.
+ */
+export const KASPI_OVERLAP_DAYS = 4;
 const RETRY_DELAYS_MS = [2_000, 6_000];
 
 const transient = (error: unknown) =>
@@ -133,11 +139,16 @@ async function runSync(userId: string, kind: IntegrationKind, runId: string, sto
   let ok = true;
   try {
     if (kind === "KASPI_API") {
-      const { lines, truncated } = await withRetries(() => fetchKaspiOrders(stored.secret!, 60));
+      // completeThrough = the start of the last sync that read everything. Later syncs begin a few
+      // days before it. A truncated sync does not move it, so what it missed is read again.
+      const previous = typeof stored.meta?.completeThrough === "string" ? new Date(stored.meta.completeThrough) : undefined;
+      const since = previous && !Number.isNaN(previous.getTime()) ? new Date(previous.getTime() - KASPI_OVERLAP_DAYS * 86_400_000) : undefined;
+      const { lines, truncated } = await fetchKaspiOrders(stored.secret!, 60, since);
       const result = lines.length ? await importOrders(userId, lines, "KASPI_API", null) : { accepted: 0 };
       rows = result.accepted;
       detail = truncated ? "connector.sync.truncated" : "connector.sync.done";
-      await updateIntegrationStatus(userId, kind, "CONNECTED", detail, { meta: { imported: result.accepted }, lastSyncAt: new Date() });
+      const completeThrough = truncated ? previous?.toISOString() : new Date(started).toISOString();
+      await updateIntegrationStatus(userId, kind, "CONNECTED", detail, { meta: { imported: result.accepted, ...(completeThrough ? { completeThrough } : {}) }, lastSyncAt: new Date() });
     } else if (kind === "MOYSKLAD") {
       const products = await withRetries(() => fetchMoyskladStock(stored.secret!));
       const result = products.length ? await importProducts(userId, products, "MOYSKLAD", null) : { accepted: 0 };

@@ -22,7 +22,10 @@ export class KaspiError extends Error {
 
 type JsonApiResource = { id: string; type?: string; attributes?: Record<string, unknown>; relationships?: Record<string, { data?: { id: string; type: string } | null; links?: { related?: string } }> };
 
-async function kaspiGet(path: string, token: string) {
+// Pauses between attempts for one request. KASPI_RETRY_DELAY_MS replaces them in tests.
+const RETRY_DELAYS_MS = () => (process.env["KASPI_RETRY_DELAY_MS"] ? [Number(process.env["KASPI_RETRY_DELAY_MS"]), Number(process.env["KASPI_RETRY_DELAY_MS"])] : [2_000, 6_000]);
+
+async function kaspiGetOnce(path: string, token: string) {
   const url = path.startsWith("http") ? path : `${BASE()}${path}`;
   // Links inside a response are followed only on the Kaspi host: the token must not go anywhere else.
   if (new URL(url).origin !== new URL(BASE()).origin) throw new KaspiError("BAD_RESPONSE");
@@ -33,11 +36,29 @@ async function kaspiGet(path: string, token: string) {
     throw new KaspiError("UNAVAILABLE");
   }
   if (response.status === 401 || response.status === 403) throw new KaspiError("UNAUTHORIZED");
-  if (!response.ok) throw new KaspiError(response.status >= 500 ? "UNAVAILABLE" : "BAD_RESPONSE");
+  // 429 (too many requests) and 5xx are temporary; other 4xx mean the request itself is wrong.
+  if (!response.ok) throw new KaspiError(response.status >= 500 || response.status === 429 ? "UNAVAILABLE" : "BAD_RESPONSE");
   try {
     return (await response.json()) as { data?: JsonApiResource | JsonApiResource[]; included?: JsonApiResource[]; meta?: { pageCount?: number; totalCount?: number } };
   } catch {
-    throw new KaspiError("BAD_RESPONSE");
+    // A body that stalls or is cut off is as temporary as a timeout; a body that is not JSON is not.
+    throw new KaspiError("UNAVAILABLE");
+  }
+}
+
+/**
+ * One Kaspi request, retried on timeouts, 429 and 5xx. Retrying here rather than around the whole
+ * sync means a failure on order 2900 repeats that one request instead of starting over.
+ */
+async function kaspiGet(path: string, token: string) {
+  const delays = RETRY_DELAYS_MS();
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await kaspiGetOnce(path, token);
+    } catch (error) {
+      if (attempt >= delays.length || !(error instanceof KaspiError) || error.code !== "UNAVAILABLE") throw error;
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
   }
 }
 
@@ -74,13 +95,19 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 const str = (value: unknown) => (value === null || value === undefined ? undefined : String(value));
 const num = (value: unknown) => (typeof value === "number" ? value : Number(value));
 
-/** Pulls orders created in the last `days` days and flattens them to order lines. */
-export async function fetchKaspiOrders(token: string, days = 60): Promise<{ lines: OrderInput[]; orders: number; truncated: boolean }> {
+/**
+ * Pulls orders created in the last `days` days and flattens them to order lines. With `since`
+ * only orders created after that moment are read (never further back than `days`): Kaspi has no
+ * "changed since" filter, so the caller passes a start a few days before the previous sync to
+ * pick up status changes of recent orders.
+ */
+export async function fetchKaspiOrders(token: string, days = 60, since?: Date): Promise<{ lines: OrderInput[]; orders: number; truncated: boolean }> {
   const now = Date.now();
+  const from = Math.max(now - days * DAY, since?.getTime() ?? 0);
   const orders: JsonApiResource[] = [];
   let truncated = false;
-  outer: for (let end = now; end > now - days * DAY; end -= WINDOW_DAYS * DAY) {
-    const start = Math.max(now - days * DAY, end - WINDOW_DAYS * DAY);
+  outer: for (let end = now; end > from; end -= WINDOW_DAYS * DAY) {
+    const start = Math.max(from, end - WINDOW_DAYS * DAY);
     for (const state of STATES) {
       for (let page = 0; page < 50; page += 1) {
         const body = await kaspiGet(ordersPath(state, start, end, page), token);

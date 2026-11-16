@@ -218,7 +218,7 @@ export function MetricCards({ metrics }: { metrics: Metric[] }) {
         return (
           <div className="card metric-card fade-in" key={`${metric.label}-${index}`} data-testid={`metric-card-${index}`}>
             <div className="eyebrow">{term ? <Hint term={term}>{t(metric.label)}</Hint> : t(metric.label)}</div>
-            <div className="metric-value" data-testid={`text-metric-${index}`}>{display(metric)}</div>
+            <div className="metric-value" data-testid={`text-metric-${index}`}>{display(metric)}{metric.estimated && <span className="metric-estimate" title={t('metric.estimated.hint')} data-testid={`metric-estimated-${index}`}>{t('metric.estimated')}</span>}</div>
             <div className={`metric-change ${metric.positive ? 'positive' : 'negative'}`}>
               {metric.changePct === null ? <span className="neutral">—</span> : <>{metric.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {metric.changePct !== undefined ? `${metric.changePct > 0 ? '+' : ''}${formatNumber(metric.changePct, locale, 1)}%` : t(metric.change)}</>}
             </div>

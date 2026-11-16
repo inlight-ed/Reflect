@@ -565,6 +565,7 @@ components:
         changePct: { type: [number, "null"] }
         change: { type: string }
         positive: { type: boolean }
+        estimated: { type: boolean, description: "True when the value rests on assumptions (default commission, missing cost prices)" }
     DashboardAction:
       type: object
       required: [type, object, signal, explanation, recommendation, confidence, confidenceBasis, impact]

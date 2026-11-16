@@ -265,7 +265,7 @@ export function recommendations(stats: SkuStats[], now: Date): UserAction[] {
 
 // ---------- Overview ----------
 
-export type MetricOut = { label: string; value: string; amount: number; unit: "CURRENCY" | "COUNT" | "MULTIPLIER" | "DAYS"; change: string; changePct: number | null; positive: boolean };
+export type MetricOut = { label: string; value: string; amount: number; unit: "CURRENCY" | "COUNT" | "MULTIPLIER" | "DAYS"; change: string; changePct: number | null; positive: boolean; estimated?: boolean };
 
 export function overviewMetrics(lines: OrderLine[], stats: SkuStats[], now: Date, period: Period, compare: Compare): MetricOut[] {
   const { current, comparison } = windows(now, period, compare);
@@ -283,7 +283,10 @@ export function overviewMetrics(lines: OrderLine[], stats: SkuStats[], now: Date
   ];
   if (withCost.length) {
     const profit = withCost.reduce((sum, s) => sum + (s.unitMargin ?? 0) * s.units, 0);
-    result.push({ ...metric("metric.grossProfit", profit, 0, "CURRENCY"), change: "—", changePct: null, positive: profit >= 0 });
+    // An estimate, not a fact, when Kaspi's commission was assumed or some sold items have no cost price.
+    const sold = stats.filter((s) => s.units > 0);
+    const estimated = withCost.some((s) => s.commissionAssumed) || sold.some((s) => s.unitMargin === null);
+    result.push({ ...metric("metric.grossProfit", profit, 0, "CURRENCY"), change: "—", changePct: null, positive: profit >= 0, estimated });
   } else {
     result.push(metric("metric.units", cur.units, prev.units, "COUNT"));
   }

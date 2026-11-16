@@ -72,6 +72,14 @@ describe("seller data isolation", { skip }, () => {
     assert.ok(!response.text.includes(NAME_A));
   });
 
+  it("a signed-in seller without orders is told so, never answered from the demo shop", async () => {
+    const response = await b.call("POST", "/shift-market/ask", { question: "Какие товары растут?", locale: "ru" });
+    const body = response.json as { answer: string; insufficientData: boolean };
+    assert.equal(body.insufficientData, true);
+    assert.match(body.answer, /заказов пока нет/);
+    assert.ok(!body.answer.includes("демо"));
+  });
+
   it("sellers cannot delete their data or account through the API (administrator only)", async () => {
     for (const path of ["/data", "/auth/account", "/account"]) {
       assert.equal((await b.call("DELETE", path)).status, 404, `DELETE ${path}`);

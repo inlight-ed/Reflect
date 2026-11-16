@@ -58,11 +58,13 @@ function summaryInsight(metrics: ReturnType<typeof overviewMetrics>, actions: Re
   const change = revenue.changePct;
   const top = actions[0];
   const confidence = actions.length ? Math.round(actions.reduce((sum, action) => sum + action.confidence, 0) / actions.length) : 50;
+  // Under 1% either way reads as "flat": "grew 0%" sounds like news when nothing changed.
+  const title = change === null ? "summary.title.noComparison" : Math.abs(change) < 1 ? "summary.title.flat" : change > 0 ? "summary.title.up" : "summary.title.down";
   return {
     eyebrow: "summary.eyebrow",
-    title: change === null ? "summary.title.noComparison" : change >= 0 ? "summary.title.up" : "summary.title.down",
+    title,
     body: top ? "summary.body.top" : "summary.body.none",
-    titleKey: change === null ? "summary.title.noComparison" : change >= 0 ? "summary.title.up" : "summary.title.down",
+    titleKey: title,
     bodyKey: top ? "summary.body.top" : "summary.body.none",
     params: { change: change === null ? 0 : Math.abs(change), period, object: top?.object ?? "", actions: actions.length },
     confidence,
@@ -78,7 +80,7 @@ function summaryInsight(metrics: ReturnType<typeof overviewMetrics>, actions: Re
  * after an export as days with no sales: the revenue line would drop to zero and sales would look
  * like they collapsed. With the API connected the moment keeps moving, so a real drop still shows.
  */
-async function dataAsOf(userId: string, data: Awaited<ReturnType<typeof loadUserData>>, now = new Date()) {
+export async function dataAsOf(userId: string, data: Awaited<ReturnType<typeof loadUserData>>, now = new Date()) {
   let latest = 0;
   for (const line of data.lines) latest = Math.max(latest, line.orderedAt.getTime());
   const kaspi = await getIntegration(userId, "KASPI_API").catch(() => undefined);

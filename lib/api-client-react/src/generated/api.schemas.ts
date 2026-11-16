@@ -165,6 +165,8 @@ export interface Metric {
   changePct?: number | null;
   change: string;
   positive: boolean;
+  /** True when the value rests on assumptions (default commission, missing cost prices) */
+  estimated?: boolean;
 }
 
 export type DashboardActionType = typeof DashboardActionType[keyof typeof DashboardActionType];

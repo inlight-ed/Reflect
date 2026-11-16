@@ -22,6 +22,9 @@ export const syncRunsTable = pgTable("sync_runs", {
   rows: integer("rows"),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
+  // Refreshed every minute by the instance that owns the run, also while it waits in the queue.
+  // A RUNNING row whose heartbeat stopped belongs to an instance that died: it is resumed.
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("sync_runs_one_running").on(table.userId, table.kind).where(sql`${table.status} = 'RUNNING'`),
   index("sync_runs_user_idx").on(table.userId, table.startedAt),

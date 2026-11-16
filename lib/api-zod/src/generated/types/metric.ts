@@ -17,4 +17,6 @@ export interface Metric {
   changePct?: number | null;
   change: string;
   positive: boolean;
+  /** True when the value rests on assumptions (default commission, missing cost prices) */
+  estimated?: boolean;
 }

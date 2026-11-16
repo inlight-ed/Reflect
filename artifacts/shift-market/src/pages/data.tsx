@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, FileSpreadsheet, Loader2, Trash2, UploadCloud } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Loader2, UploadCloud } from 'lucide-react';
 import { Link } from 'wouter';
-import { ApiError, importData, useDeleteAllData, useGetDataStatus } from '@workspace/api-client-react';
+import { ApiError, importData, useGetDataStatus } from '@workspace/api-client-react';
 import { formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
 import { buildRows, FIELDS, missingRequired, readFile, remap, type Dataset, type SheetCandidate } from '@/lib/importer';
 import { useSession } from '@/lib/session';
@@ -18,11 +18,9 @@ export default function DataPage() {
   const { signedIn, refresh } = useSession();
   const queryClient = useQueryClient();
   const status = useGetDataStatus({ query: { enabled: signedIn, queryKey: ['/api/data/status'] } });
-  const remove = useDeleteAllData();
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
-  const [notice, setNotice] = useState('');
   const [reading, setReading] = useState<Array<{ id: string; name: string }>>([]);
   const input = useRef<HTMLInputElement>(null);
   const nextOrder = useRef(0);
@@ -87,10 +85,6 @@ export default function DataPage() {
     if (event.dataTransfer.files.length) void addFiles(event.dataTransfer.files);
   };
 
-  const deleteAll = () => {
-    if (!window.confirm(t('data.delete.confirm'))) return;
-    remove.mutate(undefined, { onSuccess: () => { setNotice(t('data.deleted')); setItems([]); void queryClient.invalidateQueries(); } });
-  };
 
   const summary = status.data;
   return (
@@ -111,7 +105,6 @@ export default function DataPage() {
         <p className="dropzone-hint">{t('data.template.hint')}</p>
       </div>
       {error && <div className="report-notice error" role="alert">{error}</div>}
-      {notice && <div className="report-notice" role="status">{notice}</div>}
       {reading.map((entry) => <div className="card card-pad import-reading" role="status" key={entry.id} data-testid="import-reading"><Loader2 size={16} className="spin" aria-hidden /><span>{text('data.reading', { name: entry.name })}</span></div>)}
 
       {items.filter((item) => item.state === 'ready' && item.candidate.dataset && !missingRequired(item.candidate).length).length > 1 && (
@@ -133,7 +126,6 @@ export default function DataPage() {
           {summary.imports.map((row) => <tr key={row.id}><td>{formatDate(row.createdAt, locale)} {formatTime(row.createdAt, locale)}</td><td>{t(`data.kind.${row.kind}`)}<span className="table-sub">{row.fileName ?? ''}</span></td><td>{t(`data.source.${row.source}`)}</td><td>{formatNumber(row.rows, locale)}</td></tr>)}
         </tbody></table> : <EmptyState label="imports" message={t('onboarding.step1.body')} />}
       </div>
-      <div className="danger-zone"><button type="button" className="btn secondary danger" onClick={deleteAll} disabled={remove.isPending} data-testid="button-delete-data"><Trash2 size={14} /> {t('data.delete')}</button></div>
     </PageFrame>
   );
 }

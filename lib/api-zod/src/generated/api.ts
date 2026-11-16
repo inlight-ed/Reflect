@@ -187,12 +187,6 @@ export const GetDataStatusResponse = zod.object({
 
 
 /**
- * @summary Delete all imported data of the signed-in seller
- */
-export const DeleteAllDataResponse = zod.void()
-
-
-/**
  * @summary Recommendation outcomes with numbers before and after
  */
 export const ListFeedbackResponseItem = zod.object({

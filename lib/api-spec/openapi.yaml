@@ -125,14 +125,6 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/DataStatus" }
         "401": { description: Sign in required }
-  /data:
-    delete:
-      operationId: deleteAllData
-      tags: [data]
-      summary: Delete all imported data of the signed-in seller
-      responses:
-        "204": { description: Deleted }
-        "401": { description: Sign in required }
   /feedback:
     get:
       operationId: listFeedback

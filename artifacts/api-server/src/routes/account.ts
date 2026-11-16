@@ -12,7 +12,7 @@ import { createCardEvent } from "../lib/cards";
 import { hasDatabase } from "../lib/database";
 import { CONNECTION_KINDS, ConnectionInputError, connectionViews, recentSyncRuns, removeConnection, saveConnection, startSync } from "../lib/integrations/service";
 import type { IntegrationKind } from "../lib/integrations/store";
-import { deleteUserData, hasUserOrders, importAds, importOrders, importProducts, ImportValidationError } from "../lib/user-data";
+import { hasUserOrders, importAds, importOrders, importProducts, ImportValidationError } from "../lib/user-data";
 import { createFeedback, dataStatus, listUserFeedback } from "../lib/workspace";
 import { rateLimit } from "../middlewares/rate-limit";
 
@@ -111,11 +111,6 @@ router.post("/data/import", requireUser, importLimit, async (req, res) => {
 
 router.get("/data/status", requireUser, async (req, res) => {
   res.json(await dataStatus(req.user!.id));
-});
-
-router.delete("/data", requireUser, async (req, res) => {
-  await deleteUserData(req.user!.id);
-  res.status(204).end();
 });
 
 router.get("/feedback", requireUser, async (req, res) => {

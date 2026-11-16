@@ -8,6 +8,7 @@ import {
   SaveConnectionBody,
 } from "@workspace/api-zod";
 import { AuthError, login, logout, register, requireUser, SESSION_COOKIE, setSessionCookie, logoutEverywhere } from "../lib/auth";
+import { HashingBusyError } from "../lib/security";
 import { createCardEvent } from "../lib/cards";
 import { hasDatabase } from "../lib/database";
 import { CONNECTION_KINDS, ConnectionInputError, connectionViews, recentSyncRuns, removeConnection, saveConnection, startSync } from "../lib/integrations/service";
@@ -23,6 +24,11 @@ const importLimit = rateLimit({ name: "import", windowMs: 60 * 60_000, max: 120,
 const syncLimit = rateLimit({ name: "sync", windowMs: 60 * 60_000, max: 30, shared: true });
 
 function authError(res: Response, error: unknown) {
+  if (error instanceof HashingBusyError) {
+    res.setHeader("Retry-After", 5);
+    res.status(503).json({ error: "TEMPORARILY_UNAVAILABLE" });
+    return;
+  }
   if (!(error instanceof AuthError)) throw error;
   const status = error.code === "EMAIL_TAKEN" ? 409 : error.code === "INVALID_CREDENTIALS" ? 401 : error.code === "ACCOUNTS_UNAVAILABLE" ? 503 : error.code === "TOO_MANY_ATTEMPTS" ? 429 : 400;
   if (error.code === "TOO_MANY_ATTEMPTS") {

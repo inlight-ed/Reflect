@@ -5,10 +5,40 @@ import { logger } from "./logger";
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, options: { N: number; r: number; p: number; maxmem: number }) => Promise<Buffer>;
 const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
+/**
+ * Each hash takes ~16 MB and ~50 ms of a libuv worker thread, which DNS lookups and file reads
+ * share. At most MAX_PARALLEL_HASHES run at once; up to MAX_WAITING_HASHES wait their turn and
+ * anything beyond is refused, so a burst of sign-ins cannot starve the rest of the server.
+ */
+const MAX_PARALLEL_HASHES = 2;
+const MAX_WAITING_HASHES = 32;
+let runningHashes = 0;
+const waitingHashes: Array<() => void> = [];
+
+export class HashingBusyError extends Error {
+  constructor() {
+    super("HASHING_BUSY");
+  }
+}
+
+async function withHashSlot<T>(work: () => Promise<T>): Promise<T> {
+  if (runningHashes < MAX_PARALLEL_HASHES) runningHashes += 1;
+  else if (waitingHashes.length >= MAX_WAITING_HASHES) throw new HashingBusyError();
+  else await new Promise<void>((resolve) => waitingHashes.push(resolve));
+  try {
+    return await work();
+  } finally {
+    // Hand the slot straight to the next waiter, or free it.
+    const next = waitingHashes.shift();
+    if (next) next();
+    else runningHashes -= 1;
+  }
+}
+
 /** Password hash format: scrypt$N$r$p$saltBase64$hashBase64 */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const hash = await scrypt(password.normalize("NFKC"), salt, 64, SCRYPT);
+  const hash = await withHashSlot(() => scrypt(password.normalize("NFKC"), salt, 64, SCRYPT));
   return ["scrypt", SCRYPT.N, SCRYPT.r, SCRYPT.p, salt.toString("base64"), hash.toString("base64")].join("$");
 }
 
@@ -16,7 +46,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const [scheme, n, r, p, saltB64, hashB64] = stored.split("$");
   if (scheme !== "scrypt" || !saltB64 || !hashB64) return false;
   const expected = Buffer.from(hashB64, "base64");
-  const actual = await scrypt(password.normalize("NFKC"), Buffer.from(saltB64, "base64"), expected.length, { N: Number(n), r: Number(r), p: Number(p), maxmem: SCRYPT.maxmem });
+  const actual = await withHashSlot(() => scrypt(password.normalize("NFKC"), Buffer.from(saltB64, "base64"), expected.length, { N: Number(n), r: Number(r), p: Number(p), maxmem: SCRYPT.maxmem }));
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { safeError, scrub } from "../lib/logger";
-import { decryptSecret, encryptSecret, hashPassword, openSecret, resetKeysForTests, verifyPassword } from "../lib/security";
+import { decryptSecret, encryptSecret, hashPassword, HashingBusyError, openSecret, resetKeysForTests, verifyPassword } from "../lib/security";
 
 const env = { ...process.env };
 afterEach(() => {
@@ -60,5 +60,16 @@ describe("log scrubbing", () => {
     assert.ok(!scrub("Authorization: Bearer abc.def.ghi").includes("abc.def"));
     assert.ok(!scrub("request failed token=s3cr3t&page=1").includes("s3cr3t"));
     assert.ok(!scrub('{"X-Auth-Token":"kaspi-123"}').includes("kaspi-123"));
+  });
+});
+
+describe("password hashing queue", () => {
+  it("runs a burst in turn and refuses what does not fit in the queue instead of piling up", async () => {
+    const results = await Promise.allSettled(Array.from({ length: 40 }, (_, index) => hashPassword(`burst-password-${index}`)));
+    const refused = results.filter((result) => result.status === "rejected");
+    assert.equal(results.length - refused.length, 34, "2 running + 32 waiting are served");
+    assert.ok(refused.every((result) => result.status === "rejected" && result.reason instanceof HashingBusyError));
+    // The queue drains completely: the next sign-in works as usual.
+    assert.ok(await verifyPassword("after-burst", await hashPassword("after-burst")));
   });
 });

@@ -40,14 +40,6 @@ export function validateCredentials(email: string, password: string) {
   if (password.length < 8 || password.length > 200) throw new AuthError("WEAK_PASSWORD");
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  for (let current: unknown = err, depth = 0; current && depth < 4; depth += 1) {
-    if (typeof current === "object" && "code" in current && (current as { code?: unknown }).code === "23505") return true;
-    current = typeof current === "object" && "cause" in current ? (current as { cause?: unknown }).cause : undefined;
-  }
-  return false;
-}
-
 async function createSession(userId: string) {
   const { db, sessionsTable } = await database();
   // Housekeeping: drop this user's expired sessions whenever a new one starts.
@@ -76,13 +68,9 @@ export async function register(emailInput: string, password: string, name?: stri
   const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length) throw new AuthError("EMAIL_TAKEN");
   const user = { id: randomUUID(), email, passwordHash: await hashPassword(password), name: name?.trim().slice(0, 80) || null };
-  try {
-    await db.insert(usersTable).values(user);
-  } catch (err) {
-    // Two sign-ups for the same email at once: the unique index decides, the loser gets EMAIL_TAKEN.
-    if (isUniqueViolation(err)) throw new AuthError("EMAIL_TAKEN");
-    throw err;
-  }
+  // Two sign-ups for the same email at once: the unique index decides and the loser inserts nothing.
+  const inserted = await db.insert(usersTable).values(user).onConflictDoNothing({ target: usersTable.email }).returning({ id: usersTable.id });
+  if (!inserted.length) throw new AuthError("EMAIL_TAKEN");
   return { user: { id: user.id, email: user.email, name: user.name }, session: await createSession(user.id) };
 }
 

@@ -24,9 +24,10 @@ export async function hitSharedCounter(key: string, windowMs: number) {
  * Fixed-window limiter. Keyed by the signed-in user when there is one, otherwise by IP.
  *
  * `shared: true` keeps the counters in Postgres so the limit holds across API instances
- * (used for login, AI, imports and syncs). If the database is unavailable it falls back to
- * the in-memory counter rather than blocking the request. The global per-request limit stays
- * in memory so ordinary requests do not pay a database round trip.
+ * (used for login, AI, imports and syncs). If that counter cannot be read the request is refused
+ * with 503: these routes are the expensive or sensitive ones, and a per-instance counter would let
+ * a database hiccup reset the limit. The global per-request limit stays in memory so ordinary
+ * requests do not pay a database round trip.
  */
 export function rateLimit({ windowMs, max, name, shared = false }: Options) {
   const hits = new Map<string, { count: number; resetAt: number }>();
@@ -58,8 +59,10 @@ export function rateLimit({ windowMs, max, name, shared = false }: Options) {
       try {
         entry = await remote(key);
       } catch (err) {
-        req.log?.warn({ err }, "Shared rate limit unavailable; using in-memory counter");
-        entry = local(key, now);
+        req.log?.warn({ err }, "Shared rate limit unavailable; refusing the request");
+        res.setHeader("Retry-After", 30);
+        res.status(503).json({ error: "TEMPORARILY_UNAVAILABLE" });
+        return;
       }
     } else entry = local(key, now);
     if (entry.count > max) {

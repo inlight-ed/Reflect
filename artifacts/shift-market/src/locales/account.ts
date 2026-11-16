@@ -33,6 +33,7 @@ export const account: Catalog = {
   "auth.error.INVALID_CREDENTIALS": ["Неверная почта или пароль.", "Пошта немесе құпиясөз қате.", "Wrong email or password."],
   "auth.error.ACCOUNTS_UNAVAILABLE": ["Регистрация временно недоступна: не подключена база данных.", "Тіркелу уақытша қолжетімсіз: дерекқор қосылмаған.", "Sign-up is unavailable: the database is not connected."],
   "auth.error.RATE_LIMITED": ["Слишком много попыток. Подождите 15 минут.", "Әрекеттер тым көп. 15 минут күтіңіз.", "Too many attempts. Wait 15 minutes."],
+  "auth.error.TEMPORARILY_UNAVAILABLE": ["Сервер сейчас перегружен. Попробуйте ещё раз через несколько секунд.", "Сервер қазір жүктелген. Бірнеше секундтан кейін қайталап көріңіз.", "The server is busy right now. Try again in a few seconds."],
   "auth.error.generic": ["Не получилось. Повторите попытку.", "Болмады. Қайталап көріңіз.", "Something went wrong. Try again."],
   "auth.logout": ["Выйти", "Шығу", "Sign out"],
   "demo.banner": ["Демо-магазин косметики: товары, цены и спрос на Kaspi — по данным RedStat, продажи магазина — оценка.", "Косметика демо-дүкені: тауарлар, бағалар және Kaspi-дегі сұраныс RedStat деректері бойынша, дүкен сатылымы — бағалау.", "Demo cosmetics store: products, prices and Kaspi demand come from RedStat; the store's own sales are an estimate."],

@@ -20,6 +20,7 @@ import {
   type SkuStats,
 } from "./analytics";
 import { database } from "./database";
+import { dataIssues } from "./data-quality";
 import { loadUserData, type UserData } from "./user-data";
 
 const SOURCE = "USER DATA" as const;
@@ -175,9 +176,16 @@ export async function userProducts(userId: string, period: Period, compare: Comp
       unitMargin: s.unitMargin,
       marginPct: s.marginPct,
       commissionAssumed: s.commissionAssumed,
+      commissionPct: s.commissionPct,
+      logisticsCost: s.logisticsCost,
+      otherCost: s.otherCost,
+      netProfit: s.netProfit,
+      missingCosts: s.missingCosts,
       kaspiCode: s.kaspiCode,
       opportunity: s.opportunity,
     })),
+    // Freshness is judged against today, not the data date: stale stock is stale now.
+    dataIssues: data.hasOrders ? dataIssues(stats, data.catalog, data.lines, new Date()) : [],
     matrix: [
       { label: "SCALE", count: count("SCALE"), description: "matrix.scale" },
       { label: "FIX", count: count("FIX"), description: "matrix.fix" },

@@ -57,6 +57,7 @@ import type {
   OkResponse,
   PasswordResetInput,
   PasswordResetRequest,
+  ProductCostsInput,
   ProductsOverview,
   RegisterInput,
   SessionState,
@@ -740,6 +741,78 @@ export const useImportData = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getImportDataMutationOptions(options));
+    }
+
+export const getUpdateProductCostsUrl = () => {
+
+
+
+
+  return `/api/data/product-costs`
+}
+
+/**
+ * Only the fields sent change; null clears a value. A SKU sold but missing from the catalog is added.
+ * @summary Set a product's costs, stock or lead time by hand
+ */
+export const updateProductCosts = async (productCostsInput: ProductCostsInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getUpdateProductCostsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(productCostsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProductCostsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductCosts>>, TError,{data: BodyType<ProductCostsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProductCosts>>, TError,{data: BodyType<ProductCostsInput>}, TContext> => {
+
+const mutationKey = ['updateProductCosts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProductCosts>>, {data: BodyType<ProductCostsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProductCosts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProductCostsMutationResult = NonNullable<Awaited<ReturnType<typeof updateProductCosts>>>
+    export type UpdateProductCostsMutationBody = BodyType<ProductCostsInput>
+    export type UpdateProductCostsMutationError = ErrorType<void>
+
+    /**
+ * @summary Set a product's costs, stock or lead time by hand
+ */
+export const useUpdateProductCosts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductCosts>>, TError,{data: BodyType<ProductCostsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProductCosts>>,
+        TError,
+        {data: BodyType<ProductCostsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateProductCostsMutationOptions(options));
     }
 
 export const getGetDataStatusUrl = () => {

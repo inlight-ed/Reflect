@@ -386,6 +386,44 @@ button.matrix-dot::after { content:''; position:absolute; inset:-9px; border-rad
 /* External media */
 .data-table.selectable tbody tr { cursor:pointer; }
 .data-table tr.selected-row td { background:#1d211b; }
+.data-table tr.selected td { background:color-mix(in srgb, var(--app-accent) 6%, transparent); }
+.row-link { padding:0; border:0; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.row-link:hover, .row-link[aria-pressed="true"] { color:var(--app-accent); }
+.row-link:focus-visible { outline:2px solid var(--app-accent); outline-offset:3px; border-radius:2px; }
+
+/* What to fix in the data */
+.quality-list { margin:0 0 28px; padding:0; list-style:none; border-top:1px solid #20242b; }
+.quality-list li { padding:16px 0; border-bottom:1px solid #20242b; }
+.quality-row { display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; }
+.quality-row strong { color:#eceef1; font-size:14px; font-weight:500; }
+.quality-share { color:var(--app-text-muted); font:400 12px var(--app-font-mono); }
+.quality-list p { margin:6px 0 0; color:#9aa1ab; font-size:13px; line-height:1.5; }
+.quality-products { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.quality-products button { display:inline-flex; align-items:center; gap:10px; min-height:32px; padding:4px 10px; border:1px solid #2a3039; border-radius:6px; background:transparent; color:#d5d9de; font-size:12px; cursor:pointer; }
+.quality-products button span { color:var(--app-text-muted); font-family:var(--app-font-mono); }
+.quality-products button:hover { border-color:var(--app-accent); color:#fff; }
+
+/* Product economics */
+.economics { margin-bottom:16px; }
+.economics-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+.economics-head strong { display:block; margin-top:6px; color:#eef0f3; font-size:16px; font-weight:500; }
+.economics-close { display:inline-grid; place-items:center; width:36px; height:36px; border:1px solid #2a3039; border-radius:8px; background:transparent; color:#c3c9d1; cursor:pointer; }
+.economics-close:hover { color:#fff; border-color:#3a414c; }
+.economics-body { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:40px; margin-top:20px; }
+.economics-lines { margin:0; }
+.economics-lines div { display:flex; justify-content:space-between; gap:16px; padding:9px 0; border-bottom:1px solid #1f242b; font-size:13px; }
+.economics-lines dt { color:#aab1bb; }
+.economics-lines dt em { color:var(--app-accent); font-style:normal; }
+.economics-lines dd { margin:0; color:#eceef1; font-family:var(--app-font-mono); white-space:nowrap; }
+.economics-lines .economics-total { border-bottom:1px solid #2c323b; }
+.economics-lines .economics-total dt, .economics-lines .economics-total dd { color:#fff; font-weight:600; }
+.economics-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 16px; align-content:start; }
+.economics-form label { display:flex; flex-direction:column; gap:6px; color:#9aa1ab; font-size:12px; }
+.economics-form input { height:40px; box-sizing:border-box; padding:0 12px; border:1px solid #2a3039; border-radius:8px; background:#0f1216; color:#eceef1; font:400 14px var(--app-font-mono); }
+.economics-form input:focus { outline:none; border-color:var(--app-accent); }
+.economics-actions { grid-column:1 / -1; display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:13px; }
+@media (max-width: 900px) { .economics-body { grid-template-columns:1fr; gap:24px; } }
+@media (max-width: 420px) { .economics-form { grid-template-columns:1fr; } }
 .media-split { grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr); }
 @media (max-width: 1500px) { .media-split { grid-template-columns:1fr; } }
 .impact-totals { display:flex; gap:32px; flex-wrap:wrap; border-top:1px solid #252b35; }

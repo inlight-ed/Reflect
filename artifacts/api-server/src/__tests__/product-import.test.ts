@@ -7,7 +7,7 @@ import { after, describe, it } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { register } from "../lib/auth";
 import { database } from "../lib/database";
-import { importProducts, mergeProductRows } from "../lib/user-data";
+import { importProducts, mergeProductRows, updateProductCosts } from "../lib/user-data";
 
 describe("products: one row per SKU", () => {
   it("merges in file order: a later filled cell wins, an empty one keeps the earlier value", () => {
@@ -51,5 +51,20 @@ describe("products import with a repeated SKU", { skip }, () => {
     assert.equal(Number(stored?.stock), 12);
     const all = await db.select().from(productsTable).where(eq(productsTable.userId, user.id));
     assert.equal(all.length, 2);
+  });
+
+  it("a hand correction changes only the fields sent, and adds a SKU that was not in the catalog", async () => {
+    await updateProductCosts(userId, { sku: "FX-1", logisticsCost: 700 });
+    await updateProductCosts(userId, { sku: "NEW-9", costPrice: 2500, stock: 4 });
+    const { db, productsTable } = await database();
+    const [fx] = await db.select().from(productsTable).where(and(eq(productsTable.userId, userId), eq(productsTable.sku, "FX-1")));
+    assert.equal(Number(fx?.logisticsCost), 700);
+    assert.equal(Number(fx?.costPrice), 1950, "untouched");
+    const [added] = await db.select().from(productsTable).where(and(eq(productsTable.userId, userId), eq(productsTable.sku, "NEW-9")));
+    assert.equal(Number(added?.stock), 4);
+    assert.ok(added?.stockUpdatedAt, "a stock entered by hand is fresh");
+    await updateProductCosts(userId, { sku: "FX-1", logisticsCost: null });
+    const [cleared] = await db.select().from(productsTable).where(and(eq(productsTable.userId, userId), eq(productsTable.sku, "FX-1")));
+    assert.equal(cleared?.logisticsCost, null);
   });
 });

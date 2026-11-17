@@ -5,6 +5,7 @@ import { usePeriod } from '@/lib/period';
 import { useSession } from '@/lib/session';
 import { EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, SectionTitle, demoSource, statusLabel } from '@/components/common';
 import { Onboarding, PeriodBar } from '@/components/seller';
+import { DataIssues, ProductEconomics } from '@/components/product-economics';
 
 type Filter = 'ALL' | 'SCALE' | 'FIX' | 'DEFEND' | 'STOP' | 'WATCH';
 
@@ -38,9 +39,17 @@ export default function ProductsPage() {
     ? { x: position(product.marginPct ?? 0.2, USER_X), y: position(product.trendPct ?? 0, USER_Y) }
     : { x: position(product.roas ?? 0, DEMO_X), y: position(product.trend ?? 0, DEMO_Y) };
 
+  const pick = (sku: string) => {
+    setSelectedSku(sku);
+    setFilter('ALL');
+    requestAnimationFrame(() => document.querySelector('[data-testid="product-economics"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+  const issues = seller && Array.isArray(data.dataIssues) ? data.dataIssues : [];
+
   return (
     <PageFrame>
       {head}
+      {issues.length > 0 && <DataIssues issues={issues} onPick={pick} />}
       <div className={`grid ${seller ? 'grid-5' : 'grid-4'}`}>
         {matrix.length ? matrix.map((item, index) => (
           <button type="button" className={`card metric-card matrix-summary ${filter === item.label ? 'active' : ''}`} key={`${item.label}-${index}`} title={t(item.description)} onClick={() => setFilter(filter === item.label ? 'ALL' : item.label as Filter)} data-testid={`matrix-summary-${index}`}>
@@ -88,12 +97,13 @@ export default function ProductsPage() {
       <SectionTitle title={t('Таблица решений по SKU')}>
         <div className="filter-row">{filters.map((item) => <button className={`filter ${filter === item ? 'active' : ''}`} onClick={() => setFilter(item)} key={item} aria-pressed={filter === item} data-testid={`filter-products-${item.toLowerCase()}`}>{item === 'ALL' ? t('ВСЕ') : t(statusLabel(item))}</button>)}</div>
       </SectionTitle>
-      <div className="card table-wrap">{products.length ? (seller ? <SellerTable products={products} /> : <DemoTable products={products} />) : <EmptyState label="товаров" />}</div>
+      {seller && selected && <ProductEconomics product={selected} onClose={() => setSelectedSku(undefined)} />}
+      <div className="card table-wrap">{products.length ? (seller ? <SellerTable products={products} selectedSku={selectedSku} onPick={pick} /> : <DemoTable products={products} />) : <EmptyState label="товаров" />}</div>
     </PageFrame>
   );
 }
 
-function SellerTable({ products }: { products: Product[] }) {
+function SellerTable({ products, selectedSku, onPick }: { products: Product[]; selectedSku?: string; onPick: (sku: string) => void }) {
   const { locale, t } = useI18n();
   const pct = (value: number | null | undefined) => (value === null || value === undefined ? '—' : `${value > 0 ? '+' : ''}${formatNumber(value, locale, 1)}%`);
   return <table className="data-table"><thead><tr>
@@ -107,13 +117,13 @@ function SellerTable({ products }: { products: Product[] }) {
     <th>{t('products.col.forecast')}</th>
     <th>{t('Решение')}</th>
   </tr></thead><tbody>{products.map((product) => (
-    <tr key={product.sku} data-testid={`row-product-${product.sku}`}>
-      <td>{product.name}<span className="table-sub">{product.sku}{product.category && product.category !== '—' ? ` · ${product.category}` : ''}</span></td>
+    <tr key={product.sku} data-testid={`row-product-${product.sku}`} className={product.sku === selectedSku ? 'selected' : undefined}>
+      <td><button type="button" className="row-link" onClick={() => onPick(product.sku)} aria-pressed={product.sku === selectedSku}>{product.name}</button><span className="table-sub">{product.sku}{product.category && product.category !== '—' ? ` · ${product.category}` : ''}</span></td>
       <td>{formatCurrency(product.revenue, locale)}</td>
       <td className={(product.trendPct ?? 0) >= 0 ? 'positive' : 'negative'}>{pct(product.trendPct)}</td>
       <td>{formatNumber(product.units, locale)}</td>
       <td>{product.avgPrice ? formatCurrency(product.avgPrice, locale) : '—'}</td>
-      <td className={product.marginPct !== null && product.marginPct !== undefined && product.marginPct < 0.1 ? 'negative' : 'neutral'}>{product.marginPct === null || product.marginPct === undefined ? <span className="neutral">{t('products.noCost')}</span> : formatPercent(product.marginPct, locale)}{product.commissionAssumed && product.marginPct !== null && <span className="table-sub">{t('products.assumed')}</span>}</td>
+      <td className={product.marginPct !== null && product.marginPct !== undefined && product.marginPct < 0.1 ? 'negative' : 'neutral'}>{product.marginPct === null || product.marginPct === undefined ? <span className="neutral">{t('products.noCost')}</span> : formatPercent(product.marginPct, locale)}{product.marginPct != null && (product.missingCosts?.length ?? 0) > 0 && <span className="table-sub">{t('economics.estimate')}</span>}</td>
       <td>{product.stock === null || product.stock === undefined ? '—' : formatNumber(product.stock, locale)}</td>
       <td className={(product.stockCoverDays ?? 99) < (product.leadTimeDays ?? 14) ? 'negative' : 'neutral'}>{product.stockCoverDays === null || product.stockCoverDays === undefined ? '—' : fill(t('{days} дн.'), { days: Math.floor(product.stockCoverDays) })}{product.reorderQty ? <span className="table-sub">{fill(t('forecast.reorder'), { qty: product.reorderQty })}</span> : null}</td>
       <td><span className={`status-tag tag-${product.opportunity.toLowerCase()}`}>{t(statusLabel(product.opportunity))}</span></td>

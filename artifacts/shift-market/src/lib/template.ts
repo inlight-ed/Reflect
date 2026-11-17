@@ -6,14 +6,14 @@ type Locale = 'ru' | 'kk' | 'en';
 
 const headers = {
   ru: {
-    products: ['Артикул', 'Название', 'Категория', 'Код товара Kaspi', 'Себестоимость', 'Остаток', 'Срок поставки, дней', 'Комиссия Kaspi, %'],
+    products: ['Артикул', 'Название', 'Категория', 'Код товара Kaspi', 'Себестоимость', 'Логистика за шт.', 'Прочие расходы за шт.', 'Остаток', 'Срок поставки, дней', 'Комиссия Kaspi, %'],
     orders: ['№ заказа', 'Дата', 'Артикул', 'Название товара', 'Количество', 'Сумма', 'Статус'],
     ads: ['Дата', 'Артикул', 'Канал', 'Расход'],
     sheets: ['Инструкция', 'Товары', 'Продажи', 'Реклама'],
     guide: [
       ['Как заполнить шаблон Reflect'],
       [''],
-      ['Товары', 'Обязательно: Артикул. Себестоимость и Остаток нужны для маржи и прогноза окончания товара. Срок поставки — сколько дней идёт новая партия. Комиссия Kaspi — процент вашей категории.'],
+      ['Товары', 'Обязательно: Артикул. Себестоимость и Остаток нужны для маржи и прогноза окончания товара. Логистика — сколько вы платите за доставку одной штуки, прочие расходы — упаковка и другое на штуку. Срок поставки — сколько дней идёт новая партия. Комиссия Kaspi — процент вашей категории.'],
       ['Продажи', 'Заполняйте, только если не загружаете выгрузку заказов из кабинета Kaspi. Обязательно: Дата, Артикул, Количество, Сумма.'],
       ['Реклама', 'Расход на рекламу по дням. Артикул нужен, чтобы посчитать окупаемость рекламы по товару.'],
       [''],
@@ -22,14 +22,14 @@ const headers = {
     ],
   },
   en: {
-    products: ['SKU', 'Name', 'Category', 'Kaspi code', 'Cost price', 'Stock', 'Lead time days', 'Commission %'],
+    products: ['SKU', 'Name', 'Category', 'Kaspi code', 'Cost price', 'Logistics cost', 'Other costs', 'Stock', 'Lead time days', 'Commission %'],
     orders: ['Order number', 'Date', 'SKU', 'Product name', 'Quantity', 'Amount', 'Status'],
     ads: ['Date', 'SKU', 'Channel', 'Spend'],
     sheets: ['Guide', 'Products', 'Sales', 'Ads'],
     guide: [
       ['How to fill in the Reflect template'],
       [''],
-      ['Products', 'Required: SKU. Cost price and Stock drive margin and stock-out forecasts. Lead time is how many days a new batch takes. Commission is your Kaspi category rate.'],
+      ['Products', 'Required: SKU. Cost price and Stock drive margin and stock-out forecasts. Logistics is what you pay to deliver one unit; other costs are packaging and the like per unit. Lead time is how many days a new batch takes. Commission is your Kaspi category rate.'],
       ['Sales', 'Fill in only if you do not upload the orders export from your Kaspi seller account. Required: Date, SKU, Quantity, Amount.'],
       ['Ads', 'Ad spend by day. Add the SKU to calculate ad payback per product.'],
       [''],
@@ -47,7 +47,7 @@ export async function downloadTemplate(locale: Locale) {
   const guide = XLSX.utils.aoa_to_sheet(h.guide);
   guide['!cols'] = [{ wch: 18 }, { wch: 110 }];
   XLSX.utils.book_append_sheet(workbook, guide, h.sheets[0]);
-  const products = XLSX.utils.aoa_to_sheet([h.products, ['KS-1001', locale === 'en' ? 'Moisturising cream 50 ml' : 'Крем увлажняющий 50 мл', locale === 'en' ? 'Face care' : 'Уход за лицом', '100371640', 3200, 120, 21, 12]]);
+  const products = XLSX.utils.aoa_to_sheet([h.products, ['KS-1001', locale === 'en' ? 'Moisturising cream 50 ml' : 'Крем увлажняющий 50 мл', locale === 'en' ? 'Face care' : 'Уход за лицом', '100371640', 3200, 650, 150, 120, 21, 12]]);
   products['!cols'] = h.products.map((header) => ({ wch: Math.max(14, header.length + 4) }));
   XLSX.utils.book_append_sheet(workbook, products, h.sheets[1]);
   const orders = XLSX.utils.aoa_to_sheet([h.orders, ['700000001', today, 'KS-1001', locale === 'en' ? 'Moisturising cream 50 ml' : 'Крем увлажняющий 50 мл', 1, 8900, locale === 'en' ? 'Completed' : 'Выдан']]);

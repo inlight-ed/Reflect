@@ -189,7 +189,9 @@ export const ImportDataBody = zod.object({
   "costPrice": zod.number().nullish(),
   "stock": zod.number().nullish(),
   "leadTimeDays": zod.number().nullish(),
-  "commissionPct": zod.number().nullish()
+  "commissionPct": zod.number().nullish(),
+  "logisticsCost": zod.number().nullish().describe('Per unit, ₸: delivery the seller pays'),
+  "otherCost": zod.number().nullish().describe('Per unit, ₸: packaging and other costs')
 })).max(importDataBodyProductsMax).optional(),
   "ads": zod.array(zod.object({
   "day": zod.string().max(importDataBodyAdsItemDayMax),
@@ -202,6 +204,46 @@ export const ImportDataBody = zod.object({
 export const ImportDataResponse = zod.object({
   "accepted": zod.number(),
   "skipped": zod.number()
+})
+
+
+/**
+ * Only the fields sent change; null clears a value. A SKU sold but missing from the catalog is added.
+ * @summary Set a product's costs, stock or lead time by hand
+ */
+export const updateProductCostsBodySkuMax = 80;
+
+export const updateProductCostsBodyCostPriceMin = 0;
+export const updateProductCostsBodyCostPriceMax = 1000000000;
+
+export const updateProductCostsBodyLogisticsCostMin = 0;
+export const updateProductCostsBodyLogisticsCostMax = 1000000000;
+
+export const updateProductCostsBodyOtherCostMin = 0;
+export const updateProductCostsBodyOtherCostMax = 1000000000;
+
+export const updateProductCostsBodyCommissionPctMin = 0;
+export const updateProductCostsBodyCommissionPctMax = 100;
+
+export const updateProductCostsBodyStockMin = 0;
+export const updateProductCostsBodyStockMax = 1000000000;
+
+export const updateProductCostsBodyLeadTimeDaysMax = 365;
+
+
+
+export const UpdateProductCostsBody = zod.object({
+  "sku": zod.string().min(1).max(updateProductCostsBodySkuMax),
+  "costPrice": zod.number().min(updateProductCostsBodyCostPriceMin).max(updateProductCostsBodyCostPriceMax).nullish(),
+  "logisticsCost": zod.number().min(updateProductCostsBodyLogisticsCostMin).max(updateProductCostsBodyLogisticsCostMax).nullish(),
+  "otherCost": zod.number().min(updateProductCostsBodyOtherCostMin).max(updateProductCostsBodyOtherCostMax).nullish(),
+  "commissionPct": zod.number().min(updateProductCostsBodyCommissionPctMin).max(updateProductCostsBodyCommissionPctMax).nullish(),
+  "stock": zod.number().min(updateProductCostsBodyStockMin).max(updateProductCostsBodyStockMax).nullish(),
+  "leadTimeDays": zod.int().min(1).max(updateProductCostsBodyLeadTimeDaysMax).nullish()
+})
+
+export const UpdateProductCostsResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -710,6 +752,10 @@ export const GetProductsQueryParams = zod.object({
   "compare": zod.enum(['previous', 'year']).optional()
 })
 
+export const getProductsResponseDataIssuesItemProductsMax = 5;
+
+
+
 export const GetProductsResponse = zod.object({
   "mode": zod.enum(['DEMO', 'USER', 'EMPTY']),
   "source": zod.enum(['DEMO DATA', 'MOCK', 'KASPI API', 'KASPI ADS', 'REDSTAT', 'META', 'USER DATA']),
@@ -744,8 +790,23 @@ export const GetProductsResponse = zod.object({
   "adSpend": zod.number().optional(),
   "breakevenRoas": zod.number().nullish(),
   "commissionAssumed": zod.boolean().optional(),
+  "commissionPct": zod.number().optional(),
+  "logisticsCost": zod.number().nullish(),
+  "otherCost": zod.number().nullish(),
+  "netProfit": zod.number().nullish().describe('Profit for the period after commission, cost price, logistics, other costs and the product\'s ads'),
+  "missingCosts": zod.array(zod.enum(['COST', 'COMMISSION', 'LOGISTICS'])).optional().describe('Cost parts that are not known, so the profit is partly an estimate'),
   "kaspiCode": zod.string().nullish()
 })),
+  "dataIssues": zod.array(zod.object({
+  "type": zod.enum(['SOLD_NOT_IN_CATALOG', 'NO_COST', 'NO_LOGISTICS', 'NO_STOCK', 'STALE_STOCK', 'ORDERS_OUTDATED']),
+  "count": zod.number().describe('Products affected; for ORDERS_OUTDATED, days since the last order'),
+  "revenueSharePct": zod.number().nullable().describe('Share of the period\'s revenue the affected products carry, 0–100'),
+  "products": zod.array(zod.object({
+  "sku": zod.string(),
+  "name": zod.string(),
+  "revenue": zod.number()
+})).max(getProductsResponseDataIssuesItemProductsMax)
+})).optional(),
   "matrix": zod.array(zod.object({
   "label": zod.string(),
   "count": zod.number(),

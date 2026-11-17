@@ -373,6 +373,15 @@ export const ProductOpportunity = {
   WATCH: 'WATCH',
 } as const;
 
+export type ProductMissingCostsItem = typeof ProductMissingCostsItem[keyof typeof ProductMissingCostsItem];
+
+
+export const ProductMissingCostsItem = {
+  COST: 'COST',
+  COMMISSION: 'COMMISSION',
+  LOGISTICS: 'LOGISTICS',
+} as const;
+
 export interface Product {
   sku: string;
   name: string;
@@ -418,8 +427,51 @@ export interface Product {
   /** @nullable */
   breakevenRoas?: number | null;
   commissionAssumed?: boolean;
+  commissionPct?: number;
+  /** @nullable */
+  logisticsCost?: number | null;
+  /** @nullable */
+  otherCost?: number | null;
+  /**
+     * Profit for the period after commission, cost price, logistics, other costs and the product's ads
+     * @nullable
+     */
+  netProfit?: number | null;
+  /** Cost parts that are not known, so the profit is partly an estimate */
+  missingCosts?: ProductMissingCostsItem[];
   /** @nullable */
   kaspiCode?: string | null;
+}
+
+export type DataIssueType = typeof DataIssueType[keyof typeof DataIssueType];
+
+
+export const DataIssueType = {
+  SOLD_NOT_IN_CATALOG: 'SOLD_NOT_IN_CATALOG',
+  NO_COST: 'NO_COST',
+  NO_LOGISTICS: 'NO_LOGISTICS',
+  NO_STOCK: 'NO_STOCK',
+  STALE_STOCK: 'STALE_STOCK',
+  ORDERS_OUTDATED: 'ORDERS_OUTDATED',
+} as const;
+
+export type DataIssueProductsItem = {
+  sku: string;
+  name: string;
+  revenue: number;
+};
+
+export interface DataIssue {
+  type: DataIssueType;
+  /** Products affected; for ORDERS_OUTDATED, days since the last order */
+  count: number;
+  /**
+     * Share of the period's revenue the affected products carry, 0–100
+     * @nullable
+     */
+  revenueSharePct: number | null;
+  /** @maxItems 5 */
+  products: DataIssueProductsItem[];
 }
 
 export type ProductsOverviewMatrixItem = {
@@ -433,6 +485,7 @@ export interface ProductsOverview {
   source: DataSource;
   refreshedAt: string;
   products: Product[];
+  dataIssues?: DataIssue[];
   matrix: ProductsOverviewMatrixItem[];
 }
 
@@ -861,6 +914,60 @@ export interface ProductRowInput {
   leadTimeDays?: number | null;
   /** @nullable */
   commissionPct?: number | null;
+  /**
+     * Per unit, ₸: delivery the seller pays
+     * @nullable
+     */
+  logisticsCost?: number | null;
+  /**
+     * Per unit, ₸: packaging and other costs
+     * @nullable
+     */
+  otherCost?: number | null;
+}
+
+export interface ProductCostsInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  sku: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  costPrice?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  logisticsCost?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  otherCost?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  commissionPct?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  stock?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 365
+     * @nullable
+     */
+  leadTimeDays?: number | null;
 }
 
 export interface AdRowInput {

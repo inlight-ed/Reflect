@@ -35,6 +35,8 @@ export const FIELDS: Record<Dataset, FieldSpec[]> = {
     { key: 'stock', required: false, numeric: true, aliases: ['остаток', 'остатки', 'количество на складе', 'склад', 'stock', 'qty in stock', 'қалдық'] },
     { key: 'leadTimeDays', required: false, numeric: true, aliases: ['срок поставки, дней', 'срок поставки', 'поставка дней', 'lead time', 'lead time days', 'жеткізу мерзімі'] },
     { key: 'commissionPct', required: false, numeric: true, aliases: ['комиссия kaspi, %', 'комиссия kaspi', 'комиссия', 'commission', 'commission %', 'комиссия, %'] },
+    { key: 'logisticsCost', required: false, numeric: true, aliases: ['логистика за шт', 'логистика за шт.', 'логистика', 'доставка за шт', 'доставка за шт.', 'стоимость доставки', 'logistics', 'logistics cost', 'delivery cost', 'жеткізу құны'] },
+    { key: 'otherCost', required: false, numeric: true, aliases: ['прочие расходы за шт', 'прочие расходы за шт.', 'прочие расходы', 'другие расходы', 'упаковка', 'other cost', 'other costs', 'packaging', 'басқа шығындар'] },
   ],
   ADS: [
     { key: 'day', required: true, aliases: ['дата', 'день', 'месяц', 'date', 'day', 'month', 'күні'] },
@@ -142,6 +144,8 @@ export function buildRows(candidate: SheetCandidate): { orders?: OrderRowInput[]
         stock: toNumber(get(row, 'stock')),
         leadTimeDays: toNumber(get(row, 'leadTimeDays')),
         commissionPct: commission !== null && commission > 0 && commission < 1 ? commission * 100 : commission,
+        logisticsCost: toNumber(get(row, 'logisticsCost')),
+        otherCost: toNumber(get(row, 'otherCost')),
       };
     }).filter((row): row is ProductRowInput => Boolean(row));
     return { products, valid: products.length };

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DataIssue } from './dataIssue';
 import type { DataMode } from './dataMode';
 import type { DataSource } from './dataSource';
 import type { Product } from './product';
@@ -15,5 +16,6 @@ export interface ProductsOverview {
   source: DataSource;
   refreshedAt: string;
   products: Product[];
+  dataIssues?: DataIssue[];
   matrix: ProductsOverviewMatrixItem[];
 }

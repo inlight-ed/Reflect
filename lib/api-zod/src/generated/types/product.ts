@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductMissingCostsItem } from './productMissingCostsItem';
 import type { ProductOpportunity } from './productOpportunity';
 
 export interface Product {
@@ -52,6 +53,18 @@ export interface Product {
   /** @nullable */
   breakevenRoas?: number | null;
   commissionAssumed?: boolean;
+  commissionPct?: number;
+  /** @nullable */
+  logisticsCost?: number | null;
+  /** @nullable */
+  otherCost?: number | null;
+  /**
+     * Profit for the period after commission, cost price, logistics, other costs and the product's ads
+     * @nullable
+     */
+  netProfit?: number | null;
+  /** Cost parts that are not known, so the profit is partly an estimate */
+  missingCosts?: ProductMissingCostsItem[];
   /** @nullable */
   kaspiCode?: string | null;
 }

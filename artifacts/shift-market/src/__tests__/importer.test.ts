@@ -21,6 +21,13 @@ describe('detect', () => {
     assert.equal(candidate.dataset, 'PRODUCTS');
   });
 
+  it('reads logistics and other costs per unit from the products template', () => {
+    const candidate = detect('Товары', [{ 'Артикул': 'KS-1', 'Себестоимость': '4000', 'Логистика за шт.': '650', 'Прочие расходы за шт.': '150 ₸', 'Остаток': '12' }]);
+    const product = buildRows(candidate).products?.[0];
+    assert.equal(product?.logisticsCost, 650);
+    assert.equal(product?.otherCost, 150);
+  });
+
   it('leaves unrelated sheets unrecognised', () => {
     assert.equal(detect('Notes', [{ Comment: 'hello', Author: 'me' }]).dataset, undefined);
   });

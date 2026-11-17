@@ -9,7 +9,9 @@ import { scoreConfidence, type ConfidenceCheck } from "./confidence";
 
 export type OrderStatus = "SOLD" | "PENDING" | "CANCELLED" | "RETURNED";
 export type OrderLine = { orderCode: string; orderedAt: Date; sku: string; productName: string | null; quantity: number; amount: number; status: string };
-export type CatalogItem = { sku: string; name: string | null; category: string | null; kaspiCode: string | null; costPrice: number | null; stock: number | null; leadTimeDays: number | null; commissionPct: number | null; stockUpdatedAt: Date | null };
+export type CatalogItem = { sku: string; name: string | null; category: string | null; kaspiCode: string | null; costPrice: number | null; stock: number | null; leadTimeDays: number | null; commissionPct: number | null; stockUpdatedAt: Date | null; logisticsCost?: number | null; otherCost?: number | null };
+/** Parts of a product's cost that are not known, so its profit is partly an estimate. */
+export type MissingCost = "COST" | "COMMISSION" | "LOGISTICS";
 export type AdLine = { day: string; sku: string; channel: string; spend: number };
 export type Period = 7 | 30 | 90;
 export type Compare = "previous" | "year";
@@ -76,8 +78,15 @@ export type SkuStats = {
   costPrice: number | null;
   commissionPct: number;
   commissionAssumed: boolean;
+  /** Per unit, ₸: delivery the seller pays and other costs such as packaging. */
+  logisticsCost: number | null;
+  otherCost: number | null;
+  /** Per unit after commission, cost price, logistics and other costs. */
   unitMargin: number | null;
   marginPct: number | null;
+  /** Profit for the period: unit margin × units − ad spend on the SKU. */
+  netProfit: number | null;
+  missingCosts: MissingCost[];
   adSpend: number;
   roas: number | null;
   breakevenRoas: number | null;
@@ -139,9 +148,17 @@ export function skuStats(lines: OrderLine[], catalog: CatalogItem[], ads: AdLine
     const commissionAssumed = item?.commissionPct == null;
     const commissionPct = item?.commissionPct ?? DEFAULT_COMMISSION_PCT;
     const costPrice = item?.costPrice ?? null;
-    const unitMargin = costPrice !== null && avgPrice !== null ? avgPrice * (1 - commissionPct / 100) - costPrice : null;
+    const logisticsCost = item?.logisticsCost ?? null;
+    const otherCost = item?.otherCost ?? null;
+    // Logistics and other costs count as 0 when not given; missingCosts says so, never silently.
+    const unitMargin = costPrice !== null && avgPrice !== null ? avgPrice * (1 - commissionPct / 100) - costPrice - (logisticsCost ?? 0) - (otherCost ?? 0) : null;
     const marginPct = unitMargin !== null && avgPrice ? unitMargin / avgPrice : null;
     const adSpend = adBySku.get(sku) ?? 0;
+    const netProfit = unitMargin !== null ? unitMargin * cur.units - adSpend : null;
+    const missingCosts: MissingCost[] = [];
+    if (costPrice === null) missingCosts.push("COST");
+    if (commissionAssumed) missingCosts.push("COMMISSION");
+    if (logisticsCost === null) missingCosts.push("LOGISTICS");
     const roas = adSpend > 0 ? cur.revenue / adSpend : null;
     const breakevenRoas = marginPct !== null && marginPct > 0 ? 1 / marginPct : null;
     const name = item?.name || skuLines.find((line) => line.productName)?.productName || sku;
@@ -167,8 +184,12 @@ export function skuStats(lines: OrderLine[], catalog: CatalogItem[], ads: AdLine
       costPrice,
       commissionPct,
       commissionAssumed,
+      logisticsCost,
+      otherCost,
       unitMargin: unitMargin === null ? null : round(unitMargin),
       marginPct: marginPct === null ? null : round(marginPct, 3),
+      netProfit: netProfit === null ? null : round(netProfit),
+      missingCosts,
       adSpend: round(adSpend),
       roas: roas === null ? null : round(roas, 2),
       breakevenRoas: breakevenRoas === null ? null : round(breakevenRoas, 2),
@@ -285,11 +306,12 @@ export function overviewMetrics(lines: OrderLine[], stats: SkuStats[], now: Date
     metric("metric.aov", cur.orders ? cur.revenue / cur.orders : 0, prev.orders ? prev.revenue / prev.orders : 0, "CURRENCY"),
   ];
   if (withCost.length) {
-    const profit = withCost.reduce((sum, s) => sum + (s.unitMargin ?? 0) * s.units, 0);
-    // An estimate, not a fact, when Kaspi's commission was assumed or some sold items have no cost price.
+    // Profit after commission, cost price, logistics, other costs and the SKU's ads.
+    const profit = withCost.reduce((sum, s) => sum + (s.netProfit ?? 0), 0);
+    // An estimate, not a fact, when any sold item misses a cost part or has no cost price at all.
     const sold = stats.filter((s) => s.units > 0);
-    const estimated = withCost.some((s) => s.commissionAssumed) || sold.some((s) => s.unitMargin === null);
-    result.push({ ...metric("metric.grossProfit", profit, 0, "CURRENCY"), change: "—", changePct: null, positive: profit >= 0, estimated });
+    const estimated = sold.some((s) => s.missingCosts.length > 0);
+    result.push({ ...metric("metric.netProfit", profit, 0, "CURRENCY"), change: "—", changePct: null, positive: profit >= 0, estimated });
   } else {
     result.push(metric("metric.units", cur.units, prev.units, "COUNT"));
   }

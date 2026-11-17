@@ -16,7 +16,7 @@ export function normalizeStatus(raw: string | null | undefined): OrderStatus {
 const hash = (value: string) => createHash("sha1").update(value).digest("hex").slice(0, 16);
 
 export type OrderInput = { orderCode?: string | null; orderedAt: string; sku: string; productName?: string | null; quantity: number; amount: number; status?: string | null };
-export type ProductInput = { sku: string; name?: string | null; category?: string | null; kaspiCode?: string | null; costPrice?: number | null; stock?: number | null; leadTimeDays?: number | null; commissionPct?: number | null };
+export type ProductInput = { sku: string; name?: string | null; category?: string | null; kaspiCode?: string | null; costPrice?: number | null; stock?: number | null; leadTimeDays?: number | null; commissionPct?: number | null; logisticsCost?: number | null; otherCost?: number | null };
 export type AdInput = { day: string; sku?: string | null; channel?: string | null; spend: number };
 
 export class ImportValidationError extends Error {}
@@ -112,6 +112,8 @@ export async function importProducts(userId: string, rows: ProductInput[], sourc
     stock: finite(row.stock),
     leadTimeDays: row.leadTimeDays == null ? null : Math.round(finite(row.leadTimeDays, 0, 365) ?? 0) || null,
     commissionPct: finite(row.commissionPct, 0, 100),
+    logisticsCost: finite(row.logisticsCost),
+    otherCost: finite(row.otherCost),
     stockUpdatedAt: row.stock == null ? null : now,
     updatedAt: now,
   }));
@@ -126,13 +128,37 @@ export async function importProducts(userId: string, rows: ProductInput[], sourc
         target: [productsTable.userId, productsTable.sku],
         set: {
           name: keep("name"), category: keep("category"), kaspiCode: keep("kaspi_code"), costPrice: keep("cost_price"), stock: keep("stock"),
-          leadTimeDays: keep("lead_time_days"), commissionPct: keep("commission_pct"), stockUpdatedAt: keep("stock_updated_at"), updatedAt: sql`excluded.updated_at`,
+          leadTimeDays: keep("lead_time_days"), commissionPct: keep("commission_pct"), logisticsCost: keep("logistics_cost"), otherCost: keep("other_cost"), stockUpdatedAt: keep("stock_updated_at"), updatedAt: sql`excluded.updated_at`,
         },
       });
     }
     await tx.insert(importsTable).values({ id: randomUUID(), userId, kind: "PRODUCTS", source, fileName, rows: normalized.length });
   });
   return { accepted: cleaned.length, skipped: rows.length - cleaned.length };
+}
+
+export type ProductCostsPatch = { sku: string; costPrice?: number | null; logisticsCost?: number | null; otherCost?: number | null; commissionPct?: number | null; stock?: number | null; leadTimeDays?: number | null };
+
+/**
+ * A seller's own correction to one product, from the product's economics panel. Only the fields
+ * sent change, null clears one. A SKU that sold but was never in the catalog is added, so the fix
+ * from "sold but not in the catalog" works in one step.
+ */
+export async function updateProductCosts(userId: string, patch: ProductCostsPatch) {
+  const sku = patch.sku.trim().slice(0, 80);
+  if (!sku) throw new ImportValidationError("NO_VALID_ROWS");
+  const now = new Date();
+  const fields = {
+    ...(patch.costPrice !== undefined ? { costPrice: finite(patch.costPrice) } : {}),
+    ...(patch.logisticsCost !== undefined ? { logisticsCost: finite(patch.logisticsCost) } : {}),
+    ...(patch.otherCost !== undefined ? { otherCost: finite(patch.otherCost) } : {}),
+    ...(patch.commissionPct !== undefined ? { commissionPct: finite(patch.commissionPct, 0, 100) } : {}),
+    ...(patch.stock !== undefined ? { stock: finite(patch.stock), stockUpdatedAt: patch.stock === null ? null : now } : {}),
+    ...(patch.leadTimeDays !== undefined ? { leadTimeDays: patch.leadTimeDays === null ? null : Math.round(finite(patch.leadTimeDays, 1, 365) ?? 1) } : {}),
+  };
+  const { db, productsTable } = await database();
+  await db.insert(productsTable).values({ userId, sku, ...fields, updatedAt: now })
+    .onConflictDoUpdate({ target: [productsTable.userId, productsTable.sku], set: { ...fields, updatedAt: now } });
 }
 
 /**
@@ -190,7 +216,7 @@ export async function loadUserData(userId: string): Promise<UserData> {
   const [lines, catalog, ads, imports] = await Promise.all([
     db.select({ orderCode: ordersTable.orderCode, orderedAt: ordersTable.orderedAt, sku: ordersTable.sku, productName: ordersTable.productName, quantity: ordersTable.quantity, amount: ordersTable.amount, status: ordersTable.status })
       .from(ordersTable).where(and(eq(ordersTable.userId, userId), gte(ordersTable.orderedAt, since))),
-    db.select({ sku: productsTable.sku, name: productsTable.name, category: productsTable.category, kaspiCode: productsTable.kaspiCode, costPrice: productsTable.costPrice, stock: productsTable.stock, leadTimeDays: productsTable.leadTimeDays, commissionPct: productsTable.commissionPct, stockUpdatedAt: productsTable.stockUpdatedAt })
+    db.select({ sku: productsTable.sku, name: productsTable.name, category: productsTable.category, kaspiCode: productsTable.kaspiCode, costPrice: productsTable.costPrice, stock: productsTable.stock, leadTimeDays: productsTable.leadTimeDays, commissionPct: productsTable.commissionPct, stockUpdatedAt: productsTable.stockUpdatedAt, logisticsCost: productsTable.logisticsCost, otherCost: productsTable.otherCost })
       .from(productsTable).where(eq(productsTable.userId, userId)),
     db.select({ day: adSpendTable.day, sku: adSpendTable.sku, channel: adSpendTable.channel, spend: adSpendTable.spend }).from(adSpendTable).where(eq(adSpendTable.userId, userId)),
     db.select({ id: importsTable.id, kind: importsTable.kind, source: importsTable.source, fileName: importsTable.fileName, rows: importsTable.rows, createdAt: importsTable.createdAt })

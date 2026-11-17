@@ -40,6 +40,9 @@ export const productsTable = pgTable("products", {
   stock: doublePrecision("stock"),
   leadTimeDays: integer("lead_time_days"),
   commissionPct: doublePrecision("commission_pct"),
+  /** Per unit, ₸: delivery the seller pays, and other costs such as packaging. */
+  logisticsCost: doublePrecision("logistics_cost"),
+  otherCost: doublePrecision("other_cost"),
   stockUpdatedAt: timestamp("stock_updated_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [primaryKey({ columns: [table.userId, table.sku] })]);

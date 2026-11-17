@@ -147,6 +147,25 @@ paths:
               schema: { $ref: "#/components/schemas/ImportResult" }
         "400": { description: No valid rows }
         "401": { description: Sign in required }
+  /data/product-costs:
+    put:
+      operationId: updateProductCosts
+      tags: [data]
+      summary: Set a product's costs, stock or lead time by hand
+      description: Only the fields sent change; null clears a value. A SKU sold but missing from the catalog is added.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductCostsInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResponse" }
+        "400": { description: Invalid values }
+        "401": { description: Sign in required }
   /data/status:
     get:
       operationId: getDataStatus
@@ -710,7 +729,32 @@ components:
         adSpend: { type: number }
         breakevenRoas: { type: [number, "null"] }
         commissionAssumed: { type: boolean }
+        commissionPct: { type: number }
+        logisticsCost: { type: [number, "null"] }
+        otherCost: { type: [number, "null"] }
+        netProfit: { type: [number, "null"], description: "Profit for the period after commission, cost price, logistics, other costs and the product's ads" }
+        missingCosts:
+          type: array
+          description: Cost parts that are not known, so the profit is partly an estimate
+          items: { type: string, enum: [COST, COMMISSION, LOGISTICS] }
         kaspiCode: { type: [string, "null"] }
+    DataIssue:
+      type: object
+      required: [type, count, revenueSharePct, products]
+      properties:
+        type: { type: string, enum: [SOLD_NOT_IN_CATALOG, NO_COST, NO_LOGISTICS, NO_STOCK, STALE_STOCK, ORDERS_OUTDATED] }
+        count: { type: number, description: "Products affected; for ORDERS_OUTDATED, days since the last order" }
+        revenueSharePct: { type: [number, "null"], description: "Share of the period's revenue the affected products carry, 0–100" }
+        products:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            required: [sku, name, revenue]
+            properties:
+              sku: { type: string }
+              name: { type: string }
+              revenue: { type: number }
     ProductsOverview:
       type: object
       required: [source, refreshedAt, products, matrix, mode]
@@ -721,6 +765,9 @@ components:
         products:
           type: array
           items: { $ref: "#/components/schemas/Product" }
+        dataIssues:
+          type: array
+          items: { $ref: "#/components/schemas/DataIssue" }
         matrix:
           type: array
           items:
@@ -1108,6 +1155,19 @@ components:
         stock: { type: [number, "null"] }
         leadTimeDays: { type: [number, "null"] }
         commissionPct: { type: [number, "null"] }
+        logisticsCost: { type: [number, "null"], description: "Per unit, ₸: delivery the seller pays" }
+        otherCost: { type: [number, "null"], description: "Per unit, ₸: packaging and other costs" }
+    ProductCostsInput:
+      type: object
+      required: [sku]
+      properties:
+        sku: { type: string, minLength: 1, maxLength: 80 }
+        costPrice: { type: [number, "null"], minimum: 0, maximum: 1000000000 }
+        logisticsCost: { type: [number, "null"], minimum: 0, maximum: 1000000000 }
+        otherCost: { type: [number, "null"], minimum: 0, maximum: 1000000000 }
+        commissionPct: { type: [number, "null"], minimum: 0, maximum: 100 }
+        stock: { type: [number, "null"], minimum: 0, maximum: 1000000000 }
+        leadTimeDays: { type: [integer, "null"], minimum: 1, maximum: 365 }
     AdRowInput:
       type: object
       required: [day, spend]

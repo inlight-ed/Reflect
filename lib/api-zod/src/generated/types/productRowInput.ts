@@ -35,4 +35,14 @@ export interface ProductRowInput {
   leadTimeDays?: number | null;
   /** @nullable */
   commissionPct?: number | null;
+  /**
+     * Per unit, ₸: delivery the seller pays
+     * @nullable
+     */
+  logisticsCost?: number | null;
+  /**
+     * Per unit, ₸: packaging and other costs
+     * @nullable
+     */
+  otherCost?: number | null;
 }

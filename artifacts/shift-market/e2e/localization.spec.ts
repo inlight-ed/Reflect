@@ -346,3 +346,26 @@ test('competitors: the card in its market from RedStat, without growth claims ac
   await page.getByTestId('market-note').click();
   await expect(page.getByTestId('market-product')).toContainText('неполный');
 });
+
+test('products: data gaps are listed by revenue and fixed in place from the product economics', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`profit-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  const imported = await page.request.post('/api/data/import', { data: { kind: 'PRODUCTS', products: [{ sku: 'FX-1', costPrice: 1800, commissionPct: 12, stock: 40 }] } });
+  expect(imported.status()).toBe(200);
+
+  await page.goto('/products');
+  await expect(page.getByTestId('data-issue-SOLD_NOT_IN_CATALOG')).toContainText('2');
+  await expect(page.getByTestId('data-issue-NO_LOGISTICS')).toBeVisible();
+  await page.getByTestId('fix-NO_LOGISTICS-FX-1').click();
+  await expect(page.getByTestId('product-economics')).toContainText('Крем для рук');
+  await page.getByTestId('economics-logisticsCost').fill('500');
+  await page.getByTestId('economics-save').click();
+  await expect(page.getByTestId('data-issue-NO_LOGISTICS')).toHaveCount(0);
+  await expect(page.getByTestId('economics-net')).not.toContainText('не указано');
+});

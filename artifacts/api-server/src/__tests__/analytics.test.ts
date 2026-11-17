@@ -112,11 +112,28 @@ describe("dataCoverage", () => {
     assert.equal(dataCoverage([], []).costCoveragePct, null);
   });
 
-  it("marks gross profit as an estimate when the commission is assumed or costs are missing", () => {
+  it("marks profit as an estimate when the commission is assumed or costs are missing", () => {
     const lines = [line(1, "A", 10_000), line(2, "B", 5_000)];
-    const profit = (catalog: CatalogItem[]) => overviewMetrics(lines, skuStats(lines, catalog, [], NOW, 30, "previous"), NOW, 30, "previous").find((m) => m.label === "metric.grossProfit");
-    assert.equal(profit([item("A", { costPrice: 4_000, commissionPct: 10 }), item("B", { costPrice: 2_000, commissionPct: 10 })])?.estimated, false);
-    assert.equal(profit([item("A", { costPrice: 4_000 }), item("B", { costPrice: 2_000, commissionPct: 10 })])?.estimated, true, "default commission");
-    assert.equal(profit([item("A", { costPrice: 4_000, commissionPct: 10 }), item("B")])?.estimated, true, "B has no cost price");
+    const profit = (catalog: CatalogItem[]) => overviewMetrics(lines, skuStats(lines, catalog, [], NOW, 30, "previous"), NOW, 30, "previous").find((m) => m.label === "metric.netProfit");
+    const full = { commissionPct: 10, logisticsCost: 500 };
+    assert.equal(profit([item("A", { costPrice: 4_000, ...full }), item("B", { costPrice: 2_000, ...full })])?.estimated, false);
+    assert.equal(profit([item("A", { costPrice: 4_000, logisticsCost: 500 }), item("B", { costPrice: 2_000, ...full })])?.estimated, true, "default commission");
+    assert.equal(profit([item("A", { costPrice: 4_000, ...full }), item("B")])?.estimated, true, "B has no cost price");
+    assert.equal(profit([item("A", { costPrice: 4_000, commissionPct: 10 }), item("B", { costPrice: 2_000, ...full })])?.estimated, true, "A has no logistics");
+  });
+
+  it("takes logistics, other costs and the product's ads out of profit, and says what was missing", () => {
+    // 2 × 10 000 ₸, commission 10 %, cost 5 000, logistics 700, packaging 300: 10 000 × 0.9 − 6 000 = 3 000 a unit.
+    const lines = [line(1, "P", 10_000), line(2, "P", 10_000)];
+    const ads = [{ day: day(1).toISOString().slice(0, 10), sku: "P", channel: "Kaspi", spend: 1_500 }];
+    const [p] = skuStats(lines, [item("P", { costPrice: 5_000, commissionPct: 10, logisticsCost: 700, otherCost: 300 })], ads, NOW, 30, "previous");
+    assert.equal(p?.unitMargin, 3_000);
+    assert.equal(p?.netProfit, 2 * 3_000 - 1_500);
+    assert.deepEqual(p?.missingCosts, []);
+    const [q] = skuStats(lines, [item("P", { costPrice: 5_000 })], [], NOW, 30, "previous");
+    assert.deepEqual(q?.missingCosts, ["COMMISSION", "LOGISTICS"]);
+    const [r] = skuStats(lines, [], [], NOW, 30, "previous");
+    assert.equal(r?.netProfit, null);
+    assert.deepEqual(r?.missingCosts, ["COST", "COMMISSION", "LOGISTICS"]);
   });
 });

@@ -8,6 +8,7 @@ import {
   ResetPasswordBody,
   RegisterAccountBody,
   SaveConnectionBody,
+  UpdateProductCostsBody,
 } from "@workspace/api-zod";
 import { AuthError, createSession, login, logout, register, requireUser, SESSION_COOKIE, setSessionCookie, logoutEverywhere } from "../lib/auth";
 import { requestPasswordReset, resetPassword } from "../lib/password-reset";
@@ -16,7 +17,7 @@ import { createCardEvent } from "../lib/cards";
 import { hasDatabase } from "../lib/database";
 import { CONNECTION_KINDS, ConnectionInputError, connectionViews, recentSyncRuns, removeConnection, saveConnection, startSync } from "../lib/integrations/service";
 import type { IntegrationKind } from "../lib/integrations/store";
-import { hasUserOrders, importAds, importOrders, importProducts, ImportValidationError } from "../lib/user-data";
+import { hasUserOrders, importAds, importOrders, importProducts, ImportValidationError, updateProductCosts } from "../lib/user-data";
 import { createFeedback, dataStatus, listUserFeedback } from "../lib/workspace";
 import { rateLimit } from "../middlewares/rate-limit";
 
@@ -153,6 +154,16 @@ router.post("/data/import", requireUser, importLimit, async (req, res) => {
     }
     throw error;
   }
+});
+
+router.put("/data/product-costs", requireUser, importLimit, async (req, res) => {
+  const parsed = UpdateProductCostsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "INVALID_VALUES" });
+    return;
+  }
+  await updateProductCosts(req.user!.id, parsed.data);
+  res.json({ ok: true });
 });
 
 router.get("/data/status", requireUser, async (req, res) => {

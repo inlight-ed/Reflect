@@ -22,7 +22,8 @@ export default function ProductsPage() {
   const { params } = usePeriod();
   const query = useGetProducts(signedIn ? params : undefined);
   const [filter, setFilter] = useState<Filter>('ALL');
-  const [selectedSku, setSelectedSku] = useState<string>();
+  // A link from "Needs attention" (/products?sku=…) opens that product's economics.
+  const [selectedSku, setSelectedSku] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get('sku') ?? undefined);
   const allProducts = useMemo(() => (Array.isArray(query.data?.products) ? query.data.products : []), [query.data]);
   if (query.isLoading) return <LoadingState />;
   if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={query.data?.source} />;

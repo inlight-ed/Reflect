@@ -20,6 +20,7 @@ import {
   type SkuStats,
 } from "./analytics";
 import { database } from "./database";
+import { attentionItems } from "./attention";
 import { dataIssues } from "./data-quality";
 import { loadUserData, type UserData } from "./user-data";
 
@@ -193,6 +194,22 @@ export async function userProducts(userId: string, period: Period, compare: Comp
       { label: "STOP", count: count("STOP"), description: "matrix.stop" },
       { label: "WATCH", count: count("WATCH"), description: "matrix.watch" },
     ],
+  };
+}
+
+/** Everything that crossed a threshold for this seller, most serious and costly first. */
+export async function userAttention(userId: string, period: Period, compare: Compare) {
+  const data = await loadUserData(userId);
+  if (!data.hasOrders) return { mode: "EMPTY" as const, refreshedAt: new Date().toISOString(), items: [], high: 0, medium: 0 };
+  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(userId, data), period, compare);
+  const shop = { revenue: stats.reduce((sum, s) => sum + s.revenue, 0), previousRevenue: stats.reduce((sum, s) => sum + s.previousRevenue, 0) };
+  const items = attentionItems(stats, dataIssues(stats, data.catalog, data.lines, new Date()), shop);
+  return {
+    mode: "USER" as const,
+    refreshedAt: (data.imports[0]?.createdAt ?? new Date()).toISOString(),
+    items,
+    high: items.filter((item) => item.severity === "HIGH").length,
+    medium: items.filter((item) => item.severity === "MEDIUM").length,
   };
 }
 

@@ -51,6 +51,7 @@ export const account: Catalog = {
   "demo.banner": ["Демо-магазин косметики: товары, цены и спрос на Kaspi — по данным RedStat, продажи магазина — оценка.", "Косметика демо-дүкені: тауарлар, бағалар және Kaspi-дегі сұраныс RedStat деректері бойынша, дүкен сатылымы — бағалау.", "Demo cosmetics store: products, prices and Kaspi demand come from RedStat; the store's own sales are an estimate."],
   "demo.banner.cta": ["Загрузить свои данные", "Өз деректеріңізді жүктеу", "Use my data"],
   "demo.exit": ["Выйти из демо", "Демодан шығу", "Leave demo"],
+  "nav.attention": ["Требует внимания", "Назар аударыңыз", "Needs attention"],
   "nav.data": ["Данные", "Деректер", "Data"],
   "onboarding.title": ["Начнём с ваших данных", "Деректеріңізден бастайық", "Let’s start with your data"],
   "onboarding.subtitle": ["Подключите кабинет Kaspi — заказы загрузятся сами, и обзор сразу покажет план на день.", "Kaspi кабинетін қосыңыз — тапсырыстар өзі жүктеледі, шолу бірден күндік жоспарды көрсетеді.", "Connect your Kaspi account: orders load by themselves and the overview shows a plan for the day right away."],

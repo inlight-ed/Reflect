@@ -24,6 +24,7 @@ import type {
   AskAnswer,
   AskAssistant400,
   AskInput,
+  AttentionOverview,
   AuthErrorBody,
   AuthUser,
   CardAnalysis,
@@ -42,6 +43,7 @@ import type {
   FeedbackInput,
   FeedbackItem,
   GetAdvertisingParams,
+  GetAttentionParams,
   GetCardAnalysisParams,
   GetCompetitors400,
   GetCompetitorsParams,
@@ -1643,6 +1645,90 @@ export function useGetAdvertising<TData = Awaited<ReturnType<typeof getAdvertisi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdvertisingQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAttentionUrl = (params?: GetAttentionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/shift-market/attention?${stringifiedParams}` : `/api/shift-market/attention`
+}
+
+/**
+ * @summary Everything that crossed a threshold, most serious and costly first
+ */
+export const getAttention = async (params?: GetAttentionParams, options?: Parameters<typeof customFetch>[1]): Promise<AttentionOverview> => {
+
+  return customFetch<AttentionOverview>(getGetAttentionUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAttentionQueryKey = (params?: GetAttentionParams,) => {
+    return [
+    `/api/shift-market/attention`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAttentionQueryOptions = <TData = Awaited<ReturnType<typeof getAttention>>, TError = ErrorType<unknown>>(params?: GetAttentionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAttention>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAttentionQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAttention>>> = ({ signal }) => getAttention(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAttention>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAttentionQueryResult = NonNullable<Awaited<ReturnType<typeof getAttention>>>
+export type GetAttentionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Everything that crossed a threshold, most serious and costly first
+ */
+
+export function useGetAttention<TData = Awaited<ReturnType<typeof getAttention>>, TError = ErrorType<unknown>>(
+ params?: GetAttentionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAttention>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAttentionQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

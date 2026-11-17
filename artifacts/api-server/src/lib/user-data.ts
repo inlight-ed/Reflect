@@ -102,7 +102,7 @@ const finite = (value: number | null | undefined, min = 0, max = 1e12) => (value
 
 export async function importProducts(userId: string, rows: ProductInput[], source: string, fileName: string | null) {
   const now = new Date();
-  const normalized = rows.filter((row) => row.sku?.trim()).map((row) => ({
+  const cleaned = rows.filter((row) => row.sku?.trim()).map((row) => ({
     userId,
     sku: row.sku.trim().slice(0, 80),
     name: row.name?.trim().slice(0, 300) || null,
@@ -115,6 +115,7 @@ export async function importProducts(userId: string, rows: ProductInput[], sourc
     stockUpdatedAt: row.stock == null ? null : now,
     updatedAt: now,
   }));
+  const normalized = mergeProductRows(cleaned);
   if (!normalized.length) throw new ImportValidationError("NO_VALID_ROWS");
   const { db, productsTable, importsTable } = await database();
   // Only overwrite columns the file actually provides: an empty cell keeps the stored value.
@@ -131,7 +132,25 @@ export async function importProducts(userId: string, rows: ProductInput[], sourc
     }
     await tx.insert(importsTable).values({ id: randomUUID(), userId, kind: "PRODUCTS", source, fileName, rows: normalized.length });
   });
-  return { accepted: normalized.length, skipped: rows.length - normalized.length };
+  return { accepted: cleaned.length, skipped: rows.length - cleaned.length };
+}
+
+/**
+ * One row per SKU. PostgreSQL cannot update the same row twice in one statement, so a SKU listed
+ * twice in a file (or in a MoySklad export) would fail the whole import. Rows are merged in file
+ * order the way the database applies them: a later filled cell wins, an empty one keeps the value
+ * from an earlier row.
+ */
+export function mergeProductRows<T extends { sku: string }>(rows: T[]): T[] {
+  const bySku = new Map<string, T>();
+  for (const row of rows) {
+    const earlier = bySku.get(row.sku);
+    if (!earlier) { bySku.set(row.sku, row); continue; }
+    const merged = { ...earlier } as Record<string, unknown>;
+    for (const [key, value] of Object.entries(row)) if (value !== null && value !== undefined) merged[key] = value;
+    bySku.set(row.sku, merged as T);
+  }
+  return [...bySku.values()];
 }
 
 export async function importAds(userId: string, rows: AdInput[], source: string, fileName: string | null) {

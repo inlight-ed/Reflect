@@ -46,6 +46,15 @@ describe("skuStats", () => {
     assert.equal(a.stockoutDate, "2026-09-07");
   });
 
+  it("counts a first sale today as one day of history, not the whole period", () => {
+    // 6 units sold in the last hours, 10 in stock: 6 a day, so stock lasts under 2 days.
+    const fresh = [{ ...line(0, "NEW", 18_000, 6), orderedAt: new Date(NOW.getTime() - 3 * 3_600_000) }];
+    const [s] = skuStats(fresh, [item("NEW", { stock: 10 })], [], NOW, 30, "previous");
+    assert.equal(s?.velocity, 6);
+    assert.equal(s?.coverDays, 1.7);
+    assert.equal(s?.reorderQty, 6 * 21 - 10);
+  });
+
   it("uses the default commission and says so when none is entered", () => {
     const [b] = skuStats([line(1, "B", 1_000)], [item("B", { costPrice: 500 })], [], NOW, 30, "previous");
     assert.equal(b!.commissionAssumed, true);

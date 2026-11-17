@@ -326,6 +326,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdvertisingOverview"
+  /shift-market/attention:
+    get:
+      operationId: getAttention
+      tags: [intelligence]
+      summary: Everything that crossed a threshold, most serious and costly first
+      parameters:
+        - { in: query, name: period, required: false, schema: { type: string, enum: ["7", "30", "90"] } }
+        - { in: query, name: compare, required: false, schema: { type: string, enum: [previous, year] } }
+      responses:
+        "200":
+          description: Attention list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AttentionOverview" }
   /shift-market/products:
     get:
       operationId: getProducts
@@ -738,6 +752,32 @@ components:
           description: Cost parts that are not known, so the profit is partly an estimate
           items: { type: string, enum: [COST, COMMISSION, LOGISTICS] }
         kaspiCode: { type: [string, "null"] }
+    AttentionItem:
+      type: object
+      required: [key, type, severity, params, impactAmount]
+      properties:
+        key: { type: string }
+        type:
+          type: string
+          enum: [OUT_OF_STOCK, STOCK_BEFORE_DELIVERY, SHOP_SALES_DROP, SALES_DROP, NEGATIVE_PROFIT, LOW_MARGIN, RETURNS_HIGH, ADS_LOSING, DATA_SOLD_NOT_IN_CATALOG, DATA_NO_COST, DATA_NO_LOGISTICS, DATA_NO_STOCK, DATA_STALE_STOCK, DATA_ORDERS_OUTDATED]
+        severity: { type: string, enum: [HIGH, MEDIUM] }
+        sku: { type: string }
+        name: { type: string }
+        params:
+          type: object
+          additionalProperties: { oneOf: [{ type: string }, { type: number }] }
+        impactAmount: { type: number, description: "₸ at stake; orders items of the same severity" }
+    AttentionOverview:
+      type: object
+      required: [mode, refreshedAt, items, high, medium]
+      properties:
+        mode: { $ref: "#/components/schemas/DataMode" }
+        refreshedAt: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AttentionItem" }
+        high: { type: integer }
+        medium: { type: integer }
     DataIssue:
       type: object
       required: [type, count, revenueSharePct, products]

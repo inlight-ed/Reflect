@@ -495,3 +495,20 @@ export function getDemoCardAnalysis() {
     ],
   };
 }
+
+/** The demo shop's attention list: products whose stock runs out before a batch would arrive, and ads that do not pay back. */
+export function getAttention() {
+  const items = [
+    ...products.filter((product) => product.stockCoverDays < 14).map((product) => ({
+      key: `STOCK_BEFORE_DELIVERY:${product.sku}`, type: "STOCK_BEFORE_DELIVERY" as const, severity: "HIGH" as const, sku: product.sku, name: product.name,
+      params: { days: product.stockCoverDays, lead: 14, qty: Math.round((product.units / 30) * (21 - product.stockCoverDays)), date: "" },
+      impactAmount: Math.round((product.revenue / 30) * (14 - product.stockCoverDays)),
+    })),
+    ...products.filter((product) => product.roas < 3).map((product) => ({
+      key: `ADS_LOSING:${product.sku}`, type: "ADS_LOSING" as const, severity: "MEDIUM" as const, sku: product.sku, name: product.name,
+      params: { roas: product.roas, breakeven: 3, spend: product.spend },
+      impactAmount: Math.round(product.spend * (1 - product.roas / 3)),
+    })),
+  ].sort((a, b) => (a.severity === b.severity ? b.impactAmount - a.impactAmount : a.severity === "HIGH" ? -1 : 1));
+  return { mode: "DEMO" as const, refreshedAt: demoRefreshedAt(), items, high: items.filter((item) => item.severity === "HIGH").length, medium: items.filter((item) => item.severity === "MEDIUM").length };
+}

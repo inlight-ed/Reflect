@@ -832,3 +832,22 @@ a.btn { text-decoration:none; }
 .action-grid, .ad-channel-grid { align-items:start; }
 
 .chart-asof { margin-left:10px; color:var(--app-text-muted); font:11px var(--app-font-mono); font-weight:400; }
+
+/* Needs attention */
+.nav-badge { margin-left:auto; min-width:20px; height:20px; padding:0 6px; box-sizing:border-box; border-radius:10px; background:var(--app-accent); color:#101318; font:600 11px/20px var(--app-font-mono); text-align:center; }
+.attention-list { margin:0 0 32px; padding:0; list-style:none; border-top:1px solid #20242b; }
+.attention-item { display:grid; grid-template-columns:8px minmax(0,1fr) auto 40px; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid #20242b; }
+.attention-mark { width:8px; height:8px; border-radius:50%; background:#5b636e; }
+.attention-item.high .attention-mark { background:var(--app-accent); }
+.attention-copy { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.attention-copy strong { color:#eceef1; font-size:14px; font-weight:500; }
+.attention-copy span { color:#9aa1ab; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.attention-impact { color:var(--app-text-muted); font:400 12px var(--app-font-mono); white-space:nowrap; }
+.attention-go { display:inline-grid; place-items:center; width:40px; height:40px; border-radius:8px; color:#c3c9d1; }
+.attention-go:hover, .attention-go:focus-visible { background:#1a1f26; color:var(--app-accent); outline:none; }
+.attention-clear { color:#aab1bb; font-size:14px; }
+@media (max-width: 640px) {
+  .attention-item { grid-template-columns:8px minmax(0,1fr) 40px; }
+  .attention-impact { grid-column:2; grid-row:2; }
+  .attention-copy span { white-space:normal; }
+}

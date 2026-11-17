@@ -443,6 +443,55 @@ export interface Product {
   kaspiCode?: string | null;
 }
 
+export type AttentionItemType = typeof AttentionItemType[keyof typeof AttentionItemType];
+
+
+export const AttentionItemType = {
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+  STOCK_BEFORE_DELIVERY: 'STOCK_BEFORE_DELIVERY',
+  SHOP_SALES_DROP: 'SHOP_SALES_DROP',
+  SALES_DROP: 'SALES_DROP',
+  NEGATIVE_PROFIT: 'NEGATIVE_PROFIT',
+  LOW_MARGIN: 'LOW_MARGIN',
+  RETURNS_HIGH: 'RETURNS_HIGH',
+  ADS_LOSING: 'ADS_LOSING',
+  DATA_SOLD_NOT_IN_CATALOG: 'DATA_SOLD_NOT_IN_CATALOG',
+  DATA_NO_COST: 'DATA_NO_COST',
+  DATA_NO_LOGISTICS: 'DATA_NO_LOGISTICS',
+  DATA_NO_STOCK: 'DATA_NO_STOCK',
+  DATA_STALE_STOCK: 'DATA_STALE_STOCK',
+  DATA_ORDERS_OUTDATED: 'DATA_ORDERS_OUTDATED',
+} as const;
+
+export type AttentionItemSeverity = typeof AttentionItemSeverity[keyof typeof AttentionItemSeverity];
+
+
+export const AttentionItemSeverity = {
+  HIGH: 'HIGH',
+  MEDIUM: 'MEDIUM',
+} as const;
+
+export type AttentionItemParams = {[key: string]: string | number};
+
+export interface AttentionItem {
+  key: string;
+  type: AttentionItemType;
+  severity: AttentionItemSeverity;
+  sku?: string;
+  name?: string;
+  params: AttentionItemParams;
+  /** ₸ at stake; orders items of the same severity */
+  impactAmount: number;
+}
+
+export interface AttentionOverview {
+  mode: DataMode;
+  refreshedAt: string;
+  items: AttentionItem[];
+  high: number;
+  medium: number;
+}
+
 export type DataIssueType = typeof DataIssueType[keyof typeof DataIssueType];
 
 
@@ -1304,6 +1353,28 @@ export type GetAdvertisingCompare = typeof GetAdvertisingCompare[keyof typeof Ge
 
 
 export const GetAdvertisingCompare = {
+  previous: 'previous',
+  year: 'year',
+} as const;
+
+export type GetAttentionParams = {
+period?: GetAttentionPeriod;
+compare?: GetAttentionCompare;
+};
+
+export type GetAttentionPeriod = typeof GetAttentionPeriod[keyof typeof GetAttentionPeriod];
+
+
+export const GetAttentionPeriod = {
+  NUMBER_7: '7',
+  NUMBER_30: '30',
+  NUMBER_90: '90',
+} as const;
+
+export type GetAttentionCompare = typeof GetAttentionCompare[keyof typeof GetAttentionCompare];
+
+
+export const GetAttentionCompare = {
   previous: 'previous',
   year: 'year',
 } as const;

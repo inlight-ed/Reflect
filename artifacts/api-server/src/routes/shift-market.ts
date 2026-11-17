@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-zod";
 import {
   getAdvertising,
+  getAttention,
   getContent,
   getDashboard,
   getDemoCardAnalysis,
@@ -23,7 +24,7 @@ import { connectionViews } from "../lib/integrations/service";
 import { getIntegration } from "../lib/integrations/store";
 import { getCompetitorAnalysis, mcpRedstatConnector } from "../lib/redstat";
 import { askAssistant } from "../lib/assistant";
-import { createUserCampaign, parseCompare, parsePeriod, userAdvertising, userDashboard, userExternalMedia, userProducts } from "../lib/workspace";
+import { createUserCampaign, parseCompare, parsePeriod, userAdvertising, userAttention, userDashboard, userExternalMedia, userProducts } from "../lib/workspace";
 import { rateLimit } from "../middlewares/rate-limit";
 
 const router: IRouter = Router();
@@ -40,6 +41,10 @@ router.get("/shift-market/dashboard", async (req, res) => {
 
 router.get("/shift-market/advertising", async (req, res) => {
   res.json(req.user ? await userAdvertising(req.user.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getAdvertising());
+});
+
+router.get("/shift-market/attention", async (req, res) => {
+  res.json(req.user ? await userAttention(req.user.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getAttention());
 });
 
 router.get("/shift-market/products", async (req, res) => {

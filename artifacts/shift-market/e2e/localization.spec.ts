@@ -369,3 +369,28 @@ test('products: data gaps are listed by revenue and fixed in place from the prod
   await expect(page.getByTestId('data-issue-NO_LOGISTICS')).toHaveCount(0);
   await expect(page.getByTestId('economics-net')).not.toContainText('не указано');
 });
+
+test('needs attention: thresholds crossed are listed, counted in the menu and lead to the product', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`attention-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  // One unit left of a product that sells every day, with a 14-day lead time.
+  await page.request.post('/api/data/import', { data: { kind: 'PRODUCTS', products: [{ sku: 'FX-1', costPrice: 1800, commissionPct: 12, logisticsCost: 300, stock: 1, leadTimeDays: 14 }] } });
+  await page.goto('/attention');
+  await expect(page.getByTestId('attention-STOCK_BEFORE_DELIVERY:FX-1')).toBeVisible();
+  await expect(page.getByTestId('attention-DATA_SOLD_NOT_IN_CATALOG')).toBeVisible();
+  await expect(page.getByTestId('attention-badge')).toBeVisible();
+  await page.getByTestId('attention-STOCK_BEFORE_DELIVERY:FX-1').getByRole('link').click();
+  await expect(page).toHaveURL(/\/products\?sku=FX-1/);
+  await expect(page.getByTestId('product-economics')).toContainText('Крем для рук');
+});
+
+test('needs attention: the demo shop shows its list without signing in', async ({ page }) => {
+  await page.goto('/attention');
+  await expect(page.getByTestId('attention-high')).toBeVisible();
+});

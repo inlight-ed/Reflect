@@ -65,6 +65,7 @@ export type SkuStats = {
   units: number;
   orders: number;
   previousRevenue: number;
+  previousOrders: number;
   trendPct: number | null;
   avgPrice: number | null;
   previousAvgPrice: number | null;
@@ -171,6 +172,7 @@ export function skuStats(lines: OrderLine[], catalog: CatalogItem[], ads: AdLine
       units: round(cur.units, 2),
       orders: cur.orders,
       previousRevenue: round(prev.revenue),
+      previousOrders: prev.orders,
       trendPct: pctChange(cur.revenue, prev.revenue),
       avgPrice: avgPrice === null ? null : round(avgPrice),
       previousAvgPrice: previousAvgPrice === null ? null : round(previousAvgPrice),

@@ -17,6 +17,7 @@ import OverviewPage from '@/pages/overview';
 // The overview is the landing page; everything else loads when first opened.
 const AdvertisingPage = lazy(() => import('@/pages/advertising'));
 const ProductsPage = lazy(() => import('@/pages/products'));
+const AttentionPage = lazy(() => import('@/pages/attention'));
 const ExternalMediaPage = lazy(() => import('@/pages/external-media'));
 const CompetitorsPage = lazy(() => import('@/pages/competitors'));
 const ContentPage = lazy(() => import('@/pages/content'));
@@ -68,6 +69,7 @@ function AppRoutes() {
     <Route path="/overview" component={OverviewPage} />
     <Route path="/advertising" component={AdvertisingPage} />
     <Route path="/products" component={ProductsPage} />
+    <Route path="/attention" component={AttentionPage} />
     <Route path="/external-media" component={ExternalMediaPage} />
     <Route path="/competitors" component={CompetitorsPage} />
     <Route path="/content" component={ContentPage} />

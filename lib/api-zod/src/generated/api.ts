@@ -745,6 +745,31 @@ export const GetAdvertisingResponse = zod.object({
 
 
 /**
+ * @summary Everything that crossed a threshold, most serious and costly first
+ */
+export const GetAttentionQueryParams = zod.object({
+  "period": zod.enum(['7', '30', '90']).optional(),
+  "compare": zod.enum(['previous', 'year']).optional()
+})
+
+export const GetAttentionResponse = zod.object({
+  "mode": zod.enum(['DEMO', 'USER', 'EMPTY']),
+  "refreshedAt": zod.string(),
+  "items": zod.array(zod.object({
+  "key": zod.string(),
+  "type": zod.enum(['OUT_OF_STOCK', 'STOCK_BEFORE_DELIVERY', 'SHOP_SALES_DROP', 'SALES_DROP', 'NEGATIVE_PROFIT', 'LOW_MARGIN', 'RETURNS_HIGH', 'ADS_LOSING', 'DATA_SOLD_NOT_IN_CATALOG', 'DATA_NO_COST', 'DATA_NO_LOGISTICS', 'DATA_NO_STOCK', 'DATA_STALE_STOCK', 'DATA_ORDERS_OUTDATED']),
+  "severity": zod.enum(['HIGH', 'MEDIUM']),
+  "sku": zod.string().optional(),
+  "name": zod.string().optional(),
+  "params": zod.record(zod.string(), zod.union([zod.string(),zod.number()])),
+  "impactAmount": zod.number().describe('₸ at stake; orders items of the same severity')
+})),
+  "high": zod.int(),
+  "medium": zod.int()
+})
+
+
+/**
  * @summary Get product opportunity data
  */
 export const GetProductsQueryParams = zod.object({

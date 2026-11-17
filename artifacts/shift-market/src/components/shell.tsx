@@ -1,20 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, Database, FileText, LayoutDashboard, LogOut, Megaphone, Menu, MessageSquareText, Package, Radio, RefreshCw, Settings2, Users, X } from 'lucide-react';
+import { ArrowUpRight, BellDot, Database, FileText, LayoutDashboard, LogOut, Megaphone, Menu, MessageSquareText, Package, Radio, RefreshCw, Settings2, Users, X } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import { useHealthCheck } from '@workspace/api-client-react';
+import { useGetAttention, useHealthCheck } from '@workspace/api-client-react';
 import { formatTime, localeOptions, useI18n, type Locale } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { useNow } from '@/lib/use-now';
 
 export const nav = [
   { href: '/overview', label: 'Обзор', icon: LayoutDashboard, index: '01' },
-  { href: '/advertising', label: 'Реклама', icon: Megaphone, index: '02' },
-  { href: '/products', label: 'Товары', icon: Package, index: '03' },
-  { href: '/external-media', label: 'Внешние медиа', icon: Radio, index: '04' },
-  { href: '/competitors', label: 'Конкуренты', icon: Users, index: '05' },
-  { href: '/content', label: 'Контент', icon: FileText, index: '06' },
-  { href: '/assistant', label: 'Спросить Reflect', icon: MessageSquareText, index: '07' },
+  { href: '/attention', label: 'nav.attention', icon: BellDot, index: '02' },
+  { href: '/advertising', label: 'Реклама', icon: Megaphone, index: '03' },
+  { href: '/products', label: 'Товары', icon: Package, index: '04' },
+  { href: '/external-media', label: 'Внешние медиа', icon: Radio, index: '05' },
+  { href: '/competitors', label: 'Конкуренты', icon: Users, index: '06' },
+  { href: '/content', label: 'Контент', icon: FileText, index: '07' },
+  { href: '/assistant', label: 'Спросить Reflect', icon: MessageSquareText, index: '08' },
 ];
 
 const settingsItem = { href: '/settings', label: 'Настройки', icon: Settings2, index: '' };
@@ -43,6 +44,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const [, navigate] = useLocation();
   const now = useNow(30_000);
   const systemItems = signedIn ? [dataItem, settingsItem] : [settingsItem];
+  // Serious items for the badge on "Needs attention"; refreshed with the rest of the app.
+  const attention = useGetAttention(undefined, { query: { staleTime: 60_000 } as never });
+  const urgent = attention.data?.high ?? 0;
   const currentName = t(pageNames[location] || 'Обзор');
 
   useEffect(() => { document.title = `Reflect — ${currentName}`; }, [currentName]);
@@ -63,7 +67,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <Link href="/overview" className="brand" data-testid="link-brand"><span className="brand-mark"><ArrowUpRight size={15} /></span><span className="brand-name">Reflect</span></Link>
       <nav className="nav-group" aria-label={t('Operating room')}>
         <div className="nav-label">{t('Operating room')}</div>
-        {nav.map(({ href, label, icon: Icon, index }) => <Link href={href} className={`nav-item ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined} key={href} data-testid={`link-nav-${testId(label)}`}><Icon /><span className="nav-copy">{t(label)}</span><span className="nav-index">{index}</span></Link>)}
+        {nav.map(({ href, label, icon: Icon, index }) => <Link href={href} className={`nav-item ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined} key={href} data-testid={`link-nav-${testId(label)}`}><Icon /><span className="nav-copy">{t(label)}</span>{href === '/attention' && urgent > 0 ? <span className="nav-badge" data-testid="attention-badge" aria-label={`${urgent}`}>{urgent}</span> : <span className="nav-index">{index}</span>}</Link>)}
       </nav>
       <div className="nav-group"><div className="nav-label">{t('System')}</div>{systemItems.map(({ href, label, icon: Icon }) => <Link href={href} key={href} className={`nav-item ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined} data-testid={href === '/settings' ? 'link-nav-settings' : 'link-nav-data'}><Icon /><span className="nav-copy">{t(label)}</span></Link>)}</div>
       <div className="sidebar-foot">

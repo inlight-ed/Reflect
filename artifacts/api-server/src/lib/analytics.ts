@@ -124,8 +124,11 @@ export function skuStats(lines: OrderLine[], catalog: CatalogItem[], ads: AdLine
     const firstHalf = totals(skuLines, { from: current.from, to: half });
     const secondHalf = totals(skuLines, { from: half, to: current.to });
     const first = skuLines.reduce((min, line) => (line.orderedAt < min ? line.orderedAt : min), now);
-    const historyDays = Math.max(0, Math.round((now.getTime() - first.getTime()) / DAY));
-    const effectiveDays = Math.max(1, Math.min(period, historyDays || period));
+    // Days the SKU has been on sale, counting today as a day: a first sale today means one day of
+    // history, not the whole period, or a new SKU's sales would be spread thin and its stock would
+    // look safe for longer than it is. A SKU with no sales has no velocity to spread.
+    const historyDays = Math.ceil((now.getTime() - first.getTime()) / DAY);
+    const effectiveDays = skuLines.length ? Math.min(period, Math.max(1, historyDays)) : period;
     const velocity = cur.units / effectiveDays;
     const avgPrice = cur.units > 0 ? cur.revenue / cur.units : null;
     const previousAvgPrice = prev.units > 0 ? prev.revenue / prev.units : null;

@@ -154,7 +154,7 @@ describe("agency workspaces and roles", { skip }, () => {
     const invite = await owner.call("POST", "/workspace/invites", { role: "VIEWER" });
     assert.equal(invite.status, 201);
     const token = (invite.json as { token: string }).token;
-    assert.deepEqual((await new Client().call("GET", `/invites/${token}`)).json, { name: `Okori ${stamp}`, kind: "AGENCY", role: "VIEWER" });
+    assert.deepEqual((await new Client().call("GET", `/invites/${token}`)).json, { name: `Okori ${stamp}`, kind: "AGENCY", role: "VIEWER", restricted: false });
     assert.equal((await new Client().call("POST", `/invites/${token}/accept`)).status, 401, "accepting needs an account");
     const joined = await viewer.call("POST", `/invites/${token}/accept`);
     assert.equal(joined.status, 200);
@@ -226,5 +226,108 @@ describe("concurrency and sessions", { skip }, () => {
     assert.equal((await phone.call("GET", "/data/status")).status, 200);
     assert.equal((await laptop.call("POST", "/auth/logout-all")).status, 204);
     assert.equal((await phone.call("GET", "/data/status")).status, 401);
+  });
+});
+
+describe("agency access limited to some clients", { skip }, () => {
+  const owner = new Client();
+  const brand = new Client();
+  let agencyId = "";
+  let brandId = "";
+  let lorealId = "";
+  let lgId = "";
+  let lgPlanId = "";
+  let lgPlacementId = "";
+  const plan = (client: string, platform: string) => ({ client, title: `План ${client} ${stamp}`, placements: [{ variant: "Лайт", platform, format: "Hero Banner", cost: 1_000_000, planImpressions: 500_000 }] });
+  const LOREAL = `L'Oréal ${stamp}`;
+  const LG = `LG ${stamp}`;
+  const blocked = (response: { status: number; json: unknown }) => response.status === 403 && (response.json as { error?: string }).error === "LIMITED_ACCESS";
+
+  before(async () => {
+    for (const [client, tag] of [[owner, "owner"], [brand, "brand"]] as const) {
+      assert.equal((await client.call("POST", "/auth/register", { email: `limited-${tag}-${stamp}@example.kz`, password: "password-123" })).status, 201);
+    }
+    const created = await owner.call("POST", "/workspaces", { kind: "AGENCY", name: `Limited ${stamp}` });
+    agencyId = (created.json as { id: string }).id;
+    assert.equal((await owner.call("POST", "/media-plans", plan(LOREAL, "Wolt Ads"))).status, 201);
+    const lg = await owner.call("POST", "/media-plans", plan(LG, "Kaspi"));
+    assert.equal(lg.status, 201);
+    const lgPlan = lg.json as { id: string; placements: Array<{ id: string }> };
+    lgPlanId = lgPlan.id;
+    lgPlacementId = lgPlan.placements[0]!.id;
+    const clients = (await owner.call("GET", "/clients")).json as Array<{ id: string; name: string }>;
+    lorealId = clients.find((client) => client.name === LOREAL)!.id;
+    lgId = clients.find((client) => client.name === LG)!.id;
+    brandId = ((await brand.call("GET", "/auth/me")).json as { user: { id: string } }).user.id;
+  });
+
+  it("a link names clients of this agency only; the person who accepts it is limited to them", async () => {
+    const foreign = await owner.call("POST", "/workspace/invites", { role: "MEMBER", clientIds: ["not-a-client-of-this-agency"] });
+    assert.equal(foreign.status, 400);
+    assert.equal((foreign.json as { error: string }).error, "INVALID_SCOPE");
+    assert.equal((await owner.call("POST", "/workspace/invites", { role: "OWNER", clientIds: [lorealId] })).status, 400, "an owner cannot be limited");
+
+    const invite = await owner.call("POST", "/workspace/invites", { role: "MEMBER", clientIds: [lorealId] });
+    assert.equal(invite.status, 201);
+    const token = (invite.json as { token: string }).token;
+    assert.equal(((await new Client().call("GET", `/invites/${token}`)).json as { restricted: boolean }).restricted, true);
+    assert.equal((await brand.call("POST", `/invites/${token}/accept`)).status, 200);
+
+    const me = (await brand.call("GET", "/auth/me")).json as { workspace: { restricted: boolean; id: string; clientIds?: unknown }; hasData: boolean; hasConnections: boolean };
+    assert.equal(me.workspace.id, agencyId);
+    assert.equal(me.workspace.restricted, true);
+    assert.ok(!("clientIds" in me.workspace), "the internal list is not sent");
+    assert.deepEqual([me.hasData, me.hasConnections], [false, false]);
+  });
+
+  it("sees their client and its plans only; the other client does not exist for them", async () => {
+    const clients = (await brand.call("GET", "/clients")).json as Array<{ name: string }>;
+    assert.deepEqual(clients.map((client) => client.name), [LOREAL]);
+    const list = await brand.call("GET", "/media-plans");
+    assert.ok(list.text.includes(LOREAL));
+    assert.ok(!list.text.includes(LG), "the other client's plans are not listed");
+    assert.deepEqual((list.json as { benchmarks: Array<{ platform: string }> }).benchmarks.map((item) => item.platform), ["Wolt Ads"], "benchmarks come from their client only");
+    assert.equal((await brand.call("GET", `/media-plans?clientId=${lgId}`)).text.includes(LG), false);
+    assert.equal((await brand.call("GET", `/media-plans/${lgPlanId}`)).status, 404);
+    assert.equal((await brand.call("PUT", `/media-plans/${lgPlanId}/placements/${lgPlacementId}/fact`, { factImpressions: 1 })).status, 404);
+    assert.equal(((await owner.call("GET", `/media-plans/${lgPlanId}`)).json as { placements: Array<{ factImpressions: number | null }> }).placements[0]?.factImpressions, null, "the refused write changed nothing");
+  });
+
+  it("adds plans to their own client only and cannot create or rename clients", async () => {
+    assert.ok(blocked(await brand.call("POST", "/media-plans", plan(LG, "Kaspi"))));
+    assert.ok(blocked(await brand.call("POST", "/media-plans", plan(`Новый ${stamp}`, "Kaspi"))));
+    assert.ok(blocked(await brand.call("POST", "/clients", { name: `Новый ${stamp}` })));
+    assert.ok(blocked(await brand.call("PATCH", `/clients/${lorealId}`, { name: "Переименован" })));
+    assert.equal((await brand.call("POST", "/media-plans", plan(LOREAL.toLowerCase(), "Wolt Ads"))).status, 201);
+    assert.equal(((await owner.call("GET", "/clients")).json as unknown[]).length, 2, "no client was created");
+  });
+
+  it("gets no workspace-wide data and sees only themselves among the members", async () => {
+    for (const path of ["/shift-market/dashboard", "/shift-market/products", "/shift-market/integrations", "/data/status", "/feedback", "/integrations/runs", "/content/analysis"]) {
+      assert.ok(blocked(await brand.call("GET", path)), `${path} is closed to a limited member`);
+    }
+    assert.ok(blocked(await brand.call("POST", "/data/import", { kind: "PRODUCTS", products: [{ sku: "X" }] })));
+    const members = (await brand.call("GET", "/workspace/members")).json as Array<{ userId: string; email: string }>;
+    assert.deepEqual(members.map((member) => member.userId), [brandId], "other people's emails stay hidden");
+    assert.equal((await owner.call("GET", "/workspace/members")).json instanceof Array && ((await owner.call("GET", "/workspace/members")).json as unknown[]).length, 2);
+  });
+
+  it("only an owner changes who sees what; an owner cannot be limited", async () => {
+    assert.equal((await brand.call("PUT", `/workspace/members/${brandId}/clients`, { clientIds: null })).status, 403, "a limited member cannot lift their own limit");
+    assert.equal((await owner.call("PUT", `/workspace/members/${brandId}/clients`, { clientIds: [lorealId, "foreign"] })).status, 400);
+    const ownerId = ((await owner.call("GET", "/auth/me")).json as { user: { id: string } }).user.id;
+    assert.equal((await owner.call("PUT", `/workspace/members/${ownerId}/clients`, { clientIds: [lorealId] })).status, 400);
+
+    assert.equal((await owner.call("PUT", `/workspace/members/${brandId}/clients`, { clientIds: [] })).status, 204);
+    assert.deepEqual((await brand.call("GET", "/clients")).json, []);
+    assert.deepEqual((await brand.call("GET", "/media-plans")).json, { plans: [], benchmarks: [] });
+
+    assert.equal((await owner.call("PUT", `/workspace/members/${brandId}/clients`, { clientIds: [lorealId, lgId] })).status, 204);
+    assert.equal(((await brand.call("GET", "/clients")).json as unknown[]).length, 2);
+    assert.equal((await brand.call("GET", `/media-plans/${lgPlanId}`)).status, 200);
+
+    assert.equal((await owner.call("PUT", `/workspace/members/${brandId}/clients`, { clientIds: null })).status, 204);
+    assert.equal(((await brand.call("GET", "/auth/me")).json as { workspace: { restricted: boolean } }).workspace.restricted, false);
+    assert.equal((await brand.call("GET", "/data/status")).status, 200, "without a limit the member gets the workspace's data again");
   });
 });

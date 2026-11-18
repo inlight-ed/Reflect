@@ -8,7 +8,7 @@
 #
 # Data belongs to workspaces (a shop or an agency), not to people. Only workspaces where this person is
 # the ONLY member are touched; shared workspaces (an agency with colleagues) keep their data, and the
-# person is just taken out of them.
+# person is just taken out of them (if they were its only owner, the next member becomes owner).
 # Whole account: removes the user and their sessions, plus their own workspaces with everything in
 # them: orders, products, ad spend, imports, feedback, card events, campaigns, clients, media plans,
 # saved integrations (Kaspi / MoySklad / MCP tokens) and sync history.
@@ -77,6 +77,19 @@ else
   psql_db <<SQL
 begin;
 delete from workspaces where id in ($own_sql);
+-- A shared workspace whose only owner is leaving gets the longest-standing other member as owner,
+-- so nobody is locked out of managing it.
+update workspace_members m set role = 'OWNER'
+from (
+  select distinct on (o.workspace_id) o.workspace_id, o.user_id
+  from workspace_members o
+  join workspace_members gone on gone.workspace_id = o.workspace_id and gone.role = 'OWNER'
+  join users u on u.id = gone.user_id and u.email = :'email'
+  where o.user_id <> gone.user_id
+    and not exists (select 1 from workspace_members x where x.workspace_id = o.workspace_id and x.role = 'OWNER' and x.user_id <> gone.user_id)
+  order by o.workspace_id, o.created_at
+) heir
+where m.workspace_id = heir.workspace_id and m.user_id = heir.user_id;
 delete from users where email = :'email';
 commit;
 SQL

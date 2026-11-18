@@ -913,5 +913,10 @@ a.btn { text-decoration:none; }
 .team-rename input, .team-link input { min-width:240px; flex:1; padding:7px 9px; color:#e6e9ee; background:#0e1116; border:1px solid #2c3540; border-radius:6px; }
 .team-invite select, .team-card td select { padding:6px 8px; color:#e6e9ee; background:#0e1116; border:1px solid #2c3540; border-radius:6px; }
 .team-link small { flex-basis:100%; }
+.client-picker { flex-basis:100%; margin:0; padding:10px 12px; border:1px solid #2c3540; border-radius:8px; display:flex; flex-direction:column; gap:6px; }
+.client-picker legend { padding:0 6px; font-size:12px; color:#9aa3ae; }
+.client-picker label { display:flex; align-items:center; gap:8px; color:#e6e9ee; }
+.client-picker-list { display:flex; flex-direction:column; gap:6px; margin:4px 0 0 22px; }
+.member-clients { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
 .team-actions { text-align:right; }
 .media-clients { flex-wrap:wrap; margin:6px 0 16px; }

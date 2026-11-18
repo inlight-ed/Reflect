@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   MediaBenchmark,
   MediaCheck,
@@ -12,7 +12,7 @@ import type {
 } from "@workspace/api-zod";
 import type { MediaPlacementRow } from "@workspace/db";
 import { database } from "./database";
-import { ensureClient } from "./workspaces";
+import { ensureClient, type ClientScope } from "./workspaces";
 
 /**
  * Agency media plans: the plan as written, checks of its own arithmetic, and plan against fact.
@@ -174,6 +174,20 @@ export function benchmarks(rows: Array<MediaPlacementRow & { client: string }>):
 }
 
 export class MediaPlanNotFound extends Error {}
+/** A limited member tried to add a plan for a client they were not given. */
+export class MediaClientForbidden extends Error {}
+
+const inScope = (scope: ClientScope, clientId: string) => scope === null || scope.includes(clientId);
+
+/** The existing client with this name (any letter case), if the limited person was given it. */
+async function clientInScope(tx: Parameters<typeof ensureClient>[0], workspaceId: string, name: string, scope: string[]) {
+  const { clientsTable } = await database();
+  const clean = name.replace(/\s+/g, " ").trim();
+  const [found] = await tx.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable)
+    .where(and(eq(clientsTable.workspaceId, workspaceId), sql`lower(${clientsTable.name}) = lower(${clean})`));
+  if (!found || !scope.includes(found.id)) throw new MediaClientForbidden();
+  return found;
+}
 
 const parseChecks = (raw: string): MediaCheck[] => {
   try {
@@ -184,7 +198,7 @@ const parseChecks = (raw: string): MediaCheck[] => {
   }
 };
 
-export async function createMediaPlan(workspaceId: string, input: MediaPlanInput): Promise<MediaPlan> {
+export async function createMediaPlan(workspaceId: string, input: MediaPlanInput, scope: ClientScope = null): Promise<MediaPlan> {
   const { db, mediaPlansTable, mediaPlacementsTable } = await database();
   const planId = randomUUID();
   const rows = input.placements.map((placement, position) => ({
@@ -207,19 +221,21 @@ export async function createMediaPlan(workspaceId: string, input: MediaPlanInput
   }));
   const checks = planChecks(rows, input.declaredTotals);
   await db.transaction(async (tx) => {
-    const client = await ensureClient(tx, workspaceId, input.client);
+    // A limited member adds plans only to clients they were given, and never creates a client.
+    const client = scope ? await clientInScope(tx, workspaceId, input.client, scope) : await ensureClient(tx, workspaceId, input.client);
     await tx.insert(mediaPlansTable).values({ id: planId, workspaceId, clientId: client.id, title: input.title.trim(), fileName: input.fileName ?? null, checks: JSON.stringify(checks) });
     for (let i = 0; i < rows.length; i += 200) await tx.insert(mediaPlacementsTable).values(rows.slice(i, i + 200));
   });
-  return getMediaPlan(workspaceId, planId);
+  return getMediaPlan(workspaceId, planId, scope);
 }
 
-export async function getMediaPlan(workspaceId: string, planId: string): Promise<MediaPlan> {
+export async function getMediaPlan(workspaceId: string, planId: string, scope: ClientScope = null): Promise<MediaPlan> {
   const { db, mediaPlansTable, mediaPlacementsTable, clientsTable } = await database();
   const [found] = await db.select({ plan: mediaPlansTable, client: clientsTable.name }).from(mediaPlansTable)
     .innerJoin(clientsTable, eq(clientsTable.id, mediaPlansTable.clientId))
     .where(and(eq(mediaPlansTable.id, planId), eq(mediaPlansTable.workspaceId, workspaceId)));
-  if (!found) throw new MediaPlanNotFound();
+  // A plan of a client outside the person's scope looks exactly like a plan that does not exist.
+  if (!found || !inScope(scope, found.plan.clientId)) throw new MediaPlanNotFound();
   const { plan, client } = found;
   const rows = await db.select().from(mediaPlacementsTable).where(eq(mediaPlacementsTable.planId, planId)).orderBy(asc(mediaPlacementsTable.position));
   return {
@@ -236,14 +252,18 @@ export async function getMediaPlan(workspaceId: string, planId: string): Promise
 }
 
 /**
- * Plans of the workspace, newest first, optionally of one client. Benchmarks always cover every
- * plan of the workspace: the point is to compare one client's prices with the agency's.
+ * Plans of the workspace, newest first, optionally of one client. Benchmarks cover every plan of the
+ * workspace: the point is to compare one client's prices with the agency's. A person limited to some
+ * clients gets plans and benchmarks of those clients only, so the agency's wider price base does not
+ * leak to a brand's representative.
  */
-export async function listMediaPlans(workspaceId: string, clientId?: string): Promise<{ plans: MediaPlanListItem[]; benchmarks: MediaBenchmark[] }> {
+export async function listMediaPlans(workspaceId: string, clientId?: string, scope: ClientScope = null): Promise<{ plans: MediaPlanListItem[]; benchmarks: MediaBenchmark[] }> {
   const { db, mediaPlansTable, mediaPlacementsTable, clientsTable } = await database();
+  if (scope && !scope.length) return { plans: [], benchmarks: [] };
   const all = await db.select({ plan: mediaPlansTable, client: clientsTable.name }).from(mediaPlansTable)
     .innerJoin(clientsTable, eq(clientsTable.id, mediaPlansTable.clientId))
-    .where(eq(mediaPlansTable.workspaceId, workspaceId)).orderBy(desc(mediaPlansTable.createdAt)).limit(500);
+    .where(and(eq(mediaPlansTable.workspaceId, workspaceId), scope ? inArray(mediaPlansTable.clientId, scope) : undefined))
+    .orderBy(desc(mediaPlansTable.createdAt)).limit(500);
   if (!all.length) return { plans: [], benchmarks: [] };
   const rows = await db.select().from(mediaPlacementsTable).where(inArray(mediaPlacementsTable.planId, all.map(({ plan }) => plan.id)));
   const clientOf = new Map(all.map(({ plan }) => [plan.id, plan.clientId]));
@@ -267,8 +287,13 @@ export async function listMediaPlans(workspaceId: string, clientId?: string): Pr
   };
 }
 
-export async function saveMediaFact(workspaceId: string, planId: string, placementId: string, fact: MediaFactInput): Promise<MediaPlan> {
-  const { db, mediaPlacementsTable } = await database();
+export async function saveMediaFact(workspaceId: string, planId: string, placementId: string, fact: MediaFactInput, scope: ClientScope = null): Promise<MediaPlan> {
+  const { db, mediaPlacementsTable, mediaPlansTable } = await database();
+  if (scope) {
+    const [plan] = await db.select({ clientId: mediaPlansTable.clientId }).from(mediaPlansTable)
+      .where(and(eq(mediaPlansTable.id, planId), eq(mediaPlansTable.workspaceId, workspaceId)));
+    if (!plan || !inScope(scope, plan.clientId)) throw new MediaPlanNotFound();
+  }
   const fields = {
     ...(fact.factCost !== undefined ? { factCost: fact.factCost } : {}),
     ...(fact.factImpressions !== undefined ? { factImpressions: fact.factImpressions } : {}),
@@ -280,5 +305,5 @@ export async function saveMediaFact(workspaceId: string, planId: string, placeme
     .where(and(eq(mediaPlacementsTable.id, placementId), eq(mediaPlacementsTable.planId, planId), eq(mediaPlacementsTable.workspaceId, workspaceId)))
     .returning({ id: mediaPlacementsTable.id });
   if (!updated.length) throw new MediaPlanNotFound();
-  return getMediaPlan(workspaceId, planId);
+  return getMediaPlan(workspaceId, planId, scope);
 }

@@ -44,7 +44,7 @@ describe("workspaces, members and clients", { skip }, () => {
   it("a new account starts in its own shop, as its owner", async () => {
     const { user, workspaceId } = await account("new", "Айгерим");
     const all = await listWorkspaces(user.id);
-    assert.deepEqual(all, [{ id: workspaceId, kind: "SHOP", name: "Айгерим", role: "OWNER" }]);
+    assert.deepEqual(all, [{ id: workspaceId, kind: "SHOP", name: "Айгерим", role: "OWNER", restricted: false }]);
   });
 
   it("an invitation link adds the person with its role, works once, and keeps an existing role", async () => {
@@ -52,7 +52,7 @@ describe("workspaces, members and clients", { skip }, () => {
     const guest = await account("guest");
     const agency = await createWorkspace(owner.user.id, "AGENCY", "Okori");
     const invite = await createInvite(agency, owner.user.id, "VIEWER");
-    assert.deepEqual(await previewInvite(invite.token), { name: "Okori", kind: "AGENCY", role: "VIEWER" });
+    assert.deepEqual(await previewInvite(invite.token), { name: "Okori", kind: "AGENCY", role: "VIEWER", restricted: false });
 
     assert.equal(await acceptInvite(invite.token, guest.user.id), agency);
     assert.equal(await code(acceptInvite(invite.token, guest.user.id)), "INVALID_INVITE", "a link works once");

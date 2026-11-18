@@ -4,13 +4,17 @@ import { Briefcase, Check, ChevronsUpDown, Copy, Link2, Plus, Store } from 'luci
 import { useLocation } from 'wouter';
 import {
   ApiError,
+  getGetClientsQueryKey,
   getGetWorkspaceMembersQueryKey,
   useCreateWorkspace,
   useCreateWorkspaceInvite,
+  useGetClients,
   useGetWorkspaceMembers,
   useRemoveWorkspaceMember,
   useRenameWorkspace,
+  useSetWorkspaceMemberClients,
   useSetWorkspaceMemberRole,
+  type Client,
   type WorkspaceInvite,
   type WorkspaceKind,
   type WorkspaceRole,
@@ -107,6 +111,58 @@ export function WorkspaceSwitcher() {
   );
 }
 
+/**
+ * Which clients of an agency a person sees: every client, or only the ticked ones. `value` is null
+ * for all clients. Used for new invitation links and for people already in the agency.
+ */
+function ClientPicker({ clients, value, onChange, testId }: { clients: Client[]; value: string[] | null; onChange: (value: string[] | null) => void; testId: string }) {
+  const { t } = useI18n();
+  const some = value !== null;
+  const group = `${testId}-mode`;
+  return (
+    <fieldset className="client-picker" data-testid={testId}>
+      <legend>{t('workspace.clients.access')}</legend>
+      <label><input type="radio" name={group} checked={!some} onChange={() => onChange(null)} data-testid={`${testId}-all`} /> {t('workspace.clients.all')}</label>
+      <label><input type="radio" name={group} checked={some} onChange={() => onChange(value ?? [])} data-testid={`${testId}-some`} /> {t('workspace.clients.selected')}</label>
+      {some && (
+        <div className="client-picker-list">
+          {clients.length === 0 && <small className="hint-text">{t('workspace.clients.none')}</small>}
+          {clients.map((client) => (
+            <label key={client.id}>
+              <input type="checkbox" checked={value.includes(client.id)} onChange={(event) => onChange(event.target.checked ? [...value, client.id] : value.filter((id) => id !== client.id))} data-testid={`${testId}-client-${client.name}`} /> {client.name}
+            </label>
+          ))}
+          <small className="hint-text">{t('workspace.clients.newHint')}</small>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
+/** What one person sees, with an owner's way to change it. */
+function MemberClients({ value, clients, editable, saving, onSave, testId }: { value: string[] | null; clients: Client[]; editable: boolean; saving: boolean; onSave: (value: string[] | null) => void; testId: string }) {
+  const { t } = useI18n();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string[] | null>(value);
+  const known = value === null ? null : value.filter((id) => clients.some((client) => client.id === id));
+  const summary = known === null ? t('workspace.clients.all') : known.length === 0 ? t('workspace.clients.nothing') : fill(t('workspace.clients.count'), { count: known.length, total: clients.length });
+  return (
+    <div className="member-clients">
+      <span data-testid={`${testId}-summary`}>{summary}</span>
+      {editable && !editing && <button type="button" className="btn btn-small secondary" onClick={() => { setDraft(value); setEditing(true); }} data-testid={`${testId}-edit`}>{t('workspace.clients.change')}</button>}
+      {editing && (
+        <>
+          <ClientPicker clients={clients} value={draft} onChange={setDraft} testId={`${testId}-picker`} />
+          <div className="ws-create-actions">
+            <button type="button" className="btn btn-small" disabled={saving} onClick={() => { onSave(draft); setEditing(false); }} data-testid={`${testId}-save`}>{t('workspace.save')}</button>
+            <button type="button" className="btn btn-small secondary" onClick={() => setEditing(false)}>{t('workspace.cancel')}</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Settings: the workspace's name, its people and invitation links. */
 export function TeamSection() {
   const { locale, t } = useI18n();
@@ -117,13 +173,19 @@ export function TeamSection() {
   const remove = useRemoveWorkspaceMember();
   const rename = useRenameWorkspace();
   const invite = useCreateWorkspaceInvite();
+  const setClients = useSetWorkspaceMemberClients();
+  const agency = workspace?.kind === 'AGENCY';
+  // Only an owner of an agency picks clients, so only then are they loaded.
+  const clientsQuery = useGetClients({ query: { queryKey: getGetClientsQueryKey(), enabled: Boolean(workspace) && agency && isOwner } });
+  const clients = clientsQuery.data ?? [];
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('MEMBER');
+  const [inviteClients, setInviteClients] = useState<string[] | null>(null);
   const [link, setLink] = useState<WorkspaceInvite | null>(null);
   const [copied, setCopied] = useState(false);
   const [name, setName] = useState(workspace?.name ?? '');
   const [error, setError] = useState('');
   const [, navigate] = useLocation();
-  useEffect(() => { setName(workspace?.name ?? ''); setLink(null); }, [workspace?.id, workspace?.name]);
+  useEffect(() => { setName(workspace?.name ?? ''); setLink(null); setInviteClients(null); }, [workspace?.id, workspace?.name]);
   if (!workspace) return null;
 
   const me = session?.user?.id;
@@ -155,13 +217,14 @@ export function TeamSection() {
           </form>
         )}
         <div className="table-wrap"><table className="data-table" data-testid="team-members">
-          <thead><tr><th>{t('workspace.member')}</th><th>{t('workspace.role')}</th><th>{t('workspace.joined')}</th><th /></tr></thead>
+          <thead><tr><th>{t('workspace.member')}</th><th>{t('workspace.role')}</th>{agency && <th>{t('workspace.clients')}</th>}<th>{t('workspace.joined')}</th><th /></tr></thead>
           <tbody>{(members.data ?? []).map((member) => (
             <tr key={member.userId} data-testid={`member-${member.email}`}>
               <td><strong>{member.name || member.email}</strong>{member.name && <span className="table-sub">{member.email}</span>}</td>
               <td>{isOwner && member.userId !== me
                 ? <select aria-label={t('workspace.role')} value={member.role} onChange={(event) => void run(() => setRole.mutateAsync({ userId: member.userId, data: { role: event.target.value as WorkspaceRole } }))} data-testid={`member-role-${member.email}`}>{ROLES.map((role) => <option key={role} value={role}>{t(`workspace.role.${role}`)}</option>)}</select>
                 : t(`workspace.role.${member.role}`)}</td>
+              {agency && <td><MemberClients value={member.clientIds ?? null} clients={clients} editable={isOwner && member.role !== 'OWNER'} saving={setClients.isPending} onSave={(value) => void run(() => setClients.mutateAsync({ userId: member.userId, data: { clientIds: value } }))} testId={`member-clients-${member.email}`} /></td>}
               <td>{formatDate(member.joinedAt, locale)}</td>
               <td className="team-actions">{member.userId === me
                 ? !soleOwner && <button type="button" className="btn btn-small secondary" onClick={() => { if (window.confirm(t('workspace.leave.confirm'))) void run(async () => { await remove.mutateAsync({ userId: member.userId }); await enteredWorkspace(); navigate('/overview'); }); }} data-testid="workspace-leave">{t('workspace.leave')}</button>
@@ -173,8 +236,9 @@ export function TeamSection() {
         {isOwner && (
           <div className="team-invite">
             <label htmlFor="invite-role">{t('workspace.invite.role')}</label>
-            <select id="invite-role" value={inviteRole} onChange={(event) => { setInviteRole(event.target.value as WorkspaceRole); setLink(null); }} data-testid="invite-role">{ROLES.map((role) => <option key={role} value={role}>{t(`workspace.role.${role}`)}</option>)}</select>
-            <button type="button" className="btn btn-small" disabled={invite.isPending} onClick={() => void run(async () => { setCopied(false); setLink(await invite.mutateAsync({ data: { role: inviteRole } })); })} data-testid="invite-create"><Link2 size={14} /> {t('workspace.invite.create')}</button>
+            <select id="invite-role" value={inviteRole} onChange={(event) => { const role = event.target.value as WorkspaceRole; setInviteRole(role); if (role === 'OWNER') setInviteClients(null); setLink(null); }} data-testid="invite-role">{ROLES.map((role) => <option key={role} value={role}>{t(`workspace.role.${role}`)}</option>)}</select>
+            {agency && inviteRole !== 'OWNER' && <ClientPicker clients={clients} value={inviteClients} onChange={(value) => { setInviteClients(value); setLink(null); }} testId="invite-clients" />}
+            <button type="button" className="btn btn-small" disabled={invite.isPending || (inviteClients !== null && inviteClients.length === 0)} onClick={() => void run(async () => { setCopied(false); setLink(await invite.mutateAsync({ data: { role: inviteRole, ...(inviteClients !== null ? { clientIds: inviteClients } : {}) } })); })} data-testid="invite-create"><Link2 size={14} /> {t('workspace.invite.create')}</button>
           </div>
         )}
         {link && (

@@ -13,5 +13,10 @@ export interface WorkspaceMember {
   /** @nullable */
   name?: string | null;
   role: WorkspaceMemberRole;
+  /**
+     * Clients this member sees; null means all of them
+     * @nullable
+     */
+  clientIds: string[] | null;
   joinedAt: string;
 }

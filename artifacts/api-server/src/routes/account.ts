@@ -123,15 +123,21 @@ router.get("/auth/me", async (req, res) => {
     res.json({ accountsEnabled: hasDatabase(), hasData: false });
     return;
   }
-  const workspace = req.workspace!;
-  const [status, connections, workspaces] = await Promise.all([dataStatus(workspace.id), connectionViews(workspace.id), listWorkspaces(req.user.id)]);
+  const { clientIds, ...workspace } = req.workspace!;
+  // Someone limited to some clients gets no word about the workspace's own orders or connections.
+  const limited = clientIds !== null;
+  const [status, connections, workspaces] = await Promise.all([
+    limited ? undefined : dataStatus(workspace.id),
+    limited ? Promise.resolve([] as Awaited<ReturnType<typeof connectionViews>>) : connectionViews(workspace.id),
+    listWorkspaces(req.user.id),
+  ]);
   res.json({
     user: req.user,
     workspace,
     workspaces,
     accountsEnabled: true,
-    hasData: status.orders > 0,
-    hasProducts: status.products > 0,
+    hasData: (status?.orders ?? 0) > 0,
+    hasProducts: (status?.products ?? 0) > 0,
     hasConnections: connections.some((connection) => connection.status === "CONNECTED"),
   });
 });

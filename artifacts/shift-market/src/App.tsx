@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
+import { Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import type { ReactNode } from 'react';
 import { ErrorBoundary, type ErrorFallbackProps } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -68,6 +68,10 @@ function Gate({ children }: { children: ReactNode }) {
 }
 
 function AppRoutes() {
+  const { workspace } = useSession();
+  const [location] = useLocation();
+  // A person limited to some clients only has media plans and settings; other pages are workspace-wide data.
+  if (workspace?.restricted && !location.startsWith('/media-plans') && location !== '/settings') return <Redirect to="/media-plans" />;
   return <Shell><ErrorBoundary FallbackComponent={LocalizedErrorFallback}><Suspense fallback={<LoadingState />}><Switch>
     <Route path="/overview" component={OverviewPage} />
     <Route path="/advertising" component={AdvertisingPage} />

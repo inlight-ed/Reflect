@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, FileUp } from 'lucide-react';
 import { Link, useRoute } from 'wouter';
 import {
+  ApiError,
   getGetMediaPlanQueryKey,
   getGetMediaPlansQueryKey,
   useCreateMediaPlan,
@@ -118,8 +119,8 @@ function Upload({ clients }: { clients: string[] }) {
       await queryClient.invalidateQueries({ queryKey: getGetClientsQueryKey() });
       setParsed(null);
       if (input.current) input.current.value = '';
-    } catch {
-      setError(t('media.saveError'));
+    } catch (err) {
+      setError(err instanceof ApiError && (err.data as { error?: string } | undefined)?.error === 'LIMITED_ACCESS' ? t('media.limitedError') : t('media.saveError'));
     }
   };
 

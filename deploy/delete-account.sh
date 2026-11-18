@@ -78,18 +78,21 @@ else
 begin;
 delete from workspaces where id in ($own_sql);
 -- A shared workspace whose only owner is leaving gets the longest-standing other member as owner,
--- so nobody is locked out of managing it.
-update workspace_members m set role = 'OWNER'
-from (
+-- so nobody is locked out of managing it. An owner always sees every client, so a limit that heir
+-- had on agency clients is lifted.
+create temp table heirs on commit drop as
   select distinct on (o.workspace_id) o.workspace_id, o.user_id
   from workspace_members o
   join workspace_members gone on gone.workspace_id = o.workspace_id and gone.role = 'OWNER'
   join users u on u.id = gone.user_id and u.email = :'email'
   where o.user_id <> gone.user_id
     and not exists (select 1 from workspace_members x where x.workspace_id = o.workspace_id and x.role = 'OWNER' and x.user_id <> gone.user_id)
-  order by o.workspace_id, o.created_at
-) heir
-where m.workspace_id = heir.workspace_id and m.user_id = heir.user_id;
+  order by o.workspace_id, o.created_at;
+update workspace_members m set role = 'OWNER', all_clients = true
+from heirs h
+where m.workspace_id = h.workspace_id and m.user_id = h.user_id;
+delete from workspace_member_clients c using heirs h
+where c.workspace_id = h.workspace_id and c.user_id = h.user_id;
 delete from users where email = :'email';
 commit;
 SQL

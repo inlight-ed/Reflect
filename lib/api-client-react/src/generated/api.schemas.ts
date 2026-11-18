@@ -443,6 +443,305 @@ export interface Product {
   kaspiCode?: string | null;
 }
 
+export interface MediaPlacementInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  variant: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  platform: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  format: string;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  mechanic?: string | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  buyType?: string | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  period?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  cost?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  planImpressions?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  planReach?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  planClicks?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  planCtr?: number | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  expectedEffect?: string | null;
+}
+
+export interface MediaDeclaredTotal {
+  /** @maxLength 200 */
+  variant: string;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  cost?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  impressions?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  clicks?: number | null;
+}
+
+export interface MediaPlanInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  client: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  fileName?: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  placements: MediaPlacementInput[];
+  /** @maxItems 50 */
+  declaredTotals?: MediaDeclaredTotal[];
+}
+
+export interface MediaFactInput {
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  factCost?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  factImpressions?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  factReach?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000000
+     * @nullable
+     */
+  factClicks?: number | null;
+}
+
+export type MediaCheckType = typeof MediaCheckType[keyof typeof MediaCheckType];
+
+
+export const MediaCheckType = {
+  TOTAL_MISMATCH: 'TOTAL_MISMATCH',
+  CTR_MISMATCH: 'CTR_MISMATCH',
+  MISSING_FORECAST: 'MISSING_FORECAST',
+  REACH_ABOVE_IMPRESSIONS: 'REACH_ABOVE_IMPRESSIONS',
+} as const;
+
+export type MediaCheckField = typeof MediaCheckField[keyof typeof MediaCheckField];
+
+
+export const MediaCheckField = {
+  cost: 'cost',
+  impressions: 'impressions',
+  clicks: 'clicks',
+} as const;
+
+export interface MediaCheck {
+  type: MediaCheckType;
+  variant: string;
+  placementId?: string;
+  field?: MediaCheckField;
+  declared?: number;
+  computed?: number;
+  /** Platform and format of the placement concerned */
+  label?: string;
+}
+
+export interface MediaPlacement {
+  id: string;
+  position: number;
+  variant: string;
+  platform: string;
+  format: string;
+  /** @nullable */
+  mechanic?: string | null;
+  /** @nullable */
+  buyType?: string | null;
+  /** @nullable */
+  period?: string | null;
+  /** @nullable */
+  cost?: number | null;
+  /** @nullable */
+  planImpressions?: number | null;
+  /** @nullable */
+  planReach?: number | null;
+  /** @nullable */
+  planClicks?: number | null;
+  /** @nullable */
+  planCtr?: number | null;
+  /** @nullable */
+  expectedEffect?: string | null;
+  /**
+     * Cost per thousand planned impressions
+     * @nullable
+     */
+  planCpm?: number | null;
+  /** @nullable */
+  planCpc?: number | null;
+  /** @nullable */
+  factCost?: number | null;
+  /** @nullable */
+  factImpressions?: number | null;
+  /** @nullable */
+  factReach?: number | null;
+  /** @nullable */
+  factClicks?: number | null;
+  /** @nullable */
+  factCtr?: number | null;
+  /**
+     * Delivered impressions as a share of planned, 1 = 100 %
+     * @nullable
+     */
+  delivery?: number | null;
+  /**
+     * What a thousand delivered impressions really cost
+     * @nullable
+     */
+  effectiveCpm?: number | null;
+  /** @nullable */
+  effectiveCpc?: number | null;
+}
+
+export interface MediaVariantSummary {
+  variant: string;
+  placements: number;
+  cost: number;
+  planImpressions: number;
+  planClicks: number;
+  /** @nullable */
+  planCpm?: number | null;
+  factImpressions: number;
+  factClicks: number;
+  /** Placements with a reported fact */
+  withFact: number;
+  /** @nullable */
+  delivery?: number | null;
+  /** @nullable */
+  effectiveCpm?: number | null;
+}
+
+export interface MediaPlan {
+  id: string;
+  client: string;
+  title: string;
+  /** @nullable */
+  fileName?: string | null;
+  createdAt: string;
+  placements: MediaPlacement[];
+  variants: MediaVariantSummary[];
+  checks: MediaCheck[];
+}
+
+export interface MediaPlanListItem {
+  id: string;
+  client: string;
+  title: string;
+  createdAt: string;
+  variants: MediaVariantSummary[];
+  placements: number;
+  checks: number;
+  withFact: number;
+}
+
+export interface MediaBenchmark {
+  platform: string;
+  format: string;
+  /** @nullable */
+  buyType?: string | null;
+  placements: number;
+  plans: number;
+  clients: number;
+  /**
+     * Median planned cost per thousand impressions
+     * @nullable
+     */
+  planCpm?: number | null;
+  /**
+     * Median delivered cost per thousand impressions, where a fact exists
+     * @nullable
+     */
+  effectiveCpm?: number | null;
+  /**
+     * Median delivery against plan
+     * @nullable
+     */
+  delivery?: number | null;
+}
+
+export interface MediaPlansOverview {
+  plans: MediaPlanListItem[];
+  benchmarks: MediaBenchmark[];
+}
+
 export type AttentionItemType = typeof AttentionItemType[keyof typeof AttentionItemType];
 
 

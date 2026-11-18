@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, BellDot, Database, FileText, LayoutDashboard, LogOut, Megaphone, Menu, MessageSquareText, Package, Radio, RefreshCw, Settings2, Users, X } from 'lucide-react';
+import { ArrowUpRight, BellDot, ClipboardList, Database, FileText, LayoutDashboard, LogOut, Megaphone, Menu, MessageSquareText, Package, Radio, RefreshCw, Settings2, Users, X } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useGetAttention, useHealthCheck } from '@workspace/api-client-react';
 import { formatTime, localeOptions, useI18n, type Locale } from '@/lib/i18n';
@@ -12,10 +12,11 @@ export const nav = [
   { href: '/attention', label: 'nav.attention', icon: BellDot, index: '02' },
   { href: '/advertising', label: 'Реклама', icon: Megaphone, index: '03' },
   { href: '/products', label: 'Товары', icon: Package, index: '04' },
-  { href: '/external-media', label: 'Внешние медиа', icon: Radio, index: '05' },
-  { href: '/competitors', label: 'Конкуренты', icon: Users, index: '06' },
-  { href: '/content', label: 'Контент', icon: FileText, index: '07' },
-  { href: '/assistant', label: 'Спросить Reflect', icon: MessageSquareText, index: '08' },
+  { href: '/media-plans', label: 'nav.media', icon: ClipboardList, index: '05' },
+  { href: '/external-media', label: 'Внешние медиа', icon: Radio, index: '06' },
+  { href: '/competitors', label: 'Конкуренты', icon: Users, index: '07' },
+  { href: '/content', label: 'Контент', icon: FileText, index: '08' },
+  { href: '/assistant', label: 'Спросить Reflect', icon: MessageSquareText, index: '09' },
 ];
 
 const settingsItem = { href: '/settings', label: 'Настройки', icon: Settings2, index: '' };
@@ -47,7 +48,7 @@ export function Shell({ children }: { children: ReactNode }) {
   // Serious items for the badge on "Needs attention"; refreshed with the rest of the app.
   const attention = useGetAttention(undefined, { query: { staleTime: 60_000 } as never });
   const urgent = attention.data?.high ?? 0;
-  const currentName = t(pageNames[location] || 'Обзор');
+  const currentName = t(pageNames[location] || (location.startsWith('/media-plans/') ? 'nav.media' : 'Обзор'));
 
   useEffect(() => { document.title = `Reflect — ${currentName}`; }, [currentName]);
   useEffect(() => { setMenuOpen(false); }, [location]);
@@ -59,7 +60,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [menuOpen]);
 
   const clock = formatTime(now.toISOString(), locale);
-  const isActive = (href: string) => location === href;
+  const isActive = (href: string) => location === href || (href === '/media-plans' && location.startsWith('/media-plans/'));
 
   return <div className="shell">
     <a className="skip-link" href="#main-content">{t('Обзор')}</a>

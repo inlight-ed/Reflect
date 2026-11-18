@@ -841,6 +841,334 @@ export const GetProductsResponse = zod.object({
 
 
 /**
+ * @summary The agency's media plans and how platforms compare across them
+ */
+export const GetMediaPlansResponse = zod.object({
+  "plans": zod.array(zod.object({
+  "id": zod.string(),
+  "client": zod.string(),
+  "title": zod.string(),
+  "createdAt": zod.string(),
+  "variants": zod.array(zod.object({
+  "variant": zod.string(),
+  "placements": zod.int(),
+  "cost": zod.number(),
+  "planImpressions": zod.number(),
+  "planClicks": zod.number(),
+  "planCpm": zod.number().nullish(),
+  "factImpressions": zod.number(),
+  "factClicks": zod.number(),
+  "withFact": zod.int().describe('Placements with a reported fact'),
+  "delivery": zod.number().nullish(),
+  "effectiveCpm": zod.number().nullish()
+})),
+  "placements": zod.int(),
+  "checks": zod.int(),
+  "withFact": zod.int()
+})),
+  "benchmarks": zod.array(zod.object({
+  "platform": zod.string(),
+  "format": zod.string(),
+  "buyType": zod.string().nullish(),
+  "placements": zod.int(),
+  "plans": zod.int(),
+  "clients": zod.int(),
+  "planCpm": zod.number().nullish().describe('Median planned cost per thousand impressions'),
+  "effectiveCpm": zod.number().nullish().describe('Median delivered cost per thousand impressions, where a fact exists'),
+  "delivery": zod.number().nullish().describe('Median delivery against plan')
+}))
+})
+
+
+/**
+ * @summary Save a media plan read from the agency's file
+ */
+export const createMediaPlanBodyClientMax = 120;
+
+export const createMediaPlanBodyTitleMax = 300;
+
+export const createMediaPlanBodyFileNameMax = 300;
+
+export const createMediaPlanBodyPlacementsItemVariantMax = 200;
+
+export const createMediaPlanBodyPlacementsItemPlatformMax = 200;
+
+export const createMediaPlanBodyPlacementsItemFormatMax = 300;
+
+export const createMediaPlanBodyPlacementsItemMechanicMax = 500;
+
+export const createMediaPlanBodyPlacementsItemBuyTypeMax = 100;
+
+export const createMediaPlanBodyPlacementsItemPeriodMax = 100;
+
+export const createMediaPlanBodyPlacementsItemCostMin = 0;
+export const createMediaPlanBodyPlacementsItemCostMax = 100000000000;
+
+export const createMediaPlanBodyPlacementsItemPlanImpressionsMin = 0;
+export const createMediaPlanBodyPlacementsItemPlanImpressionsMax = 100000000000;
+
+export const createMediaPlanBodyPlacementsItemPlanReachMin = 0;
+export const createMediaPlanBodyPlacementsItemPlanReachMax = 100000000000;
+
+export const createMediaPlanBodyPlacementsItemPlanClicksMin = 0;
+export const createMediaPlanBodyPlacementsItemPlanClicksMax = 100000000000;
+
+export const createMediaPlanBodyPlacementsItemPlanCtrMin = 0;
+export const createMediaPlanBodyPlacementsItemPlanCtrMax = 1;
+
+export const createMediaPlanBodyPlacementsItemExpectedEffectMax = 500;
+
+export const createMediaPlanBodyPlacementsMax = 500;
+
+export const createMediaPlanBodyDeclaredTotalsItemVariantMax = 200;
+
+export const createMediaPlanBodyDeclaredTotalsItemCostMin = 0;
+export const createMediaPlanBodyDeclaredTotalsItemCostMax = 100000000000;
+
+export const createMediaPlanBodyDeclaredTotalsItemImpressionsMin = 0;
+export const createMediaPlanBodyDeclaredTotalsItemImpressionsMax = 100000000000;
+
+export const createMediaPlanBodyDeclaredTotalsItemClicksMin = 0;
+export const createMediaPlanBodyDeclaredTotalsItemClicksMax = 100000000000;
+
+export const createMediaPlanBodyDeclaredTotalsMax = 50;
+
+
+
+export const CreateMediaPlanBody = zod.object({
+  "client": zod.string().min(1).max(createMediaPlanBodyClientMax),
+  "title": zod.string().min(1).max(createMediaPlanBodyTitleMax),
+  "fileName": zod.string().max(createMediaPlanBodyFileNameMax).nullish(),
+  "placements": zod.array(zod.object({
+  "variant": zod.string().min(1).max(createMediaPlanBodyPlacementsItemVariantMax),
+  "platform": zod.string().min(1).max(createMediaPlanBodyPlacementsItemPlatformMax),
+  "format": zod.string().min(1).max(createMediaPlanBodyPlacementsItemFormatMax),
+  "mechanic": zod.string().max(createMediaPlanBodyPlacementsItemMechanicMax).nullish(),
+  "buyType": zod.string().max(createMediaPlanBodyPlacementsItemBuyTypeMax).nullish(),
+  "period": zod.string().max(createMediaPlanBodyPlacementsItemPeriodMax).nullish(),
+  "cost": zod.number().min(createMediaPlanBodyPlacementsItemCostMin).max(createMediaPlanBodyPlacementsItemCostMax).nullish(),
+  "planImpressions": zod.number().min(createMediaPlanBodyPlacementsItemPlanImpressionsMin).max(createMediaPlanBodyPlacementsItemPlanImpressionsMax).nullish(),
+  "planReach": zod.number().min(createMediaPlanBodyPlacementsItemPlanReachMin).max(createMediaPlanBodyPlacementsItemPlanReachMax).nullish(),
+  "planClicks": zod.number().min(createMediaPlanBodyPlacementsItemPlanClicksMin).max(createMediaPlanBodyPlacementsItemPlanClicksMax).nullish(),
+  "planCtr": zod.number().min(createMediaPlanBodyPlacementsItemPlanCtrMin).max(createMediaPlanBodyPlacementsItemPlanCtrMax).nullish(),
+  "expectedEffect": zod.string().max(createMediaPlanBodyPlacementsItemExpectedEffectMax).nullish()
+})).min(1).max(createMediaPlanBodyPlacementsMax),
+  "declaredTotals": zod.array(zod.object({
+  "variant": zod.string().max(createMediaPlanBodyDeclaredTotalsItemVariantMax),
+  "cost": zod.number().min(createMediaPlanBodyDeclaredTotalsItemCostMin).max(createMediaPlanBodyDeclaredTotalsItemCostMax).nullish(),
+  "impressions": zod.number().min(createMediaPlanBodyDeclaredTotalsItemImpressionsMin).max(createMediaPlanBodyDeclaredTotalsItemImpressionsMax).nullish(),
+  "clicks": zod.number().min(createMediaPlanBodyDeclaredTotalsItemClicksMin).max(createMediaPlanBodyDeclaredTotalsItemClicksMax).nullish()
+})).max(createMediaPlanBodyDeclaredTotalsMax).optional()
+})
+
+export const CreateMediaPlanResponse = zod.object({
+  "id": zod.string(),
+  "client": zod.string(),
+  "title": zod.string(),
+  "fileName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "placements": zod.array(zod.object({
+  "id": zod.string(),
+  "position": zod.int(),
+  "variant": zod.string(),
+  "platform": zod.string(),
+  "format": zod.string(),
+  "mechanic": zod.string().nullish(),
+  "buyType": zod.string().nullish(),
+  "period": zod.string().nullish(),
+  "cost": zod.number().nullish(),
+  "planImpressions": zod.number().nullish(),
+  "planReach": zod.number().nullish(),
+  "planClicks": zod.number().nullish(),
+  "planCtr": zod.number().nullish(),
+  "expectedEffect": zod.string().nullish(),
+  "planCpm": zod.number().nullish().describe('Cost per thousand planned impressions'),
+  "planCpc": zod.number().nullish(),
+  "factCost": zod.number().nullish(),
+  "factImpressions": zod.number().nullish(),
+  "factReach": zod.number().nullish(),
+  "factClicks": zod.number().nullish(),
+  "factCtr": zod.number().nullish(),
+  "delivery": zod.number().nullish().describe('Delivered impressions as a share of planned, 1 = 100 %'),
+  "effectiveCpm": zod.number().nullish().describe('What a thousand delivered impressions really cost'),
+  "effectiveCpc": zod.number().nullish()
+})),
+  "variants": zod.array(zod.object({
+  "variant": zod.string(),
+  "placements": zod.int(),
+  "cost": zod.number(),
+  "planImpressions": zod.number(),
+  "planClicks": zod.number(),
+  "planCpm": zod.number().nullish(),
+  "factImpressions": zod.number(),
+  "factClicks": zod.number(),
+  "withFact": zod.int().describe('Placements with a reported fact'),
+  "delivery": zod.number().nullish(),
+  "effectiveCpm": zod.number().nullish()
+})),
+  "checks": zod.array(zod.object({
+  "type": zod.enum(['TOTAL_MISMATCH', 'CTR_MISMATCH', 'MISSING_FORECAST', 'REACH_ABOVE_IMPRESSIONS']),
+  "variant": zod.string(),
+  "placementId": zod.string().optional(),
+  "field": zod.enum(['cost', 'impressions', 'clicks']).optional(),
+  "declared": zod.number().optional(),
+  "computed": zod.number().optional(),
+  "label": zod.string().optional().describe('Platform and format of the placement concerned')
+}))
+})
+
+
+/**
+ * @summary One media plan, its checks and plan against fact
+ */
+export const GetMediaPlanParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const GetMediaPlanResponse = zod.object({
+  "id": zod.string(),
+  "client": zod.string(),
+  "title": zod.string(),
+  "fileName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "placements": zod.array(zod.object({
+  "id": zod.string(),
+  "position": zod.int(),
+  "variant": zod.string(),
+  "platform": zod.string(),
+  "format": zod.string(),
+  "mechanic": zod.string().nullish(),
+  "buyType": zod.string().nullish(),
+  "period": zod.string().nullish(),
+  "cost": zod.number().nullish(),
+  "planImpressions": zod.number().nullish(),
+  "planReach": zod.number().nullish(),
+  "planClicks": zod.number().nullish(),
+  "planCtr": zod.number().nullish(),
+  "expectedEffect": zod.string().nullish(),
+  "planCpm": zod.number().nullish().describe('Cost per thousand planned impressions'),
+  "planCpc": zod.number().nullish(),
+  "factCost": zod.number().nullish(),
+  "factImpressions": zod.number().nullish(),
+  "factReach": zod.number().nullish(),
+  "factClicks": zod.number().nullish(),
+  "factCtr": zod.number().nullish(),
+  "delivery": zod.number().nullish().describe('Delivered impressions as a share of planned, 1 = 100 %'),
+  "effectiveCpm": zod.number().nullish().describe('What a thousand delivered impressions really cost'),
+  "effectiveCpc": zod.number().nullish()
+})),
+  "variants": zod.array(zod.object({
+  "variant": zod.string(),
+  "placements": zod.int(),
+  "cost": zod.number(),
+  "planImpressions": zod.number(),
+  "planClicks": zod.number(),
+  "planCpm": zod.number().nullish(),
+  "factImpressions": zod.number(),
+  "factClicks": zod.number(),
+  "withFact": zod.int().describe('Placements with a reported fact'),
+  "delivery": zod.number().nullish(),
+  "effectiveCpm": zod.number().nullish()
+})),
+  "checks": zod.array(zod.object({
+  "type": zod.enum(['TOTAL_MISMATCH', 'CTR_MISMATCH', 'MISSING_FORECAST', 'REACH_ABOVE_IMPRESSIONS']),
+  "variant": zod.string(),
+  "placementId": zod.string().optional(),
+  "field": zod.enum(['cost', 'impressions', 'clicks']).optional(),
+  "declared": zod.number().optional(),
+  "computed": zod.number().optional(),
+  "label": zod.string().optional().describe('Platform and format of the placement concerned')
+}))
+})
+
+
+/**
+ * @summary Record what a placement delivered, from the platform's report
+ */
+export const SaveMediaFactParams = zod.object({
+  "planId": zod.coerce.string(),
+  "placementId": zod.coerce.string()
+})
+
+export const saveMediaFactBodyFactCostMin = 0;
+export const saveMediaFactBodyFactCostMax = 100000000000;
+
+export const saveMediaFactBodyFactImpressionsMin = 0;
+export const saveMediaFactBodyFactImpressionsMax = 100000000000;
+
+export const saveMediaFactBodyFactReachMin = 0;
+export const saveMediaFactBodyFactReachMax = 100000000000;
+
+export const saveMediaFactBodyFactClicksMin = 0;
+export const saveMediaFactBodyFactClicksMax = 100000000000;
+
+
+
+export const SaveMediaFactBody = zod.object({
+  "factCost": zod.number().min(saveMediaFactBodyFactCostMin).max(saveMediaFactBodyFactCostMax).nullish(),
+  "factImpressions": zod.number().min(saveMediaFactBodyFactImpressionsMin).max(saveMediaFactBodyFactImpressionsMax).nullish(),
+  "factReach": zod.number().min(saveMediaFactBodyFactReachMin).max(saveMediaFactBodyFactReachMax).nullish(),
+  "factClicks": zod.number().min(saveMediaFactBodyFactClicksMin).max(saveMediaFactBodyFactClicksMax).nullish()
+})
+
+export const SaveMediaFactResponse = zod.object({
+  "id": zod.string(),
+  "client": zod.string(),
+  "title": zod.string(),
+  "fileName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "placements": zod.array(zod.object({
+  "id": zod.string(),
+  "position": zod.int(),
+  "variant": zod.string(),
+  "platform": zod.string(),
+  "format": zod.string(),
+  "mechanic": zod.string().nullish(),
+  "buyType": zod.string().nullish(),
+  "period": zod.string().nullish(),
+  "cost": zod.number().nullish(),
+  "planImpressions": zod.number().nullish(),
+  "planReach": zod.number().nullish(),
+  "planClicks": zod.number().nullish(),
+  "planCtr": zod.number().nullish(),
+  "expectedEffect": zod.string().nullish(),
+  "planCpm": zod.number().nullish().describe('Cost per thousand planned impressions'),
+  "planCpc": zod.number().nullish(),
+  "factCost": zod.number().nullish(),
+  "factImpressions": zod.number().nullish(),
+  "factReach": zod.number().nullish(),
+  "factClicks": zod.number().nullish(),
+  "factCtr": zod.number().nullish(),
+  "delivery": zod.number().nullish().describe('Delivered impressions as a share of planned, 1 = 100 %'),
+  "effectiveCpm": zod.number().nullish().describe('What a thousand delivered impressions really cost'),
+  "effectiveCpc": zod.number().nullish()
+})),
+  "variants": zod.array(zod.object({
+  "variant": zod.string(),
+  "placements": zod.int(),
+  "cost": zod.number(),
+  "planImpressions": zod.number(),
+  "planClicks": zod.number(),
+  "planCpm": zod.number().nullish(),
+  "factImpressions": zod.number(),
+  "factClicks": zod.number(),
+  "withFact": zod.int().describe('Placements with a reported fact'),
+  "delivery": zod.number().nullish(),
+  "effectiveCpm": zod.number().nullish()
+})),
+  "checks": zod.array(zod.object({
+  "type": zod.enum(['TOTAL_MISMATCH', 'CTR_MISMATCH', 'MISSING_FORECAST', 'REACH_ABOVE_IMPRESSIONS']),
+  "variant": zod.string(),
+  "placementId": zod.string().optional(),
+  "field": zod.enum(['cost', 'impressions', 'clicks']).optional(),
+  "declared": zod.number().optional(),
+  "computed": zod.number().optional(),
+  "label": zod.string().optional().describe('Platform and format of the placement concerned')
+}))
+})
+
+
+/**
  * @summary Get external media impact data
  */
 export const getExternalMediaResponseImpactsItemConfidenceBasisSupportingMin = 0;

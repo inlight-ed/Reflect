@@ -394,3 +394,31 @@ test('needs attention: the demo shop shows its list without signing in', async (
   await page.goto('/attention');
   await expect(page.getByTestId('attention-high')).toBeVisible();
 });
+
+test('media plans: the agency file is read as written, its arithmetic checked, and the fact gives delivery', async ({ page }) => {
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`media-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+
+  await page.goto('/media-plans');
+  await page.getByTestId('media-file').setInputFiles(new URL('./fixtures/media-plan.xlsx', import.meta.url).pathname);
+  // The detailed sheet wins over the summary and over the rate card with more rows.
+  await expect(page.getByTestId('media-preview')).toContainText('Детальный Медиаплан');
+  await expect(page.getByTestId('media-preview')).toContainText('5');
+  await page.getByTestId('media-client').fill("L'Oréal");
+  await page.getByTestId('media-save').click();
+
+  await page.getByTestId('media-plan-list').getByRole('link').first().click();
+  // Light: rows add up to 3 050 000 ₸, the file's total says 3 850 000 ₸; the Kaspi package has no forecast.
+  await expect(page.getByTestId('media-check-TOTAL_MISMATCH')).toBeVisible();
+  await expect(page.getByTestId('media-check-MISSING_FORECAST')).toContainText('Kaspi');
+
+  await page.getByRole('tab', { name: /МЕДИУМ/ }).click();
+  await page.getByTestId('media-fact-impressions-3').fill('900 000');
+  await page.getByTestId('media-fact-clicks-3').fill('7200');
+  await page.getByTestId('media-fact-save-3').click();
+  await expect(page.getByTestId('media-delivery-3')).toContainText('75');
+  await expect(page.getByTestId('media-totals')).toContainText('75');
+});

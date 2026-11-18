@@ -56,6 +56,10 @@ import type {
   IntegrationsOverview,
   KaspiConnectionInput,
   LoginInput,
+  MediaFactInput,
+  MediaPlan,
+  MediaPlanInput,
+  MediaPlansOverview,
   OkResponse,
   PasswordResetInput,
   PasswordResetRequest,
@@ -1824,6 +1828,305 @@ export function useGetProducts<TData = Awaited<ReturnType<typeof getProducts>>, 
 
 
 
+
+export const getGetMediaPlansUrl = () => {
+
+
+
+
+  return `/api/media-plans`
+}
+
+/**
+ * @summary The agency's media plans and how platforms compare across them
+ */
+export const getMediaPlans = async ( options?: Parameters<typeof customFetch>[1]): Promise<MediaPlansOverview> => {
+
+  return customFetch<MediaPlansOverview>(getGetMediaPlansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMediaPlansQueryKey = () => {
+    return [
+    `/api/media-plans`
+    ] as const;
+    }
+
+
+export const getGetMediaPlansQueryOptions = <TData = Awaited<ReturnType<typeof getMediaPlans>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaPlansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaPlans>>> = ({ signal }) => getMediaPlans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMediaPlansQueryResult = NonNullable<Awaited<ReturnType<typeof getMediaPlans>>>
+export type GetMediaPlansQueryError = ErrorType<void>
+
+
+/**
+ * @summary The agency's media plans and how platforms compare across them
+ */
+
+export function useGetMediaPlans<TData = Awaited<ReturnType<typeof getMediaPlans>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMediaPlansQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMediaPlanUrl = () => {
+
+
+
+
+  return `/api/media-plans`
+}
+
+/**
+ * @summary Save a media plan read from the agency's file
+ */
+export const createMediaPlan = async (mediaPlanInput: MediaPlanInput, options?: Parameters<typeof customFetch>[1]): Promise<MediaPlan> => {
+
+  return customFetch<MediaPlan>(getCreateMediaPlanUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(mediaPlanInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMediaPlanMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMediaPlan>>, TError,{data: BodyType<MediaPlanInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMediaPlan>>, TError,{data: BodyType<MediaPlanInput>}, TContext> => {
+
+const mutationKey = ['createMediaPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMediaPlan>>, {data: BodyType<MediaPlanInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMediaPlan(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMediaPlanMutationResult = NonNullable<Awaited<ReturnType<typeof createMediaPlan>>>
+    export type CreateMediaPlanMutationBody = BodyType<MediaPlanInput>
+    export type CreateMediaPlanMutationError = ErrorType<void>
+
+    /**
+ * @summary Save a media plan read from the agency's file
+ */
+export const useCreateMediaPlan = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMediaPlan>>, TError,{data: BodyType<MediaPlanInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMediaPlan>>,
+        TError,
+        {data: BodyType<MediaPlanInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMediaPlanMutationOptions(options));
+    }
+
+export const getGetMediaPlanUrl = (planId: string,) => {
+
+
+
+
+  return `/api/media-plans/${planId}`
+}
+
+/**
+ * @summary One media plan, its checks and plan against fact
+ */
+export const getMediaPlan = async (planId: string, options?: Parameters<typeof customFetch>[1]): Promise<MediaPlan> => {
+
+  return customFetch<MediaPlan>(getGetMediaPlanUrl(planId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMediaPlanQueryKey = (planId: string,) => {
+    return [
+    `/api/media-plans/${planId}`
+    ] as const;
+    }
+
+
+export const getGetMediaPlanQueryOptions = <TData = Awaited<ReturnType<typeof getMediaPlan>>, TError = ErrorType<void>>(planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaPlanQueryKey(planId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaPlan>>> = ({ signal }) => getMediaPlan(planId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: planId !== null && planId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMediaPlan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMediaPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getMediaPlan>>>
+export type GetMediaPlanQueryError = ErrorType<void>
+
+
+/**
+ * @summary One media plan, its checks and plan against fact
+ */
+
+export function useGetMediaPlan<TData = Awaited<ReturnType<typeof getMediaPlan>>, TError = ErrorType<void>>(
+ planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMediaPlanQueryOptions(planId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveMediaFactUrl = (planId: string,
+    placementId: string,) => {
+
+
+
+
+  return `/api/media-plans/${planId}/placements/${placementId}/fact`
+}
+
+/**
+ * @summary Record what a placement delivered, from the platform's report
+ */
+export const saveMediaFact = async (planId: string,
+    placementId: string,
+    mediaFactInput: MediaFactInput, options?: Parameters<typeof customFetch>[1]): Promise<MediaPlan> => {
+
+  return customFetch<MediaPlan>(getSaveMediaFactUrl(planId,placementId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(mediaFactInput)
+  }
+);}
+
+
+
+
+
+export const getSaveMediaFactMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMediaFact>>, TError,{planId: string;placementId: string;data: BodyType<MediaFactInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveMediaFact>>, TError,{planId: string;placementId: string;data: BodyType<MediaFactInput>}, TContext> => {
+
+const mutationKey = ['saveMediaFact'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveMediaFact>>, {planId: string;placementId: string;data: BodyType<MediaFactInput>}> = (props) => {
+          const {planId,placementId,data} = props ?? {};
+
+          return  saveMediaFact(planId,placementId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveMediaFactMutationResult = NonNullable<Awaited<ReturnType<typeof saveMediaFact>>>
+    export type SaveMediaFactMutationBody = BodyType<MediaFactInput>
+    export type SaveMediaFactMutationError = ErrorType<void>
+
+    /**
+ * @summary Record what a placement delivered, from the platform's report
+ */
+export const useSaveMediaFact = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMediaFact>>, TError,{planId: string;placementId: string;data: BodyType<MediaFactInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveMediaFact>>,
+        TError,
+        {planId: string;placementId: string;data: BodyType<MediaFactInput>},
+        TContext
+      > => {
+      return useMutation(getSaveMediaFactMutationOptions(options));
+    }
 
 export const getGetExternalMediaUrl = () => {
 

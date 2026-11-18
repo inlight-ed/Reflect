@@ -86,3 +86,18 @@ export async function parseFile(file: File): Promise<RawSheet[]> {
   const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
   return workbook.SheetNames.map((name) => ({ sheet: name, rows: sheetRows(XLSX, workbook.Sheets[name]) })).filter((sheet) => sheet.rows.length > 0);
 }
+
+export type RawMatrix = { sheet: string; matrix: unknown[][] };
+
+/**
+ * Every sheet as a plain grid, title rows and section rows included. Media plans are laid out
+ * for people (titles, merged section headers, totals), so they are read as a grid, not a table.
+ */
+export async function parseMatrices(file: File): Promise<RawMatrix[]> {
+  assertImportable(file);
+  const extension = fileExtension(file.name);
+  if (extension === 'csv' || extension === 'txt') return [{ sheet: file.name, matrix: parseCsv(await file.text()) }];
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+  return workbook.SheetNames.map((name) => ({ sheet: name, matrix: XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[name]!, { header: 1, defval: '', raw: true }) }));
+}

@@ -18,6 +18,8 @@ tags:
     description: Connected services
   - name: intelligence
     description: Reflect demo intelligence
+  - name: media
+    description: Agency media plans, plan against fact
 paths:
   /healthz:
     get:
@@ -355,6 +357,72 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProductsOverview"
+  /media-plans:
+    get:
+      operationId: getMediaPlans
+      tags: [media]
+      summary: The agency's media plans and how platforms compare across them
+      responses:
+        "200":
+          description: Plans and platform comparison
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaPlansOverview" }
+        "401": { description: Sign in required }
+    post:
+      operationId: createMediaPlan
+      tags: [media]
+      summary: Save a media plan read from the agency's file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MediaPlanInput" }
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaPlan" }
+        "400": { description: Invalid plan }
+        "401": { description: Sign in required }
+  /media-plans/{planId}:
+    get:
+      operationId: getMediaPlan
+      tags: [media]
+      summary: One media plan, its checks and plan against fact
+      parameters:
+        - { in: path, name: planId, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaPlan" }
+        "401": { description: Sign in required }
+        "404": { description: Not found }
+  /media-plans/{planId}/placements/{placementId}/fact:
+    put:
+      operationId: saveMediaFact
+      tags: [media]
+      summary: Record what a placement delivered, from the platform's report
+      parameters:
+        - { in: path, name: planId, required: true, schema: { type: string } }
+        - { in: path, name: placementId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MediaFactInput" }
+      responses:
+        "200":
+          description: The plan, recalculated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaPlan" }
+        "400": { description: Invalid values }
+        "401": { description: Sign in required }
+        "404": { description: Not found }
   /shift-market/external-media:
     get:
       operationId: getExternalMedia
@@ -752,6 +820,162 @@ components:
           description: Cost parts that are not known, so the profit is partly an estimate
           items: { type: string, enum: [COST, COMMISSION, LOGISTICS] }
         kaspiCode: { type: [string, "null"] }
+    MediaPlacementInput:
+      type: object
+      required: [variant, platform, format]
+      properties:
+        variant: { type: string, minLength: 1, maxLength: 200 }
+        platform: { type: string, minLength: 1, maxLength: 200 }
+        format: { type: string, minLength: 1, maxLength: 300 }
+        mechanic: { type: [string, "null"], maxLength: 500 }
+        buyType: { type: [string, "null"], maxLength: 100 }
+        period: { type: [string, "null"], maxLength: 100 }
+        cost: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        planImpressions: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        planReach: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        planClicks: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        planCtr: { type: [number, "null"], minimum: 0, maximum: 1 }
+        expectedEffect: { type: [string, "null"], maxLength: 500 }
+    MediaDeclaredTotal:
+      type: object
+      required: [variant]
+      properties:
+        variant: { type: string, maxLength: 200 }
+        cost: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        impressions: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        clicks: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+    MediaPlanInput:
+      type: object
+      required: [client, title, placements]
+      properties:
+        client: { type: string, minLength: 1, maxLength: 120 }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        fileName: { type: [string, "null"], maxLength: 300 }
+        placements:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: { $ref: "#/components/schemas/MediaPlacementInput" }
+        declaredTotals:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/MediaDeclaredTotal" }
+    MediaFactInput:
+      type: object
+      properties:
+        factCost: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        factImpressions: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        factReach: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+        factClicks: { type: [number, "null"], minimum: 0, maximum: 100000000000 }
+    MediaCheck:
+      type: object
+      required: [type, variant]
+      properties:
+        type: { type: string, enum: [TOTAL_MISMATCH, CTR_MISMATCH, MISSING_FORECAST, REACH_ABOVE_IMPRESSIONS] }
+        variant: { type: string }
+        placementId: { type: string }
+        field: { type: string, enum: [cost, impressions, clicks] }
+        declared: { type: number }
+        computed: { type: number }
+        label: { type: string, description: "Platform and format of the placement concerned" }
+    MediaPlacement:
+      type: object
+      required: [id, variant, platform, format, position]
+      properties:
+        id: { type: string }
+        position: { type: integer }
+        variant: { type: string }
+        platform: { type: string }
+        format: { type: string }
+        mechanic: { type: [string, "null"] }
+        buyType: { type: [string, "null"] }
+        period: { type: [string, "null"] }
+        cost: { type: [number, "null"] }
+        planImpressions: { type: [number, "null"] }
+        planReach: { type: [number, "null"] }
+        planClicks: { type: [number, "null"] }
+        planCtr: { type: [number, "null"] }
+        expectedEffect: { type: [string, "null"] }
+        planCpm: { type: [number, "null"], description: "Cost per thousand planned impressions" }
+        planCpc: { type: [number, "null"] }
+        factCost: { type: [number, "null"] }
+        factImpressions: { type: [number, "null"] }
+        factReach: { type: [number, "null"] }
+        factClicks: { type: [number, "null"] }
+        factCtr: { type: [number, "null"] }
+        delivery: { type: [number, "null"], description: "Delivered impressions as a share of planned, 1 = 100 %" }
+        effectiveCpm: { type: [number, "null"], description: "What a thousand delivered impressions really cost" }
+        effectiveCpc: { type: [number, "null"] }
+    MediaVariantSummary:
+      type: object
+      required: [variant, placements, cost, planImpressions, planClicks, factImpressions, factClicks, withFact]
+      properties:
+        variant: { type: string }
+        placements: { type: integer }
+        cost: { type: number }
+        planImpressions: { type: number }
+        planClicks: { type: number }
+        planCpm: { type: [number, "null"] }
+        factImpressions: { type: number }
+        factClicks: { type: number }
+        withFact: { type: integer, description: "Placements with a reported fact" }
+        delivery: { type: [number, "null"] }
+        effectiveCpm: { type: [number, "null"] }
+    MediaPlan:
+      type: object
+      required: [id, client, title, createdAt, placements, variants, checks]
+      properties:
+        id: { type: string }
+        client: { type: string }
+        title: { type: string }
+        fileName: { type: [string, "null"] }
+        createdAt: { type: string }
+        placements:
+          type: array
+          items: { $ref: "#/components/schemas/MediaPlacement" }
+        variants:
+          type: array
+          items: { $ref: "#/components/schemas/MediaVariantSummary" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/MediaCheck" }
+    MediaPlanListItem:
+      type: object
+      required: [id, client, title, createdAt, variants, placements, checks, withFact]
+      properties:
+        id: { type: string }
+        client: { type: string }
+        title: { type: string }
+        createdAt: { type: string }
+        variants:
+          type: array
+          items: { $ref: "#/components/schemas/MediaVariantSummary" }
+        placements: { type: integer }
+        checks: { type: integer }
+        withFact: { type: integer }
+    MediaBenchmark:
+      type: object
+      required: [platform, format, placements, plans, clients]
+      properties:
+        platform: { type: string }
+        format: { type: string }
+        buyType: { type: [string, "null"] }
+        placements: { type: integer }
+        plans: { type: integer }
+        clients: { type: integer }
+        planCpm: { type: [number, "null"], description: "Median planned cost per thousand impressions" }
+        effectiveCpm: { type: [number, "null"], description: "Median delivered cost per thousand impressions, where a fact exists" }
+        delivery: { type: [number, "null"], description: "Median delivery against plan" }
+    MediaPlansOverview:
+      type: object
+      required: [plans, benchmarks]
+      properties:
+        plans:
+          type: array
+          items: { $ref: "#/components/schemas/MediaPlanListItem" }
+        benchmarks:
+          type: array
+          items: { $ref: "#/components/schemas/MediaBenchmark" }
     AttentionItem:
       type: object
       required: [key, type, severity, params, impactAmount]

@@ -18,6 +18,7 @@ import OverviewPage from '@/pages/overview';
 const AdvertisingPage = lazy(() => import('@/pages/advertising'));
 const ProductsPage = lazy(() => import('@/pages/products'));
 const AttentionPage = lazy(() => import('@/pages/attention'));
+const MediaPlansPage = lazy(() => import('@/pages/media-plans'));
 const ExternalMediaPage = lazy(() => import('@/pages/external-media'));
 const CompetitorsPage = lazy(() => import('@/pages/competitors'));
 const ContentPage = lazy(() => import('@/pages/content'));
@@ -70,6 +71,8 @@ function AppRoutes() {
     <Route path="/advertising" component={AdvertisingPage} />
     <Route path="/products" component={ProductsPage} />
     <Route path="/attention" component={AttentionPage} />
+    <Route path="/media-plans" component={MediaPlansPage} />
+    <Route path="/media-plans/:planId" component={MediaPlansPage} />
     <Route path="/external-media" component={ExternalMediaPage} />
     <Route path="/competitors" component={CompetitorsPage} />
     <Route path="/content" component={ContentPage} />

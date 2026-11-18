@@ -129,13 +129,15 @@ export const GetSessionResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 }).optional(),
   "workspaces": zod.array(zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 })).optional(),
   "accountsEnabled": zod.boolean(),
   "hasData": zod.boolean(),
@@ -859,7 +861,8 @@ export const GetWorkspacesResponseItem = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 })
 export const GetWorkspacesResponse = zod.array(GetWorkspacesResponseItem)
 
@@ -880,7 +883,8 @@ export const CreateWorkspaceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 })
 
 
@@ -895,7 +899,8 @@ export const OpenWorkspaceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 })
 
 
@@ -914,7 +919,8 @@ export const RenameWorkspaceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 })
 
 
@@ -926,6 +932,7 @@ export const GetWorkspaceMembersResponseItem = zod.object({
   "email": zod.string(),
   "name": zod.string().nullish(),
   "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "clientIds": zod.array(zod.string()).nullable().describe('Clients this member sees; null means all of them'),
   "joinedAt": zod.string()
 })
 export const GetWorkspaceMembersResponse = zod.array(GetWorkspaceMembersResponseItem)
@@ -956,15 +963,43 @@ export const RemoveWorkspaceMemberResponse = zod.void()
 
 
 /**
- * @summary Create a one-time invitation link (owner only)
+ * @summary Limit a member of an agency to some clients, or give them all clients again (owner only)
  */
+export const SetWorkspaceMemberClientsParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const setWorkspaceMemberClientsBodyClientIdsItemMax = 80;
+
+export const setWorkspaceMemberClientsBodyClientIdsMax = 200;
+
+
+
+export const SetWorkspaceMemberClientsBody = zod.object({
+  "clientIds": zod.array(zod.string().max(setWorkspaceMemberClientsBodyClientIdsItemMax)).max(setWorkspaceMemberClientsBodyClientIdsMax).nullable().describe('Agency clients the member may see (an empty list means none); null gives all clients.')
+})
+
+export const SetWorkspaceMemberClientsResponse = zod.void()
+
+
+/**
+ * @summary Create a one-time invitation link (owner only), optionally limited to some clients of an agency
+ */
+export const createWorkspaceInviteBodyClientIdsItemMax = 80;
+
+export const createWorkspaceInviteBodyClientIdsMax = 200;
+
+
+
 export const CreateWorkspaceInviteBody = zod.object({
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "clientIds": zod.array(zod.string().max(createWorkspaceInviteBodyClientIdsItemMax)).max(createWorkspaceInviteBodyClientIdsMax).nullish().describe('Agency clients the invited person will see; leave out or null for all clients. Not for owners.')
 })
 
 export const CreateWorkspaceInviteResponse = zod.object({
   "token": zod.string(),
   "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "clientIds": zod.array(zod.string()).nullish(),
   "expiresAt": zod.string()
 })
 
@@ -983,7 +1018,8 @@ export const GetInviteParams = zod.object({
 export const GetInviteResponse = zod.object({
   "name": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('The link gives access to some clients only')
 })
 
 
@@ -1002,7 +1038,8 @@ export const AcceptInviteResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['SHOP', 'AGENCY']),
   "name": zod.string(),
-  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "restricted": zod.boolean().describe('True when the person sees only the clients given to them')
 })
 
 

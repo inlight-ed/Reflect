@@ -10,5 +10,7 @@ import type { WorkspaceInviteRole } from './workspaceInviteRole';
 export interface WorkspaceInvite {
   token: string;
   role: WorkspaceInviteRole;
+  /** @nullable */
+  clientIds?: string[] | null;
   expiresAt: string;
 }

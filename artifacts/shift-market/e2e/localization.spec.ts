@@ -480,3 +480,61 @@ test('agency: one sign-in, an agency next to the shop, and a viewer invited by l
   await expect(page.getByTestId(`member-agency-viewer-${stamp}@example.kz`)).toContainText('Наблюдатель');
   await context.close();
 });
+
+test('agency: a brand representative invited to one client sees that client only', async ({ page, browser }) => {
+  const stamp = Date.now();
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`limited-owner-${stamp}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('workspace-create-agency').click();
+  await page.getByTestId('workspace-new-name').fill(`Okori ${stamp}`);
+  await page.getByTestId('workspace-create-submit').click();
+  await expect(page.getByTestId('workspace-name')).toHaveText(`Okori ${stamp}`);
+
+  // Two clients, one plan each.
+  for (const client of ["L'Oréal", 'LG']) {
+    await page.getByTestId('media-file').setInputFiles(new URL('./fixtures/media-plan.xlsx', import.meta.url).pathname);
+    await page.getByTestId('media-client').fill(client);
+    await page.getByTestId('media-save').click();
+    await expect(page.getByTestId('media-plan-list')).toContainText(client);
+  }
+
+  // The link gives the guest L'Oréal only.
+  await page.goto('/settings');
+  await page.getByTestId('invite-role').selectOption('VIEWER');
+  await page.getByTestId('invite-clients-some').check();
+  await page.getByTestId("invite-clients-client-L'Oréal").check();
+  await page.getByTestId('invite-create').click();
+  const link = await page.getByTestId('invite-url').inputValue();
+
+  const context = await browser.newContext();
+  const guest = await context.newPage();
+  await guest.goto(link);
+  await guest.getByTestId('invite-register').click();
+  await guest.getByTestId('input-email').fill(`limited-brand-${stamp}@example.kz`);
+  await guest.getByTestId('input-password').fill('password-123');
+  await guest.getByTestId('button-auth-submit').click();
+  await guest.getByTestId('invite-accept').click();
+  await expect(guest.getByTestId('workspace-name')).toHaveText(`Okori ${stamp}`);
+
+  // Workspace-wide pages are closed: the guest lands in media plans, which show their client only.
+  await guest.goto('/overview');
+  await expect(guest).toHaveURL(/\/media-plans$/);
+  await expect(guest.getByTestId('media-plan-list')).toContainText("L'Oréal");
+  await expect(guest.getByTestId('media-plan-list')).not.toContainText('LG');
+  await expect(guest.getByTestId('link-nav-обзор')).toHaveCount(0);
+
+  // The owner sees what the guest was given, and can change it.
+  await page.reload();
+  const summary = page.getByTestId(`member-clients-limited-brand-${stamp}@example.kz-summary`);
+  await expect(summary).toContainText('1 из 2');
+  await page.getByTestId(`member-clients-limited-brand-${stamp}@example.kz-edit`).click();
+  await page.getByTestId(`member-clients-limited-brand-${stamp}@example.kz-picker-all`).check();
+  await page.getByTestId(`member-clients-limited-brand-${stamp}@example.kz-save`).click();
+  await expect(summary).toContainText('Все клиенты');
+  await guest.goto('/media-plans');
+  await expect(guest.getByTestId('media-plan-list')).toContainText('LG');
+  await context.close();
+});

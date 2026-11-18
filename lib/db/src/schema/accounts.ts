@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /** One account per person. Email is stored lower-cased. Data belongs to workspaces, not to people. */
 export const usersTable = pgTable("users", {
@@ -21,13 +21,29 @@ export const workspacesTable = pgTable("workspaces", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** OWNER manages members, MEMBER reads and writes data, VIEWER only reads. */
+/**
+ * OWNER manages members, MEMBER reads and writes data, VIEWER only reads. In an agency a MEMBER or
+ * VIEWER can be limited to some clients: `allClients = false` means only the clients listed in
+ * workspace_member_clients (none listed = nothing visible). Owners always see everything.
+ */
 export const workspaceMembersTable = pgTable("workspace_members", {
   workspaceId: text("workspace_id").notNull().references(() => workspacesTable.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   role: text("role").notNull(),
+  allClients: boolean("all_clients").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [primaryKey({ columns: [table.workspaceId, table.userId] }), index("workspace_members_user_idx").on(table.userId)]);
+
+/** The clients a limited member may see. Deleting the member or the client removes the row. */
+export const workspaceMemberClientsTable = pgTable("workspace_member_clients", {
+  workspaceId: text("workspace_id").notNull(),
+  userId: text("user_id").notNull(),
+  clientId: text("client_id").notNull().references(() => clientsTable.id, { onDelete: "cascade" }),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.userId, table.clientId] }),
+  foreignKey({ columns: [table.workspaceId, table.userId], foreignColumns: [workspaceMembersTable.workspaceId, workspaceMembersTable.userId], name: "workspace_member_clients_member_fk" }).onDelete("cascade"),
+  index("workspace_member_clients_client_idx").on(table.clientId),
+]);
 
 /**
  * Invitation links. The owner sends the link himself, so nothing reveals whether an email has an
@@ -37,12 +53,19 @@ export const workspaceInvitesTable = pgTable("workspace_invites", {
   tokenHash: text("token_hash").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspacesTable.id, { onDelete: "cascade" }),
   role: text("role").notNull(),
+  /** false: the person who accepts sees only the clients in workspace_invite_clients. */
+  allClients: boolean("all_clients").notNull().default(true),
   createdBy: text("created_by").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
   usedBy: text("used_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("workspace_invites_workspace_idx").on(table.workspaceId)]);
+
+export const workspaceInviteClientsTable = pgTable("workspace_invite_clients", {
+  tokenHash: text("token_hash").notNull().references(() => workspaceInvitesTable.tokenHash, { onDelete: "cascade" }),
+  clientId: text("client_id").notNull().references(() => clientsTable.id, { onDelete: "cascade" }),
+}, (table) => [primaryKey({ columns: [table.tokenHash, table.clientId] })]);
 
 /** An agency's client (a brand). Media plans belong to a client. */
 export const clientsTable = pgTable("clients", {

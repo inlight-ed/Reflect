@@ -16,6 +16,7 @@ export const media: Catalog = {
   "media.saving": ["Сохраняю…", "Сақталуда…", "Saving…"],
   "media.notAPlan": ["В файле не нашлось таблицы с колонками «Площадка», «Формат» и «Стоимость».", "Файлда «Алаң», «Формат» және «Құны» бағандары бар кесте табылмады.", "No table with Platform, Format and Cost columns was found in the file."],
   "media.readError": ["Не удалось прочитать файл.", "Файлды оқу мүмкін болмады.", "Could not read the file."],
+  "media.limitedError": ["Этого клиента нет среди ваших. Планы можно добавлять только тем клиентам, к которым у вас есть доступ.", "Бұл клиент сіздің тізімде жоқ. Жоспарларды тек өзіңізге қолжетімді клиенттерге қосуға болады.", "This client is not one of yours. You can add plans only to clients you were given."],
   "media.saveError": ["Не удалось сохранить план. Попробуйте ещё раз.", "Жоспарды сақтау мүмкін болмады. Қайталап көріңіз.", "Could not save the plan. Try again."],
   "media.plans": ["Планы", "Жоспарлар", "Plans"],
   "media.summary": ["вариантов: {variants} · размещений: {placements}", "нұсқалар: {variants} · орналастырулар: {placements}", "variants: {variants} · placements: {placements}"],

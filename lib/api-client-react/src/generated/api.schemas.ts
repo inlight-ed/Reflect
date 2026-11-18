@@ -1222,6 +1222,8 @@ export interface Workspace {
   kind: WorkspaceKind;
   name: string;
   role: WorkspaceRole;
+  /** True when the person sees only the clients given to them */
+  restricted: boolean;
 }
 
 export type WorkspaceInputKind = typeof WorkspaceInputKind[keyof typeof WorkspaceInputKind];
@@ -1262,6 +1264,36 @@ export interface RoleInput {
   role: RoleInputRole;
 }
 
+export type InviteInputRole = typeof InviteInputRole[keyof typeof InviteInputRole];
+
+
+export const InviteInputRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+} as const;
+
+export interface InviteInput {
+  role: InviteInputRole;
+  /**
+     * Agency clients the invited person will see; leave out or null for all clients. Not for owners.
+     * @maxItems 200
+     * @nullable
+     * @items.maxLength 80
+     */
+  clientIds?: string[] | null;
+}
+
+export interface MemberClientsInput {
+  /**
+     * Agency clients the member may see (an empty list means none); null gives all clients.
+     * @maxItems 200
+     * @nullable
+     * @items.maxLength 80
+     */
+  clientIds: string[] | null;
+}
+
 export type WorkspaceMemberRole = typeof WorkspaceMemberRole[keyof typeof WorkspaceMemberRole];
 
 
@@ -1277,6 +1309,11 @@ export interface WorkspaceMember {
   /** @nullable */
   name?: string | null;
   role: WorkspaceMemberRole;
+  /**
+     * Clients this member sees; null means all of them
+     * @nullable
+     */
+  clientIds: string[] | null;
   joinedAt: string;
 }
 
@@ -1292,6 +1329,8 @@ export const WorkspaceInviteRole = {
 export interface WorkspaceInvite {
   token: string;
   role: WorkspaceInviteRole;
+  /** @nullable */
+  clientIds?: string[] | null;
   expiresAt: string;
 }
 
@@ -1316,6 +1355,8 @@ export interface InvitePreview {
   name: string;
   kind: InvitePreviewKind;
   role: InvitePreviewRole;
+  /** The link gives access to some clients only */
+  restricted: boolean;
 }
 
 export interface Client {

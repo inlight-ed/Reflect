@@ -56,6 +56,7 @@ import type {
   ImportResult,
   IntegrationStatus,
   IntegrationsOverview,
+  InviteInput,
   InvitePreview,
   KaspiConnectionInput,
   LoginInput,
@@ -63,6 +64,7 @@ import type {
   MediaPlan,
   MediaPlanInput,
   MediaPlansOverview,
+  MemberClientsInput,
   NameInput,
   OkResponse,
   PasswordResetInput,
@@ -2348,6 +2350,78 @@ export const useRemoveWorkspaceMember = <TError = ErrorType<void>,
       return useMutation(getRemoveWorkspaceMemberMutationOptions(options));
     }
 
+export const getSetWorkspaceMemberClientsUrl = (userId: string,) => {
+
+
+
+
+  return `/api/workspace/members/${userId}/clients`
+}
+
+/**
+ * @summary Limit a member of an agency to some clients, or give them all clients again (owner only)
+ */
+export const setWorkspaceMemberClients = async (userId: string,
+    memberClientsInput: MemberClientsInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getSetWorkspaceMemberClientsUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(memberClientsInput)
+  }
+);}
+
+
+
+
+
+export const getSetWorkspaceMemberClientsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkspaceMemberClients>>, TError,{userId: string;data: BodyType<MemberClientsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setWorkspaceMemberClients>>, TError,{userId: string;data: BodyType<MemberClientsInput>}, TContext> => {
+
+const mutationKey = ['setWorkspaceMemberClients'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setWorkspaceMemberClients>>, {userId: string;data: BodyType<MemberClientsInput>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  setWorkspaceMemberClients(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetWorkspaceMemberClientsMutationResult = NonNullable<Awaited<ReturnType<typeof setWorkspaceMemberClients>>>
+    export type SetWorkspaceMemberClientsMutationBody = BodyType<MemberClientsInput>
+    export type SetWorkspaceMemberClientsMutationError = ErrorType<void>
+
+    /**
+ * @summary Limit a member of an agency to some clients, or give them all clients again (owner only)
+ */
+export const useSetWorkspaceMemberClients = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkspaceMemberClients>>, TError,{userId: string;data: BodyType<MemberClientsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setWorkspaceMemberClients>>,
+        TError,
+        {userId: string;data: BodyType<MemberClientsInput>},
+        TContext
+      > => {
+      return useMutation(getSetWorkspaceMemberClientsMutationOptions(options));
+    }
+
 export const getCreateWorkspaceInviteUrl = () => {
 
 
@@ -2357,16 +2431,16 @@ export const getCreateWorkspaceInviteUrl = () => {
 }
 
 /**
- * @summary Create a one-time invitation link (owner only)
+ * @summary Create a one-time invitation link (owner only), optionally limited to some clients of an agency
  */
-export const createWorkspaceInvite = async (roleInput: RoleInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceInvite> => {
+export const createWorkspaceInvite = async (inviteInput: InviteInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceInvite> => {
 
   return customFetch<WorkspaceInvite>(getCreateWorkspaceInviteUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(roleInput)
+    body: JSON.stringify(inviteInput)
   }
 );}
 
@@ -2375,8 +2449,8 @@ export const createWorkspaceInvite = async (roleInput: RoleInput, options?: Para
 
 
 export const getCreateWorkspaceInviteMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<RoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<RoleInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<InviteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<InviteInput>}, TContext> => {
 
 const mutationKey = ['createWorkspaceInvite'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2388,7 +2462,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkspaceInvite>>, {data: BodyType<RoleInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkspaceInvite>>, {data: BodyType<InviteInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createWorkspaceInvite(data,requestOptions)
@@ -2402,18 +2476,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateWorkspaceInviteMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkspaceInvite>>>
-    export type CreateWorkspaceInviteMutationBody = BodyType<RoleInput>
+    export type CreateWorkspaceInviteMutationBody = BodyType<InviteInput>
     export type CreateWorkspaceInviteMutationError = ErrorType<void>
 
     /**
- * @summary Create a one-time invitation link (owner only)
+ * @summary Create a one-time invitation link (owner only), optionally limited to some clients of an agency
  */
 export const useCreateWorkspaceInvite = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<RoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<InviteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createWorkspaceInvite>>,
         TError,
-        {data: BodyType<RoleInput>},
+        {data: BodyType<InviteInput>},
         TContext
       > => {
       return useMutation(getCreateWorkspaceInviteMutationOptions(options));

@@ -13,4 +13,6 @@ export interface Workspace {
   kind: WorkspaceKind;
   name: string;
   role: WorkspaceRole;
+  /** True when the person sees only the clients given to them */
+  restricted: boolean;
 }

@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
-import { CreateWorkspaceBody, CreateClientBody, RenameClientBody, RenameWorkspaceBody, CreateWorkspaceInviteBody, SetWorkspaceMemberRoleBody } from "@workspace/api-zod";
+import { CreateWorkspaceBody, CreateClientBody, RenameClientBody, RenameWorkspaceBody, CreateWorkspaceInviteBody, SetWorkspaceMemberRoleBody, SetWorkspaceMemberClientsBody } from "@workspace/api-zod";
 import { requireUser } from "../lib/auth";
 import {
   acceptInvite,
@@ -13,9 +13,10 @@ import {
   removeMember,
   renameClient,
   renameWorkspace,
-  requireEditor,
+  requireAllClients,
   requireOwner,
   requireWorkspace,
+  setMemberClients,
   setMemberRole,
   switchWorkspace,
   WorkspaceError,
@@ -33,7 +34,7 @@ const inviteLimit = rateLimit({ name: "invites", windowMs: 15 * 60_000, max: 30,
 
 function workspaceError(res: Response, error: unknown) {
   if (!(error instanceof WorkspaceError)) throw error;
-  const status = { NOT_FOUND: 404, FORBIDDEN: 403, INVALID_NAME: 400, TOO_MANY: 400, INVALID_INVITE: 404, LAST_OWNER: 409, NOT_AGENCY: 409 }[error.code];
+  const status = { NOT_FOUND: 404, FORBIDDEN: 403, INVALID_NAME: 400, TOO_MANY: 400, INVALID_INVITE: 404, LAST_OWNER: 409, NOT_AGENCY: 409, INVALID_SCOPE: 400 }[error.code];
   res.status(status).json({ error: error.code });
 }
 
@@ -82,7 +83,8 @@ router.patch("/workspace", requireOwner, writeLimit, async (req, res) => {
 });
 
 router.get("/workspace/members", requireWorkspace, async (req, res) => {
-  res.json(await listMembers(req.workspace!.id));
+  // A limited member sees only themselves: the other members' emails are not theirs to read.
+  res.json(await listMembers(req.workspace!.id, req.workspace!.clientIds === null ? undefined : req.user!.id));
 });
 
 router.put("/workspace/members/:userId", requireOwner, writeLimit, async (req, res) => {
@@ -114,6 +116,20 @@ router.delete("/workspace/members/:userId", requireWorkspace, writeLimit, async 
   }
 });
 
+router.put("/workspace/members/:userId/clients", requireOwner, writeLimit, async (req, res) => {
+  const parsed = SetWorkspaceMemberClientsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "INVALID_SCOPE" });
+    return;
+  }
+  try {
+    await setMemberClients(req.workspace!.id, String(req.params.userId), parsed.data.clientIds);
+    res.status(204).end();
+  } catch (error) {
+    workspaceError(res, error);
+  }
+});
+
 router.post("/workspace/invites", requireOwner, inviteLimit, async (req, res) => {
   const parsed = CreateWorkspaceInviteBody.safeParse(req.body);
   if (!parsed.success) {
@@ -121,7 +137,7 @@ router.post("/workspace/invites", requireOwner, inviteLimit, async (req, res) =>
     return;
   }
   try {
-    res.status(201).json(await createInvite(req.workspace!.id, req.user!.id, parsed.data.role));
+    res.status(201).json(await createInvite(req.workspace!.id, req.user!.id, parsed.data.role, parsed.data.clientIds));
   } catch (error) {
     workspaceError(res, error);
   }
@@ -145,10 +161,10 @@ router.post("/invites/:token/accept", requireUser, inviteLimit, async (req, res)
 });
 
 router.get("/clients", requireWorkspace, async (req, res) => {
-  res.json(await listClients(req.workspace!.id));
+  res.json(await listClients(req.workspace!.id, req.workspace!.clientIds));
 });
 
-router.post("/clients", requireEditor, writeLimit, async (req, res) => {
+router.post("/clients", requireAllClients, writeLimit, async (req, res) => {
   const parsed = CreateClientBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "INVALID_NAME" });
@@ -156,13 +172,13 @@ router.post("/clients", requireEditor, writeLimit, async (req, res) => {
   }
   try {
     const { id } = await createClient(req.workspace!.id, parsed.data.name);
-    res.status(201).json((await listClients(req.workspace!.id)).find((client) => client.id === id));
+    res.status(201).json((await listClients(req.workspace!.id, null)).find((client) => client.id === id));
   } catch (error) {
     workspaceError(res, error);
   }
 });
 
-router.patch("/clients/:clientId", requireEditor, writeLimit, async (req, res) => {
+router.patch("/clients/:clientId", requireAllClients, writeLimit, async (req, res) => {
   const parsed = RenameClientBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "INVALID_NAME" });
@@ -170,7 +186,7 @@ router.patch("/clients/:clientId", requireEditor, writeLimit, async (req, res) =
   }
   try {
     const { id } = await renameClient(req.workspace!.id, String(req.params.clientId), parsed.data.name);
-    res.json((await listClients(req.workspace!.id)).find((client) => client.id === id));
+    res.json((await listClients(req.workspace!.id, null)).find((client) => client.id === id));
   } catch (error) {
     workspaceError(res, error);
   }

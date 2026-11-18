@@ -12,4 +12,6 @@ export interface InvitePreview {
   name: string;
   kind: InvitePreviewKind;
   role: InvitePreviewRole;
+  /** The link gives access to some clients only */
+  restricted: boolean;
 }

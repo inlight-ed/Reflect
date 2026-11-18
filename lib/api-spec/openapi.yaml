@@ -461,23 +461,43 @@ paths:
         "403": { description: Owner only }
         "404": { description: Not a member }
         "409": { description: The workspace would be left without an owner }
-  /workspace/invites:
-    post:
-      operationId: createWorkspaceInvite
+  /workspace/members/{userId}/clients:
+    put:
+      operationId: setWorkspaceMemberClients
       tags: [workspaces]
-      summary: Create a one-time invitation link (owner only)
+      summary: Limit a member of an agency to some clients, or give them all clients again (owner only)
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/RoleInput" }
+            schema: { $ref: "#/components/schemas/MemberClientsInput" }
+      responses:
+        "204": { description: Changed }
+        "400": { description: "Not a client of this workspace, or the member is an owner" }
+        "403": { description: Owner only }
+        "404": { description: Not a member }
+        "409": { description: Only an agency can limit members to clients }
+  /workspace/invites:
+    post:
+      operationId: createWorkspaceInvite
+      tags: [workspaces]
+      summary: Create a one-time invitation link (owner only), optionally limited to some clients of an agency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InviteInput" }
       responses:
         "201":
           description: The link token; shown once
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WorkspaceInvite" }
+        "400": { description: "Invalid role, or clients that are not in this workspace" }
         "403": { description: Owner only }
+        "409": { description: Only an agency can limit an invitation to clients }
   /invites/{token}:
     get:
       operationId: getInvite
@@ -1593,12 +1613,13 @@ components:
         password: { type: string, minLength: 1, maxLength: 200 }
     Workspace:
       type: object
-      required: [id, kind, name, role]
+      required: [id, kind, name, role, restricted]
       properties:
         id: { type: string }
         kind: { type: string, enum: [SHOP, AGENCY] }
         name: { type: string }
         role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        restricted: { type: boolean, description: "True when the person sees only the clients given to them" }
     WorkspaceInput:
       type: object
       required: [kind, name]
@@ -1615,14 +1636,37 @@ components:
       required: [role]
       properties:
         role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+    InviteInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        clientIds:
+          type: [array, "null"]
+          maxItems: 200
+          items: { type: string, maxLength: 80 }
+          description: "Agency clients the invited person will see; leave out or null for all clients. Not for owners."
+    MemberClientsInput:
+      type: object
+      required: [clientIds]
+      properties:
+        clientIds:
+          type: [array, "null"]
+          maxItems: 200
+          items: { type: string, maxLength: 80 }
+          description: "Agency clients the member may see (an empty list means none); null gives all clients."
     WorkspaceMember:
       type: object
-      required: [userId, email, role, joinedAt]
+      required: [userId, email, role, joinedAt, clientIds]
       properties:
         userId: { type: string }
         email: { type: string }
         name: { type: [string, "null"] }
         role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        clientIds:
+          type: [array, "null"]
+          items: { type: string }
+          description: "Clients this member sees; null means all of them"
         joinedAt: { type: string }
     WorkspaceInvite:
       type: object
@@ -1630,14 +1674,16 @@ components:
       properties:
         token: { type: string }
         role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        clientIds: { type: [array, "null"], items: { type: string } }
         expiresAt: { type: string }
     InvitePreview:
       type: object
-      required: [name, kind, role]
+      required: [name, kind, role, restricted]
       properties:
         name: { type: string }
         kind: { type: string, enum: [SHOP, AGENCY] }
         role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        restricted: { type: boolean, description: "The link gives access to some clients only" }
     Client:
       type: object
       required: [id, name, createdAt, plans]

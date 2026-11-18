@@ -15,14 +15,14 @@ export type StoredIntegration = {
   lastSyncAt: Date | null;
 };
 
-export async function getIntegration(userId: string, kind: IntegrationKind): Promise<StoredIntegration | undefined> {
+export async function getIntegration(workspaceId: string, kind: IntegrationKind): Promise<StoredIntegration | undefined> {
   const { db, integrationsTable } = await database();
-  const [row] = await db.select().from(integrationsTable).where(and(eq(integrationsTable.userId, userId), eq(integrationsTable.kind, kind))).limit(1);
+  const [row] = await db.select().from(integrationsTable).where(and(eq(integrationsTable.workspaceId, workspaceId), eq(integrationsTable.kind, kind))).limit(1);
   if (!row) return undefined;
   const opened = row.secret ? openSecret(row.secret) : undefined;
   if (opened?.rotated) {
     // Encrypted with a previous key: re-encrypt with the current one.
-    await db.update(integrationsTable).set({ secret: encryptSecret(opened.plain) }).where(and(eq(integrationsTable.userId, userId), eq(integrationsTable.kind, kind)));
+    await db.update(integrationsTable).set({ secret: encryptSecret(opened.plain) }).where(and(eq(integrationsTable.workspaceId, workspaceId), eq(integrationsTable.kind, kind)));
   }
   return {
     kind,
@@ -35,10 +35,10 @@ export async function getIntegration(userId: string, kind: IntegrationKind): Pro
   };
 }
 
-export async function saveIntegration(userId: string, kind: IntegrationKind, values: { url?: string | null; secret?: string | null; status: IntegrationState; detail?: string | null; meta?: Record<string, unknown> | null; lastSyncAt?: Date | null }) {
+export async function saveIntegration(workspaceId: string, kind: IntegrationKind, values: { url?: string | null; secret?: string | null; status: IntegrationState; detail?: string | null; meta?: Record<string, unknown> | null; lastSyncAt?: Date | null }) {
   const { db, integrationsTable } = await database();
   const row = {
-    userId,
+    workspaceId,
     kind,
     url: values.url ?? null,
     secret: values.secret ? encryptSecret(values.secret) : null,
@@ -48,24 +48,24 @@ export async function saveIntegration(userId: string, kind: IntegrationKind, val
     lastSyncAt: values.lastSyncAt ?? null,
     updatedAt: new Date(),
   };
-  await db.insert(integrationsTable).values(row).onConflictDoUpdate({ target: [integrationsTable.userId, integrationsTable.kind], set: row });
+  await db.insert(integrationsTable).values(row).onConflictDoUpdate({ target: [integrationsTable.workspaceId, integrationsTable.kind], set: row });
 }
 
-export async function updateIntegrationStatus(userId: string, kind: IntegrationKind, status: IntegrationState, detail: string | null, extra: { meta?: Record<string, unknown>; lastSyncAt?: Date } = {}) {
+export async function updateIntegrationStatus(workspaceId: string, kind: IntegrationKind, status: IntegrationState, detail: string | null, extra: { meta?: Record<string, unknown>; lastSyncAt?: Date } = {}) {
   const { db, integrationsTable } = await database();
   await db.update(integrationsTable).set({ status, detail, updatedAt: new Date(), ...(extra.meta ? { meta: extra.meta } : {}), ...(extra.lastSyncAt ? { lastSyncAt: extra.lastSyncAt } : {}) })
-    .where(and(eq(integrationsTable.userId, userId), eq(integrationsTable.kind, kind)));
+    .where(and(eq(integrationsTable.workspaceId, workspaceId), eq(integrationsTable.kind, kind)));
 }
 
-export async function deleteIntegration(userId: string, kind: IntegrationKind) {
+export async function deleteIntegration(workspaceId: string, kind: IntegrationKind) {
   const { db, integrationsTable } = await database();
-  await db.delete(integrationsTable).where(and(eq(integrationsTable.userId, userId), eq(integrationsTable.kind, kind)));
+  await db.delete(integrationsTable).where(and(eq(integrationsTable.workspaceId, workspaceId), eq(integrationsTable.kind, kind)));
 }
 
 /** Public view: never includes the secret, only a short hint. */
-export async function listIntegrations(userId: string) {
+export async function listIntegrations(workspaceId: string) {
   const { db, integrationsTable } = await database();
-  const rows = await db.select().from(integrationsTable).where(eq(integrationsTable.userId, userId));
+  const rows = await db.select().from(integrationsTable).where(eq(integrationsTable.workspaceId, workspaceId));
   return rows.map((row) => {
     const secret = row.secret ? decryptSecret(row.secret) : undefined;
     return {

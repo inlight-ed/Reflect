@@ -125,6 +125,18 @@ export const GetSessionResponse = zod.object({
   "email": zod.string(),
   "name": zod.string().nullish()
 }).optional(),
+  "workspace": zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+}).optional(),
+  "workspaces": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})).optional(),
   "accountsEnabled": zod.boolean(),
   "hasData": zod.boolean(),
   "hasProducts": zod.boolean().optional(),
@@ -841,12 +853,229 @@ export const GetProductsResponse = zod.object({
 
 
 /**
- * @summary The agency's media plans and how platforms compare across them
+ * @summary Workspaces the person is a member of
  */
+export const GetWorkspacesResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+export const GetWorkspacesResponse = zod.array(GetWorkspacesResponseItem)
+
+
+/**
+ * @summary Create a shop or agency workspace and open it
+ */
+export const createWorkspaceBodyNameMax = 80;
+
+
+
+export const CreateWorkspaceBody = zod.object({
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string().min(1).max(createWorkspaceBodyNameMax)
+})
+
+export const CreateWorkspaceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+
+/**
+ * @summary Open another workspace in this session
+ */
+export const OpenWorkspaceParams = zod.object({
+  "workspaceId": zod.coerce.string()
+})
+
+export const OpenWorkspaceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+
+/**
+ * @summary Rename the open workspace (owner only)
+ */
+export const renameWorkspaceBodyNameMax = 80;
+
+
+
+export const RenameWorkspaceBody = zod.object({
+  "name": zod.string().min(1).max(renameWorkspaceBodyNameMax)
+})
+
+export const RenameWorkspaceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+
+/**
+ * @summary People in the open workspace
+ */
+export const GetWorkspaceMembersResponseItem = zod.object({
+  "userId": zod.string(),
+  "email": zod.string(),
+  "name": zod.string().nullish(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "joinedAt": zod.string()
+})
+export const GetWorkspaceMembersResponse = zod.array(GetWorkspaceMembersResponseItem)
+
+
+/**
+ * @summary Change a member's role (owner only)
+ */
+export const SetWorkspaceMemberRoleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const SetWorkspaceMemberRoleBody = zod.object({
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+export const SetWorkspaceMemberRoleResponse = zod.void()
+
+
+/**
+ * @summary Take a person out of the workspace (owner), or leave it (self). Data stays.
+ */
+export const RemoveWorkspaceMemberParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const RemoveWorkspaceMemberResponse = zod.void()
+
+
+/**
+ * @summary Create a one-time invitation link (owner only)
+ */
+export const CreateWorkspaceInviteBody = zod.object({
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+export const CreateWorkspaceInviteResponse = zod.object({
+  "token": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER']),
+  "expiresAt": zod.string()
+})
+
+
+/**
+ * @summary What an invitation link opens
+ */
+export const getInvitePathTokenMax = 100;
+
+
+
+export const GetInviteParams = zod.object({
+  "token": zod.coerce.string().max(getInvitePathTokenMax)
+})
+
+export const GetInviteResponse = zod.object({
+  "name": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+
+/**
+ * @summary Join the workspace of an invitation link and open it
+ */
+export const acceptInvitePathTokenMax = 100;
+
+
+
+export const AcceptInviteParams = zod.object({
+  "token": zod.coerce.string().max(acceptInvitePathTokenMax)
+})
+
+export const AcceptInviteResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['SHOP', 'AGENCY']),
+  "name": zod.string(),
+  "role": zod.enum(['OWNER', 'MEMBER', 'VIEWER'])
+})
+
+
+/**
+ * @summary Clients of the open workspace
+ */
+export const GetClientsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string(),
+  "plans": zod.int().describe('Media plans of this client')
+})
+export const GetClientsResponse = zod.array(GetClientsResponseItem)
+
+
+/**
+ * @summary Add a client (returns the existing one if the name is taken)
+ */
+export const createClientBodyNameMax = 80;
+
+
+
+export const CreateClientBody = zod.object({
+  "name": zod.string().min(1).max(createClientBodyNameMax)
+})
+
+export const CreateClientResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string(),
+  "plans": zod.int().describe('Media plans of this client')
+})
+
+
+/**
+ * @summary Rename a client
+ */
+export const RenameClientParams = zod.object({
+  "clientId": zod.coerce.string()
+})
+
+export const renameClientBodyNameMax = 80;
+
+
+
+export const RenameClientBody = zod.object({
+  "name": zod.string().min(1).max(renameClientBodyNameMax)
+})
+
+export const RenameClientResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string(),
+  "plans": zod.int().describe('Media plans of this client')
+})
+
+
+/**
+ * @summary The workspace's media plans (optionally of one client) and how platforms compare across all of them
+ */
+export const getMediaPlansQueryClientIdMax = 80;
+
+
+
+export const GetMediaPlansQueryParams = zod.object({
+  "clientId": zod.coerce.string().max(getMediaPlansQueryClientIdMax).optional()
+})
+
 export const GetMediaPlansResponse = zod.object({
   "plans": zod.array(zod.object({
   "id": zod.string(),
   "client": zod.string(),
+  "clientId": zod.string(),
   "title": zod.string(),
   "createdAt": zod.string(),
   "variants": zod.array(zod.object({
@@ -964,6 +1193,7 @@ export const CreateMediaPlanBody = zod.object({
 export const CreateMediaPlanResponse = zod.object({
   "id": zod.string(),
   "client": zod.string(),
+  "clientId": zod.string(),
   "title": zod.string(),
   "fileName": zod.string().nullish(),
   "createdAt": zod.string(),
@@ -1028,6 +1258,7 @@ export const GetMediaPlanParams = zod.object({
 export const GetMediaPlanResponse = zod.object({
   "id": zod.string(),
   "client": zod.string(),
+  "clientId": zod.string(),
   "title": zod.string(),
   "fileName": zod.string().nullish(),
   "createdAt": zod.string(),
@@ -1114,6 +1345,7 @@ export const SaveMediaFactBody = zod.object({
 export const SaveMediaFactResponse = zod.object({
   "id": zod.string(),
   "client": zod.string(),
+  "clientId": zod.string(),
   "title": zod.string(),
   "fileName": zod.string().nullish(),
   "createdAt": zod.string(),

@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 import { database, hasDatabase } from "./database";
 import { hitSharedCounter } from "../middlewares/rate-limit";
 import { hashPassword, newToken, sha256, timingDummyHash, verifyPassword } from "./security";
+import { insertWorkspace, resolveWorkspace } from "./workspaces";
 
 export type SessionUser = { id: string; email: string; name: string | null };
 
@@ -60,6 +61,9 @@ export function setSessionCookie(res: Response, token: string, expiresAt: Date) 
   });
 }
 
+/** "Анна" or, without a name, the part of the email before @. */
+export const personalWorkspaceName = (name: string | null, email: string) => name?.trim() || email.split("@")[0] || "Reflect";
+
 export async function register(emailInput: string, password: string, name?: string) {
   if (!hasDatabase()) throw new AuthError("ACCOUNTS_UNAVAILABLE");
   const email = normalizeEmail(emailInput);
@@ -69,9 +73,14 @@ export async function register(emailInput: string, password: string, name?: stri
   if (existing.length) throw new AuthError("EMAIL_TAKEN");
   const user = { id: randomUUID(), email, passwordHash: await hashPassword(password), name: name?.trim().slice(0, 80) || null };
   // Two sign-ups for the same email at once: the unique index decides and the loser inserts nothing.
-  const inserted = await db.insert(usersTable).values(user).onConflictDoNothing({ target: usersTable.email }).returning({ id: usersTable.id });
-  if (!inserted.length) throw new AuthError("EMAIL_TAKEN");
-  return { user: { id: user.id, email: user.email, name: user.name }, session: await createSession(user.id) };
+  // Every new account starts with its own shop workspace; an agency is created from the switcher.
+  const workspaceId = await db.transaction(async (tx) => {
+    const inserted = await tx.insert(usersTable).values(user).onConflictDoNothing({ target: usersTable.email }).returning({ id: usersTable.id });
+    if (!inserted.length) return undefined;
+    return insertWorkspace(tx, user.id, "SHOP", personalWorkspaceName(user.name, email));
+  });
+  if (!workspaceId) throw new AuthError("EMAIL_TAKEN");
+  return { user: { id: user.id, email: user.email, name: user.name }, workspaceId, session: await createSession(user.id) };
 }
 
 export async function login(emailInput: string, password: string) {
@@ -117,13 +126,21 @@ export async function attachUser(req: Request, _res: Response, next: NextFunctio
   if (!token || !hasDatabase()) return next();
   try {
     const { db, sessionsTable, usersTable } = await database();
+    const sessionHash = sha256(token);
     const [row] = await db
-      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, workspaceId: sessionsTable.workspaceId })
       .from(sessionsTable)
       .innerJoin(usersTable, eq(usersTable.id, sessionsTable.userId))
-      .where(and(eq(sessionsTable.id, sha256(token)), gt(sessionsTable.expiresAt, new Date())))
+      .where(and(eq(sessionsTable.id, sessionHash), gt(sessionsTable.expiresAt, new Date())))
       .limit(1);
-    if (row) req.user = row;
+    if (row) {
+      // Resolved before anything is attached: a request is either fully signed in, with a
+      // workspace, or anonymous.
+      const workspace = await resolveWorkspace(row.id, row.workspaceId, personalWorkspaceName(row.name, row.email));
+      req.user = { id: row.id, email: row.email, name: row.name };
+      req.sessionHash = sessionHash;
+      req.workspace = workspace;
+    }
   } catch (err) {
     req.log?.warn({ err }, "Session lookup failed");
   }

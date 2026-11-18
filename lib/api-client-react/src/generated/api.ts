@@ -30,6 +30,7 @@ import type {
   CardAnalysis,
   CardEvent,
   CardEventInput,
+  Client,
   CompetitorsOverview,
   Connection,
   ConnectionInput,
@@ -48,26 +49,34 @@ import type {
   GetCompetitors400,
   GetCompetitorsParams,
   GetDashboardParams,
+  GetMediaPlansParams,
   GetProductsParams,
   HealthStatus,
   ImportInput,
   ImportResult,
   IntegrationStatus,
   IntegrationsOverview,
+  InvitePreview,
   KaspiConnectionInput,
   LoginInput,
   MediaFactInput,
   MediaPlan,
   MediaPlanInput,
   MediaPlansOverview,
+  NameInput,
   OkResponse,
   PasswordResetInput,
   PasswordResetRequest,
   ProductCostsInput,
   ProductsOverview,
   RegisterInput,
+  RoleInput,
   SessionState,
-  SyncRun
+  SyncRun,
+  Workspace,
+  WorkspaceInput,
+  WorkspaceInvite,
+  WorkspaceMember
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1829,20 +1838,20 @@ export function useGetProducts<TData = Awaited<ReturnType<typeof getProducts>>, 
 
 
 
-export const getGetMediaPlansUrl = () => {
+export const getGetWorkspacesUrl = () => {
 
 
 
 
-  return `/api/media-plans`
+  return `/api/workspaces`
 }
 
 /**
- * @summary The agency's media plans and how platforms compare across them
+ * @summary Workspaces the person is a member of
  */
-export const getMediaPlans = async ( options?: Parameters<typeof customFetch>[1]): Promise<MediaPlansOverview> => {
+export const getWorkspaces = async ( options?: Parameters<typeof customFetch>[1]): Promise<Workspace[]> => {
 
-  return customFetch<MediaPlansOverview>(getGetMediaPlansUrl(),
+  return customFetch<Workspace[]>(getGetWorkspacesUrl(),
   {
     ...options,
     method: 'GET'
@@ -1855,23 +1864,979 @@ export const getMediaPlans = async ( options?: Parameters<typeof customFetch>[1]
 
 
 
-export const getGetMediaPlansQueryKey = () => {
+export const getGetWorkspacesQueryKey = () => {
     return [
-    `/api/media-plans`
+    `/api/workspaces`
     ] as const;
     }
 
 
-export const getGetMediaPlansQueryOptions = <TData = Awaited<ReturnType<typeof getMediaPlans>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetWorkspacesQueryOptions = <TData = Awaited<ReturnType<typeof getWorkspaces>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkspaces>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMediaPlansQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkspacesQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaPlans>>> = ({ signal }) => getMediaPlans({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkspaces>>> = ({ signal }) => getWorkspaces({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkspaces>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkspacesQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkspaces>>>
+export type GetWorkspacesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Workspaces the person is a member of
+ */
+
+export function useGetWorkspaces<TData = Awaited<ReturnType<typeof getWorkspaces>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkspaces>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkspacesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateWorkspaceUrl = () => {
+
+
+
+
+  return `/api/workspaces`
+}
+
+/**
+ * @summary Create a shop or agency workspace and open it
+ */
+export const createWorkspace = async (workspaceInput: WorkspaceInput, options?: Parameters<typeof customFetch>[1]): Promise<Workspace> => {
+
+  return customFetch<Workspace>(getCreateWorkspaceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(workspaceInput)
+  }
+);}
+
+
+
+
+
+export const getCreateWorkspaceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspace>>, TError,{data: BodyType<WorkspaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkspace>>, TError,{data: BodyType<WorkspaceInput>}, TContext> => {
+
+const mutationKey = ['createWorkspace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkspace>>, {data: BodyType<WorkspaceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWorkspace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkspace>>>
+    export type CreateWorkspaceMutationBody = BodyType<WorkspaceInput>
+    export type CreateWorkspaceMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a shop or agency workspace and open it
+ */
+export const useCreateWorkspace = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspace>>, TError,{data: BodyType<WorkspaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWorkspace>>,
+        TError,
+        {data: BodyType<WorkspaceInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWorkspaceMutationOptions(options));
+    }
+
+export const getOpenWorkspaceUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/workspaces/${workspaceId}/open`
+}
+
+/**
+ * @summary Open another workspace in this session
+ */
+export const openWorkspace = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<Workspace> => {
+
+  return customFetch<Workspace>(getOpenWorkspaceUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getOpenWorkspaceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openWorkspace>>, TError,{workspaceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openWorkspace>>, TError,{workspaceId: string}, TContext> => {
+
+const mutationKey = ['openWorkspace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openWorkspace>>, {workspaceId: string}> = (props) => {
+          const {workspaceId} = props ?? {};
+
+          return  openWorkspace(workspaceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof openWorkspace>>>
+
+    export type OpenWorkspaceMutationError = ErrorType<void>
+
+    /**
+ * @summary Open another workspace in this session
+ */
+export const useOpenWorkspace = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openWorkspace>>, TError,{workspaceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openWorkspace>>,
+        TError,
+        {workspaceId: string},
+        TContext
+      > => {
+      return useMutation(getOpenWorkspaceMutationOptions(options));
+    }
+
+export const getRenameWorkspaceUrl = () => {
+
+
+
+
+  return `/api/workspace`
+}
+
+/**
+ * @summary Rename the open workspace (owner only)
+ */
+export const renameWorkspace = async (nameInput: NameInput, options?: Parameters<typeof customFetch>[1]): Promise<Workspace> => {
+
+  return customFetch<Workspace>(getRenameWorkspaceUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(nameInput)
+  }
+);}
+
+
+
+
+
+export const getRenameWorkspaceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameWorkspace>>, TError,{data: BodyType<NameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameWorkspace>>, TError,{data: BodyType<NameInput>}, TContext> => {
+
+const mutationKey = ['renameWorkspace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameWorkspace>>, {data: BodyType<NameInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  renameWorkspace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof renameWorkspace>>>
+    export type RenameWorkspaceMutationBody = BodyType<NameInput>
+    export type RenameWorkspaceMutationError = ErrorType<void>
+
+    /**
+ * @summary Rename the open workspace (owner only)
+ */
+export const useRenameWorkspace = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameWorkspace>>, TError,{data: BodyType<NameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameWorkspace>>,
+        TError,
+        {data: BodyType<NameInput>},
+        TContext
+      > => {
+      return useMutation(getRenameWorkspaceMutationOptions(options));
+    }
+
+export const getGetWorkspaceMembersUrl = () => {
+
+
+
+
+  return `/api/workspace/members`
+}
+
+/**
+ * @summary People in the open workspace
+ */
+export const getWorkspaceMembers = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceMember[]> => {
+
+  return customFetch<WorkspaceMember[]>(getGetWorkspaceMembersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkspaceMembersQueryKey = () => {
+    return [
+    `/api/workspace/members`
+    ] as const;
+    }
+
+
+export const getGetWorkspaceMembersQueryOptions = <TData = Awaited<ReturnType<typeof getWorkspaceMembers>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkspaceMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkspaceMembersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkspaceMembers>>> = ({ signal }) => getWorkspaceMembers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkspaceMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkspaceMembersQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkspaceMembers>>>
+export type GetWorkspaceMembersQueryError = ErrorType<void>
+
+
+/**
+ * @summary People in the open workspace
+ */
+
+export function useGetWorkspaceMembers<TData = Awaited<ReturnType<typeof getWorkspaceMembers>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkspaceMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkspaceMembersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetWorkspaceMemberRoleUrl = (userId: string,) => {
+
+
+
+
+  return `/api/workspace/members/${userId}`
+}
+
+/**
+ * @summary Change a member's role (owner only)
+ */
+export const setWorkspaceMemberRole = async (userId: string,
+    roleInput: RoleInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getSetWorkspaceMemberRoleUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(roleInput)
+  }
+);}
+
+
+
+
+
+export const getSetWorkspaceMemberRoleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkspaceMemberRole>>, TError,{userId: string;data: BodyType<RoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setWorkspaceMemberRole>>, TError,{userId: string;data: BodyType<RoleInput>}, TContext> => {
+
+const mutationKey = ['setWorkspaceMemberRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setWorkspaceMemberRole>>, {userId: string;data: BodyType<RoleInput>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  setWorkspaceMemberRole(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetWorkspaceMemberRoleMutationResult = NonNullable<Awaited<ReturnType<typeof setWorkspaceMemberRole>>>
+    export type SetWorkspaceMemberRoleMutationBody = BodyType<RoleInput>
+    export type SetWorkspaceMemberRoleMutationError = ErrorType<void>
+
+    /**
+ * @summary Change a member's role (owner only)
+ */
+export const useSetWorkspaceMemberRole = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkspaceMemberRole>>, TError,{userId: string;data: BodyType<RoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setWorkspaceMemberRole>>,
+        TError,
+        {userId: string;data: BodyType<RoleInput>},
+        TContext
+      > => {
+      return useMutation(getSetWorkspaceMemberRoleMutationOptions(options));
+    }
+
+export const getRemoveWorkspaceMemberUrl = (userId: string,) => {
+
+
+
+
+  return `/api/workspace/members/${userId}`
+}
+
+/**
+ * @summary Take a person out of the workspace (owner), or leave it (self). Data stays.
+ */
+export const removeWorkspaceMember = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveWorkspaceMemberUrl(userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveWorkspaceMemberMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeWorkspaceMember>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeWorkspaceMember>>, TError,{userId: string}, TContext> => {
+
+const mutationKey = ['removeWorkspaceMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeWorkspaceMember>>, {userId: string}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  removeWorkspaceMember(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveWorkspaceMemberMutationResult = NonNullable<Awaited<ReturnType<typeof removeWorkspaceMember>>>
+
+    export type RemoveWorkspaceMemberMutationError = ErrorType<void>
+
+    /**
+ * @summary Take a person out of the workspace (owner), or leave it (self). Data stays.
+ */
+export const useRemoveWorkspaceMember = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeWorkspaceMember>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeWorkspaceMember>>,
+        TError,
+        {userId: string},
+        TContext
+      > => {
+      return useMutation(getRemoveWorkspaceMemberMutationOptions(options));
+    }
+
+export const getCreateWorkspaceInviteUrl = () => {
+
+
+
+
+  return `/api/workspace/invites`
+}
+
+/**
+ * @summary Create a one-time invitation link (owner only)
+ */
+export const createWorkspaceInvite = async (roleInput: RoleInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceInvite> => {
+
+  return customFetch<WorkspaceInvite>(getCreateWorkspaceInviteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(roleInput)
+  }
+);}
+
+
+
+
+
+export const getCreateWorkspaceInviteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<RoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<RoleInput>}, TContext> => {
+
+const mutationKey = ['createWorkspaceInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkspaceInvite>>, {data: BodyType<RoleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWorkspaceInvite(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWorkspaceInviteMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkspaceInvite>>>
+    export type CreateWorkspaceInviteMutationBody = BodyType<RoleInput>
+    export type CreateWorkspaceInviteMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a one-time invitation link (owner only)
+ */
+export const useCreateWorkspaceInvite = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkspaceInvite>>, TError,{data: BodyType<RoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWorkspaceInvite>>,
+        TError,
+        {data: BodyType<RoleInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWorkspaceInviteMutationOptions(options));
+    }
+
+export const getGetInviteUrl = (token: string,) => {
+
+
+
+
+  return `/api/invites/${token}`
+}
+
+/**
+ * @summary What an invitation link opens
+ */
+export const getInvite = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<InvitePreview> => {
+
+  return customFetch<InvitePreview>(getGetInviteUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInviteQueryKey = (token: string,) => {
+    return [
+    `/api/invites/${token}`
+    ] as const;
+    }
+
+
+export const getGetInviteQueryOptions = <TData = Awaited<ReturnType<typeof getInvite>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvite>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInviteQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvite>>> = ({ signal }) => getInvite(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvite>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInviteQueryResult = NonNullable<Awaited<ReturnType<typeof getInvite>>>
+export type GetInviteQueryError = ErrorType<void>
+
+
+/**
+ * @summary What an invitation link opens
+ */
+
+export function useGetInvite<TData = Awaited<ReturnType<typeof getInvite>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvite>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInviteQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcceptInviteUrl = (token: string,) => {
+
+
+
+
+  return `/api/invites/${token}/accept`
+}
+
+/**
+ * @summary Join the workspace of an invitation link and open it
+ */
+export const acceptInvite = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<Workspace> => {
+
+  return customFetch<Workspace>(getAcceptInviteUrl(token),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptInviteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvite>>, TError,{token: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptInvite>>, TError,{token: string}, TContext> => {
+
+const mutationKey = ['acceptInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptInvite>>, {token: string}> = (props) => {
+          const {token} = props ?? {};
+
+          return  acceptInvite(token,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptInviteMutationResult = NonNullable<Awaited<ReturnType<typeof acceptInvite>>>
+
+    export type AcceptInviteMutationError = ErrorType<void>
+
+    /**
+ * @summary Join the workspace of an invitation link and open it
+ */
+export const useAcceptInvite = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvite>>, TError,{token: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptInvite>>,
+        TError,
+        {token: string},
+        TContext
+      > => {
+      return useMutation(getAcceptInviteMutationOptions(options));
+    }
+
+export const getGetClientsUrl = () => {
+
+
+
+
+  return `/api/clients`
+}
+
+/**
+ * @summary Clients of the open workspace
+ */
+export const getClients = async ( options?: Parameters<typeof customFetch>[1]): Promise<Client[]> => {
+
+  return customFetch<Client[]>(getGetClientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientsQueryKey = () => {
+    return [
+    `/api/clients`
+    ] as const;
+    }
+
+
+export const getGetClientsQueryOptions = <TData = Awaited<ReturnType<typeof getClients>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClients>>> = ({ signal }) => getClients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClients>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientsQueryResult = NonNullable<Awaited<ReturnType<typeof getClients>>>
+export type GetClientsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Clients of the open workspace
+ */
+
+export function useGetClients<TData = Awaited<ReturnType<typeof getClients>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClientUrl = () => {
+
+
+
+
+  return `/api/clients`
+}
+
+/**
+ * @summary Add a client (returns the existing one if the name is taken)
+ */
+export const createClient = async (nameInput: NameInput, options?: Parameters<typeof customFetch>[1]): Promise<Client> => {
+
+  return customFetch<Client>(getCreateClientUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(nameInput)
+  }
+);}
+
+
+
+
+
+export const getCreateClientMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClient>>, TError,{data: BodyType<NameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClient>>, TError,{data: BodyType<NameInput>}, TContext> => {
+
+const mutationKey = ['createClient'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClient>>, {data: BodyType<NameInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createClient(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientMutationResult = NonNullable<Awaited<ReturnType<typeof createClient>>>
+    export type CreateClientMutationBody = BodyType<NameInput>
+    export type CreateClientMutationError = ErrorType<void>
+
+    /**
+ * @summary Add a client (returns the existing one if the name is taken)
+ */
+export const useCreateClient = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClient>>, TError,{data: BodyType<NameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClient>>,
+        TError,
+        {data: BodyType<NameInput>},
+        TContext
+      > => {
+      return useMutation(getCreateClientMutationOptions(options));
+    }
+
+export const getRenameClientUrl = (clientId: string,) => {
+
+
+
+
+  return `/api/clients/${clientId}`
+}
+
+/**
+ * @summary Rename a client
+ */
+export const renameClient = async (clientId: string,
+    nameInput: NameInput, options?: Parameters<typeof customFetch>[1]): Promise<Client> => {
+
+  return customFetch<Client>(getRenameClientUrl(clientId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(nameInput)
+  }
+);}
+
+
+
+
+
+export const getRenameClientMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameClient>>, TError,{clientId: string;data: BodyType<NameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameClient>>, TError,{clientId: string;data: BodyType<NameInput>}, TContext> => {
+
+const mutationKey = ['renameClient'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameClient>>, {clientId: string;data: BodyType<NameInput>}> = (props) => {
+          const {clientId,data} = props ?? {};
+
+          return  renameClient(clientId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameClientMutationResult = NonNullable<Awaited<ReturnType<typeof renameClient>>>
+    export type RenameClientMutationBody = BodyType<NameInput>
+    export type RenameClientMutationError = ErrorType<void>
+
+    /**
+ * @summary Rename a client
+ */
+export const useRenameClient = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameClient>>, TError,{clientId: string;data: BodyType<NameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameClient>>,
+        TError,
+        {clientId: string;data: BodyType<NameInput>},
+        TContext
+      > => {
+      return useMutation(getRenameClientMutationOptions(options));
+    }
+
+export const getGetMediaPlansUrl = (params?: GetMediaPlansParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/media-plans?${stringifiedParams}` : `/api/media-plans`
+}
+
+/**
+ * @summary The workspace's media plans (optionally of one client) and how platforms compare across all of them
+ */
+export const getMediaPlans = async (params?: GetMediaPlansParams, options?: Parameters<typeof customFetch>[1]): Promise<MediaPlansOverview> => {
+
+  return customFetch<MediaPlansOverview>(getGetMediaPlansUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMediaPlansQueryKey = (params?: GetMediaPlansParams,) => {
+    return [
+    `/api/media-plans`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMediaPlansQueryOptions = <TData = Awaited<ReturnType<typeof getMediaPlans>>, TError = ErrorType<void>>(params?: GetMediaPlansParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaPlansQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaPlans>>> = ({ signal }) => getMediaPlans(params, { signal, ...requestOptions });
 
 
 
@@ -1885,15 +2850,15 @@ export type GetMediaPlansQueryError = ErrorType<void>
 
 
 /**
- * @summary The agency's media plans and how platforms compare across them
+ * @summary The workspace's media plans (optionally of one client) and how platforms compare across all of them
  */
 
 export function useGetMediaPlans<TData = Awaited<ReturnType<typeof getMediaPlans>>, TError = ErrorType<void>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetMediaPlansParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetMediaPlansQueryOptions(options)
+  const queryOptions = getGetMediaPlansQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -12,6 +12,7 @@ import type { MediaVariantSummary } from './mediaVariantSummary';
 export interface MediaPlan {
   id: string;
   client: string;
+  clientId: string;
   title: string;
   /** @nullable */
   fileName?: string | null;

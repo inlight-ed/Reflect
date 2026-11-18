@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { register } from "../lib/auth";
 import { database } from "../lib/database";
 import { importProducts, mergeProductRows, updateProductCosts } from "../lib/user-data";
+import { deleteAccountForTests } from "./helpers";
 
 describe("products: one row per SKU", () => {
   it("merges in file order: a later filled cell wins, an empty one keeps the earlier value", () => {
@@ -27,44 +28,45 @@ const skip = process.env["DATABASE_URL"] ? false : "set DATABASE_URL to run data
 
 describe("products import with a repeated SKU", { skip }, () => {
   let userId = "";
+  let ownerId = "";
   after(async () => {
     if (!userId) return;
-    const { db, usersTable } = await database();
-    await db.delete(usersTable).where(eq(usersTable.id, userId));
+    await deleteAccountForTests(userId);
   });
 
   it("imports the file instead of failing it, and stores the merged row", async () => {
-    const { user } = await register(`dup-sku-${Date.now()}@example.kz`, "password-123");
+    const { user, workspaceId } = await register(`dup-sku-${Date.now()}@example.kz`, "password-123");
     userId = user.id;
+    ownerId = workspaceId;
     const rows = [
       { sku: "FX-1", name: "Крем для рук 75 мл", costPrice: 1800 },
       { sku: "FX-2", name: "Бальзам для губ", costPrice: 900 },
       { sku: "FX-1", costPrice: 1950, stock: 12 },
     ];
-    const result = await importProducts(user.id, rows, "FILE", "products.csv");
+    const result = await importProducts(ownerId, rows, "FILE", "products.csv");
     assert.equal(result.accepted, 3);
 
     const { db, productsTable } = await database();
-    const [stored] = await db.select().from(productsTable).where(and(eq(productsTable.userId, user.id), eq(productsTable.sku, "FX-1")));
+    const [stored] = await db.select().from(productsTable).where(and(eq(productsTable.workspaceId, ownerId), eq(productsTable.sku, "FX-1")));
     assert.equal(stored?.name, "Крем для рук 75 мл");
     assert.equal(Number(stored?.costPrice), 1950);
     assert.equal(Number(stored?.stock), 12);
-    const all = await db.select().from(productsTable).where(eq(productsTable.userId, user.id));
+    const all = await db.select().from(productsTable).where(eq(productsTable.workspaceId, ownerId));
     assert.equal(all.length, 2);
   });
 
   it("a hand correction changes only the fields sent, and adds a SKU that was not in the catalog", async () => {
-    await updateProductCosts(userId, { sku: "FX-1", logisticsCost: 700 });
-    await updateProductCosts(userId, { sku: "NEW-9", costPrice: 2500, stock: 4 });
+    await updateProductCosts(ownerId, { sku: "FX-1", logisticsCost: 700 });
+    await updateProductCosts(ownerId, { sku: "NEW-9", costPrice: 2500, stock: 4 });
     const { db, productsTable } = await database();
-    const [fx] = await db.select().from(productsTable).where(and(eq(productsTable.userId, userId), eq(productsTable.sku, "FX-1")));
+    const [fx] = await db.select().from(productsTable).where(and(eq(productsTable.workspaceId, ownerId), eq(productsTable.sku, "FX-1")));
     assert.equal(Number(fx?.logisticsCost), 700);
     assert.equal(Number(fx?.costPrice), 1950, "untouched");
-    const [added] = await db.select().from(productsTable).where(and(eq(productsTable.userId, userId), eq(productsTable.sku, "NEW-9")));
+    const [added] = await db.select().from(productsTable).where(and(eq(productsTable.workspaceId, ownerId), eq(productsTable.sku, "NEW-9")));
     assert.equal(Number(added?.stock), 4);
     assert.ok(added?.stockUpdatedAt, "a stock entered by hand is fresh");
-    await updateProductCosts(userId, { sku: "FX-1", logisticsCost: null });
-    const [cleared] = await db.select().from(productsTable).where(and(eq(productsTable.userId, userId), eq(productsTable.sku, "FX-1")));
+    await updateProductCosts(ownerId, { sku: "FX-1", logisticsCost: null });
+    const [cleared] = await db.select().from(productsTable).where(and(eq(productsTable.workspaceId, ownerId), eq(productsTable.sku, "FX-1")));
     assert.equal(cleared?.logisticsCost, null);
   });
 });

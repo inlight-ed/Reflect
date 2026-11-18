@@ -6,6 +6,7 @@ import { getGetIntegrationsQueryKey, getGetSyncRunsQueryKey, useDeleteConnection
 import { formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { EmptyState, ErrorState, LoadingState, PageFrame, PageHead, SectionTitle, demoSource, statusLabel, useText } from '@/components/common';
+import { TeamSection } from '@/components/workspace';
 
 const needsUrl = (kind: ConnectionKind) => kind === 'REDSTAT_MCP' || kind === 'CUSTOM_MCP';
 const canSync = (kind: ConnectionKind) => kind === 'KASPI_API' || kind === 'MOYSKLAD';
@@ -109,6 +110,7 @@ export default function SettingsPage() {
             <button type="button" className="btn secondary" disabled={logoutAll.isPending} onClick={() => { if (window.confirm(t('settings.logoutAll.confirm'))) logoutAll.mutate(undefined, { onSuccess: () => void signOut().catch(() => window.location.assign('/')) }); }} data-testid="button-logout-all"><MonitorSmartphone size={14} /> {t('settings.logoutAll')}</button>
           </div>
         </div>
+        <TeamSection />
         <SectionTitle title={t('settings.connections')} note={t('settings.connections.note')} />
         <div className="connection-grid">{(data.connections ?? []).map((connection) => <ConnectionCard key={connection.kind} connection={connection} />)}</div>
         {runs.data && runs.data.length > 0 && <SyncRunLog runs={runs.data} />}

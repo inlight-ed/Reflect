@@ -692,6 +692,7 @@ export interface MediaVariantSummary {
 export interface MediaPlan {
   id: string;
   client: string;
+  clientId: string;
   title: string;
   /** @nullable */
   fileName?: string | null;
@@ -704,6 +705,7 @@ export interface MediaPlan {
 export interface MediaPlanListItem {
   id: string;
   client: string;
+  clientId: string;
   title: string;
   createdAt: string;
   variants: MediaVariantSummary[];
@@ -1198,8 +1200,136 @@ export interface LoginInput {
   password: string;
 }
 
+export type WorkspaceKind = typeof WorkspaceKind[keyof typeof WorkspaceKind];
+
+
+export const WorkspaceKind = {
+  SHOP: 'SHOP',
+  AGENCY: 'AGENCY',
+} as const;
+
+export type WorkspaceRole = typeof WorkspaceRole[keyof typeof WorkspaceRole];
+
+
+export const WorkspaceRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+} as const;
+
+export interface Workspace {
+  id: string;
+  kind: WorkspaceKind;
+  name: string;
+  role: WorkspaceRole;
+}
+
+export type WorkspaceInputKind = typeof WorkspaceInputKind[keyof typeof WorkspaceInputKind];
+
+
+export const WorkspaceInputKind = {
+  SHOP: 'SHOP',
+  AGENCY: 'AGENCY',
+} as const;
+
+export interface WorkspaceInput {
+  kind: WorkspaceInputKind;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+}
+
+export interface NameInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+}
+
+export type RoleInputRole = typeof RoleInputRole[keyof typeof RoleInputRole];
+
+
+export const RoleInputRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+} as const;
+
+export interface RoleInput {
+  role: RoleInputRole;
+}
+
+export type WorkspaceMemberRole = typeof WorkspaceMemberRole[keyof typeof WorkspaceMemberRole];
+
+
+export const WorkspaceMemberRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+} as const;
+
+export interface WorkspaceMember {
+  userId: string;
+  email: string;
+  /** @nullable */
+  name?: string | null;
+  role: WorkspaceMemberRole;
+  joinedAt: string;
+}
+
+export type WorkspaceInviteRole = typeof WorkspaceInviteRole[keyof typeof WorkspaceInviteRole];
+
+
+export const WorkspaceInviteRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+} as const;
+
+export interface WorkspaceInvite {
+  token: string;
+  role: WorkspaceInviteRole;
+  expiresAt: string;
+}
+
+export type InvitePreviewKind = typeof InvitePreviewKind[keyof typeof InvitePreviewKind];
+
+
+export const InvitePreviewKind = {
+  SHOP: 'SHOP',
+  AGENCY: 'AGENCY',
+} as const;
+
+export type InvitePreviewRole = typeof InvitePreviewRole[keyof typeof InvitePreviewRole];
+
+
+export const InvitePreviewRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+} as const;
+
+export interface InvitePreview {
+  name: string;
+  kind: InvitePreviewKind;
+  role: InvitePreviewRole;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  createdAt: string;
+  /** Media plans of this client */
+  plans: number;
+}
+
 export interface SessionState {
   user?: AuthUser;
+  workspace?: Workspace;
+  workspaces?: Workspace[];
   accountsEnabled: boolean;
   hasData: boolean;
   hasProducts?: boolean;
@@ -1699,6 +1829,13 @@ export const GetProductsCompare = {
   previous: 'previous',
   year: 'year',
 } as const;
+
+export type GetMediaPlansParams = {
+/**
+ * @maxLength 80
+ */
+clientId?: string;
+};
 
 export type GetCompetitorsParams = {
 /**

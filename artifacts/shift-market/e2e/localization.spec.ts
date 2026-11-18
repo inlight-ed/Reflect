@@ -422,3 +422,61 @@ test('media plans: the agency file is read as written, its arithmetic checked, a
   await expect(page.getByTestId('media-delivery-3')).toContainText('75');
   await expect(page.getByTestId('media-totals')).toContainText('75');
 });
+
+test('agency: one sign-in, an agency next to the shop, and a viewer invited by link who can only look', async ({ page, browser }) => {
+  const stamp = Date.now();
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`agency-owner-${stamp}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('workspace-switcher')).toContainText('Магазин');
+
+  // The agency is created from the switcher and opens straight away.
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('workspace-create-agency').click();
+  await page.getByTestId('workspace-new-name').fill(`Okori ${stamp}`);
+  await page.getByTestId('workspace-create-submit').click();
+  await expect(page.getByTestId('workspace-name')).toHaveText(`Okori ${stamp}`);
+  await expect(page.getByTestId('workspace-switcher')).toContainText('Агентство');
+  await page.getByTestId('media-file').setInputFiles(new URL('./fixtures/media-plan.xlsx', import.meta.url).pathname);
+  await page.getByTestId('media-client').fill("L'Oréal");
+  await page.getByTestId('media-save').click();
+  await expect(page.getByTestId('media-plan-list')).toContainText("L'Oréal");
+
+  // The shop does not see the agency's plans.
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('workspace-option-shop').click();
+  await page.goto('/media-plans');
+  await expect(page.getByTestId('media-file')).toBeAttached();
+  await expect(page.getByTestId('media-plan-list')).toHaveCount(0);
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('workspace-option-agency').click();
+
+  await page.goto('/settings');
+  await page.getByTestId('invite-role').selectOption('VIEWER');
+  await page.getByTestId('invite-create').click();
+  const link = await page.getByTestId('invite-url').inputValue();
+  expect(link).toMatch(/\/invite\//);
+
+  // A colleague opens the link, creates an account and comes back to accept it.
+  const context = await browser.newContext();
+  const guest = await context.newPage();
+  await guest.goto(link);
+  await expect(guest.getByTestId('invite-text')).toContainText(`Okori ${stamp}`);
+  await guest.getByTestId('invite-register').click();
+  await guest.getByTestId('input-email').fill(`agency-viewer-${stamp}@example.kz`);
+  await guest.getByTestId('input-password').fill('password-123');
+  await guest.getByTestId('button-auth-submit').click();
+  await guest.getByTestId('invite-accept').click();
+  await expect(guest.getByTestId('workspace-name')).toHaveText(`Okori ${stamp}`);
+  await expect(guest.getByTestId('viewer-banner')).toBeVisible();
+  await guest.goto('/media-plans');
+  await expect(guest.getByTestId('media-plan-list')).toContainText("L'Oréal");
+  await expect(guest.getByTestId('media-file')).toHaveCount(0);
+  await guest.getByTestId('media-plan-list').getByRole('link').first().click();
+  await expect(guest.getByTestId('media-fact-readonly-0')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByTestId(`member-agency-viewer-${stamp}@example.kz`)).toContainText('Наблюдатель');
+  await context.close();
+});

@@ -33,14 +33,14 @@ export function parseCompare(value: unknown): Compare {
   return value === "year" ? "year" : "previous";
 }
 
-async function feedbackRows(userId: string) {
+async function feedbackRows(workspaceId: string) {
   const { db, feedbackTable } = await database();
-  return db.select().from(feedbackTable).where(eq(feedbackTable.userId, userId)).orderBy(desc(feedbackTable.createdAt)).limit(100);
+  return db.select().from(feedbackTable).where(eq(feedbackTable.workspaceId, workspaceId)).orderBy(desc(feedbackTable.createdAt)).limit(100);
 }
 
-async function campaignRows(userId: string) {
+async function campaignRows(workspaceId: string) {
   const { db, externalCampaignsTable } = await database();
-  return db.select().from(externalCampaignsTable).where(eq(externalCampaignsTable.userId, userId)).orderBy(desc(externalCampaignsTable.createdAt)).limit(200);
+  return db.select().from(externalCampaignsTable).where(eq(externalCampaignsTable.workspaceId, workspaceId)).orderBy(desc(externalCampaignsTable.createdAt)).limit(200);
 }
 
 function assumptions(data: UserData, stats: SkuStats[]) {
@@ -82,22 +82,22 @@ function summaryInsight(metrics: ReturnType<typeof overviewMetrics>, actions: Re
  * after an export as days with no sales: the revenue line would drop to zero and sales would look
  * like they collapsed. With the API connected the moment keeps moving, so a real drop still shows.
  */
-export async function dataAsOf(userId: string, data: Awaited<ReturnType<typeof loadUserData>>, now = new Date()) {
+export async function dataAsOf(workspaceId: string, data: Awaited<ReturnType<typeof loadUserData>>, now = new Date()) {
   let latest = 0;
   for (const line of data.lines) latest = Math.max(latest, line.orderedAt.getTime());
-  const kaspi = await getIntegration(userId, "KASPI_API").catch(() => undefined);
+  const kaspi = await getIntegration(workspaceId, "KASPI_API").catch(() => undefined);
   const synced = typeof kaspi?.meta?.completeThrough === "string" ? new Date(kaspi.meta.completeThrough).getTime() : 0;
   // +1 ms: windows end exclusively, the latest order itself belongs inside.
   const end = Math.max(latest + 1, synced);
   return new Date(Math.min(now.getTime(), end > 1 ? end : now.getTime()));
 }
 
-export async function userDashboard(userId: string, period: Period, compare: Compare) {
-  const data = await loadUserData(userId);
-  const now = await dataAsOf(userId, data);
+export async function userDashboard(workspaceId: string, period: Period, compare: Compare) {
+  const data = await loadUserData(workspaceId);
+  const now = await dataAsOf(workspaceId, data);
   const stats = skuStats(data.lines, data.catalog, data.ads, now, period, compare);
   const actions = recommendations(stats, now);
-  const feedback = await feedbackRows(userId);
+  const feedback = await feedbackRows(workspaceId);
   const verdictByKey = new Map(feedback.map((row) => [row.actionKey, row.verdict]));
   const metrics = overviewMetrics(data.lines, stats, now, period, compare);
   const forecast = stats
@@ -143,9 +143,9 @@ export async function userDashboard(userId: string, period: Period, compare: Com
   };
 }
 
-export async function userProducts(userId: string, period: Period, compare: Compare) {
-  const data = await loadUserData(userId);
-  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(userId, data), period, compare);
+export async function userProducts(workspaceId: string, period: Period, compare: Compare) {
+  const data = await loadUserData(workspaceId);
+  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(workspaceId, data), period, compare);
   const count = (label: string) => stats.filter((s) => s.opportunity === label).length;
   return {
     mode: data.hasOrders ? ("USER" as const) : ("EMPTY" as const),
@@ -198,10 +198,10 @@ export async function userProducts(userId: string, period: Period, compare: Comp
 }
 
 /** Everything that crossed a threshold for this seller, most serious and costly first. */
-export async function userAttention(userId: string, period: Period, compare: Compare) {
-  const data = await loadUserData(userId);
+export async function userAttention(workspaceId: string, period: Period, compare: Compare) {
+  const data = await loadUserData(workspaceId);
   if (!data.hasOrders) return { mode: "EMPTY" as const, refreshedAt: new Date().toISOString(), items: [], high: 0, medium: 0 };
-  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(userId, data), period, compare);
+  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(workspaceId, data), period, compare);
   const shop = { revenue: stats.reduce((sum, s) => sum + s.revenue, 0), previousRevenue: stats.reduce((sum, s) => sum + s.previousRevenue, 0) };
   const items = attentionItems(stats, dataIssues(stats, data.catalog, data.lines, new Date()), shop);
   return {
@@ -213,9 +213,9 @@ export async function userAttention(userId: string, period: Period, compare: Com
   };
 }
 
-export async function userAdvertising(userId: string, period: Period, compare: Compare) {
-  const data = await loadUserData(userId);
-  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(userId, data), period, compare);
+export async function userAdvertising(workspaceId: string, period: Period, compare: Compare) {
+  const data = await loadUserData(workspaceId);
+  const stats = skuStats(data.lines, data.catalog, data.ads, await dataAsOf(workspaceId, data), period, compare);
   const withAds = stats.filter((s) => s.adSpend > 0).sort((a, b) => b.adSpend - a.adSpend);
   const spend = withAds.reduce((sum, s) => sum + s.adSpend, 0);
   const revenue = withAds.reduce((sum, s) => sum + s.revenue, 0);
@@ -245,9 +245,9 @@ export async function userAdvertising(userId: string, period: Period, compare: C
   };
 }
 
-export async function userExternalMedia(userId: string) {
-  const data = await loadUserData(userId);
-  const campaigns = await campaignRows(userId);
+export async function userExternalMedia(workspaceId: string) {
+  const data = await loadUserData(workspaceId);
+  const campaigns = await campaignRows(workspaceId);
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const status = (start: string, end: string) => (start > today ? "PLANNED" : end < today ? "COMPLETE" : "ACTIVE");
@@ -276,29 +276,29 @@ export async function userExternalMedia(userId: string) {
   };
 }
 
-export async function createUserCampaign(userId: string, input: { name: string; channel: string; startDate: string; endDate: string; budget: number; objective: string }) {
+export async function createUserCampaign(workspaceId: string, input: { name: string; channel: string; startDate: string; endDate: string; budget: number; objective: string }) {
   const { db, externalCampaignsTable } = await database();
-  const [{ value }] = await db.select({ value: count() }).from(externalCampaignsTable).where(eq(externalCampaignsTable.userId, userId));
+  const [{ value }] = await db.select({ value: count() }).from(externalCampaignsTable).where(eq(externalCampaignsTable.workspaceId, workspaceId));
   if (value >= 500) throw new Error("LIMIT");
-  const campaign = { id: `campaign-${randomUUID()}`, userId, ...input };
+  const campaign = { id: `campaign-${randomUUID()}`, workspaceId, ...input };
   await db.insert(externalCampaignsTable).values(campaign);
   const today = new Date().toISOString().slice(0, 10);
   return { ...input, id: campaign.id, status: input.startDate > today ? "PLANNED" : input.endDate < today ? "COMPLETE" : "ACTIVE" };
 }
 
-export async function createFeedback(userId: string, input: { actionKey: string; actionType: string; sku?: string; object: string; verdict: "WORKED" | "NOT_WORKED" | "TOO_EARLY" }) {
+export async function createFeedback(workspaceId: string, input: { actionKey: string; actionType: string; sku?: string; object: string; verdict: "WORKED" | "NOT_WORKED" | "TOO_EARLY" }) {
   const { db, feedbackTable } = await database();
-  const data = await loadUserData(userId);
+  const data = await loadUserData(workspaceId);
   const now = new Date();
   const baseline = beforeAfter(data.lines, now, now, input.sku);
-  const row = { id: randomUUID(), userId, actionKey: input.actionKey, actionType: input.actionType, sku: input.sku ?? null, object: input.object, verdict: input.verdict, baseline };
+  const row = { id: randomUUID(), workspaceId, actionKey: input.actionKey, actionType: input.actionType, sku: input.sku ?? null, object: input.object, verdict: input.verdict, baseline };
   await db.insert(feedbackTable).values(row);
   return { ...row, createdAt: now.toISOString(), beforePerDay: baseline.beforePerDay, afterPerDay: null, changePct: null, daysAfter: 0 };
 }
 
-export async function listUserFeedback(userId: string) {
-  const data = await loadUserData(userId);
-  const rows = await feedbackRows(userId);
+export async function listUserFeedback(workspaceId: string) {
+  const data = await loadUserData(workspaceId);
+  const rows = await feedbackRows(workspaceId);
   const now = new Date();
   return rows.map((row) => {
     const result = beforeAfter(data.lines, row.createdAt, now, row.sku ?? undefined);
@@ -306,13 +306,13 @@ export async function listUserFeedback(userId: string) {
   });
 }
 
-export async function dataStatus(userId: string) {
+export async function dataStatus(workspaceId: string) {
   const { db, ordersTable, productsTable, adSpendTable } = await database();
-  const data = await loadUserData(userId);
+  const data = await loadUserData(workspaceId);
   const [[orders], [products], [ads]] = await Promise.all([
-    db.select({ value: count(), first: min(ordersTable.orderedAt), last: max(ordersTable.orderedAt) }).from(ordersTable).where(eq(ordersTable.userId, userId)),
-    db.select({ value: count() }).from(productsTable).where(eq(productsTable.userId, userId)),
-    db.select({ value: count() }).from(adSpendTable).where(eq(adSpendTable.userId, userId)),
+    db.select({ value: count(), first: min(ordersTable.orderedAt), last: max(ordersTable.orderedAt) }).from(ordersTable).where(eq(ordersTable.workspaceId, workspaceId)),
+    db.select({ value: count() }).from(productsTable).where(eq(productsTable.workspaceId, workspaceId)),
+    db.select({ value: count() }).from(adSpendTable).where(eq(adSpendTable.workspaceId, workspaceId)),
   ]);
   return {
     orders: orders.value,

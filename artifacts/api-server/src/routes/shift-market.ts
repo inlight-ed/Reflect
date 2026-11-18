@@ -36,32 +36,36 @@ const askDailyLimit = rateLimit({ name: "ask-day", windowMs: 24 * 60 * 60_000, m
 const marketLimit = rateLimit({ name: "market", windowMs: 60_000, max: 20 });
 
 router.get("/shift-market/dashboard", async (req, res) => {
-  res.json(req.user ? await userDashboard(req.user.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getDashboard());
+  res.json(req.workspace ? await userDashboard(req.workspace.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getDashboard());
 });
 
 router.get("/shift-market/advertising", async (req, res) => {
-  res.json(req.user ? await userAdvertising(req.user.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getAdvertising());
+  res.json(req.workspace ? await userAdvertising(req.workspace.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getAdvertising());
 });
 
 router.get("/shift-market/attention", async (req, res) => {
-  res.json(req.user ? await userAttention(req.user.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getAttention());
+  res.json(req.workspace ? await userAttention(req.workspace.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getAttention());
 });
 
 router.get("/shift-market/products", async (req, res) => {
-  res.json(req.user ? await userProducts(req.user.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getProducts());
+  res.json(req.workspace ? await userProducts(req.workspace.id, parsePeriod(req.query.period), parseCompare(req.query.compare)) : getProducts());
 });
 
 router.get("/shift-market/external-media", async (req, res) => {
-  res.json(req.user ? await userExternalMedia(req.user.id) : await getExternalMedia());
+  res.json(req.workspace ? await userExternalMedia(req.workspace.id) : await getExternalMedia());
 });
 
 router.post("/shift-market/external-media/campaigns", writeLimit, async (req, res) => {
-  if (!req.user) {
+  if (!req.workspace) {
     res.status(401).json({ error: "UNAUTHORIZED" });
     return;
   }
+  if (req.workspace.role === "VIEWER") {
+    res.status(403).json({ error: "READ_ONLY" });
+    return;
+  }
   try {
-    res.status(201).json(await createUserCampaign(req.user.id, parseCampaign(req.body)));
+    res.status(201).json(await createUserCampaign(req.workspace.id, parseCampaign(req.body)));
   } catch (error) {
     if (error instanceof CampaignValidationError || (error instanceof Error && (error.name === "ZodError" || error.message === "LIMIT"))) {
       res.status(400).json({ error: "INVALID_CAMPAIGN" });
@@ -82,8 +86,8 @@ router.get("/shift-market/competitors", marketLimit, async (req, res): Promise<v
     res.status(400).json({ error: "INVALID_KASPI_SKU" });
     return;
   }
-  if (req.user) {
-    const redstat = await getIntegration(req.user.id, "REDSTAT_MCP");
+  if (req.workspace) {
+    const redstat = await getIntegration(req.workspace.id, "REDSTAT_MCP");
     if (redstat?.url) {
       const connector = mcpRedstatConnector((tool, args) => callMcpTool(redstat.url!, redstat.secret, tool, args), redstat.url);
       res.json(GetCompetitorsResponse.parse(await getCompetitorAnalysis(parsed.data.kaspiSku, connector)));
@@ -103,7 +107,7 @@ router.get("/shift-market/content", (_req, res) => {
 router.get("/content/analysis", marketLimit, async (req, res) => {
   const parsed = GetCardAnalysisQueryParams.safeParse(req.query);
   const sku = parsed.success ? parsed.data.sku : undefined;
-  res.json(req.user ? await userCardAnalysis(req.user.id, sku) : getDemoCardAnalysis());
+  res.json(req.workspace ? await userCardAnalysis(req.workspace.id, sku) : getDemoCardAnalysis());
 });
 
 router.post("/shift-market/ask", askLimit, askDailyLimit, async (req, res): Promise<void> => {
@@ -112,12 +116,12 @@ router.post("/shift-market/ask", askLimit, askDailyLimit, async (req, res): Prom
     res.status(400).json({ error: "INVALID_QUESTION" });
     return;
   }
-  res.json(await askAssistant(parsed.data.question.trim(), parsed.data.locale, req.user?.id));
+  res.json(await askAssistant(parsed.data.question.trim(), parsed.data.locale, req.workspace?.id));
 });
 
 router.get("/shift-market/integrations", async (req, res) => {
   const base = getIntegrations();
-  res.json(req.user ? { ...base, connections: await connectionViews(req.user.id) } : base);
+  res.json(req.workspace ? { ...base, connections: await connectionViews(req.workspace.id) } : base);
 });
 
 router.post("/shift-market/integrations/kaspi/test", writeLimit, (req, res) => {

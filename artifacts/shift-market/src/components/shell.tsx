@@ -6,6 +6,7 @@ import { useGetAttention, useHealthCheck } from '@workspace/api-client-react';
 import { formatTime, localeOptions, useI18n, type Locale } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { useNow } from '@/lib/use-now';
+import { WorkspaceSwitcher } from '@/components/workspace';
 
 export const nav = [
   { href: '/overview', label: 'Обзор', icon: LayoutDashboard, index: '01' },
@@ -41,7 +42,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const { locale, t } = useI18n();
-  const { signedIn, demo, session, signOut, leaveDemo } = useSession();
+  const { signedIn, demo, session, signOut, leaveDemo, workspace } = useSession();
   const [, navigate] = useLocation();
   const now = useNow(30_000);
   const systemItems = signedIn ? [dataItem, settingsItem] : [settingsItem];
@@ -72,6 +73,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </nav>
       <div className="nav-group"><div className="nav-label">{t('System')}</div>{systemItems.map(({ href, label, icon: Icon }) => <Link href={href} key={href} className={`nav-item ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined} data-testid={href === '/settings' ? 'link-nav-settings' : 'link-nav-data'}><Icon /><span className="nav-copy">{t(label)}</span></Link>)}</div>
       <div className="sidebar-foot">
+        {signedIn && <WorkspaceSwitcher />}
         {signedIn ? (
           <div className="account-mini" data-testid="account-mini"><span className="account-email" title={session?.user?.email}>{session?.user?.name || session?.user?.email}</span><button type="button" className="top-action" onClick={() => { void signOut().then(() => navigate('/')); }} aria-label={t('auth.logout')} title={t('auth.logout')} data-testid="button-sidebar-logout"><LogOut size={14} /></button></div>
         ) : (
@@ -85,7 +87,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <header className="topbar">
         <div className="topbar-left">
           <button className="top-action menu-toggle" onClick={() => setMenuOpen((open) => !open)} data-testid="button-open-navigation" aria-label={t('Открыть навигацию')} aria-expanded={menuOpen} aria-controls="mobile-menu"><Menu size={18} /></button>
-          <span className="crumb">{t('Workspace')} <span className="crumb-sep">/</span> <strong>{currentName}</strong></span>
+          <span className="crumb">{workspace?.name ?? t('Workspace')} <span className="crumb-sep">/</span> <strong>{currentName}</strong></span>
         </div>
         <div className="topbar-right">
           <span className="clock">{locale === 'ru' ? 'АЛМАТЫ' : t('ALMATY')} · {clock}</span>
@@ -96,8 +98,10 @@ export function Shell({ children }: { children: ReactNode }) {
       {menuOpen && <div className="mobile-menu-backdrop" onClick={() => setMenuOpen(false)} />}
       {menuOpen && <nav className="mobile-menu" id="mobile-menu" aria-label={t('Открыть навигацию')}>
         <button className="top-action mobile-menu-close" onClick={() => setMenuOpen(false)} aria-label={t('Закрыть меню')}><X size={17} /></button>
+        {signedIn && <WorkspaceSwitcher />}
         {[...nav, ...systemItems].map(({ href, label, icon: Icon }) => <Link href={href} className={`nav-item ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined} key={href} data-testid={`mobile-link-${testId(label)}`}><Icon /><span>{t(label)}</span></Link>)}
       </nav>}
+      {workspace?.role === 'VIEWER' && <div className="viewer-banner" role="note" data-testid="viewer-banner">{t('workspace.viewer.banner')}</div>}
       {demo && <div className="demo-banner" role="note" data-testid="demo-banner"><span>{t('demo.banner')}</span><div><Link href="/register" className="btn">{t('demo.banner.cta')}</Link><button type="button" className="btn secondary" onClick={() => { leaveDemo(); navigate('/'); }}>{t('demo.exit')}</button></div></div>}
       <div id="main-content">{children}</div>
     </section>

@@ -63,23 +63,23 @@ async function aiThemes(digest: ReviewDigest) {
   }
 }
 
-async function cardEvents(userId: string, sku: string) {
+async function cardEvents(workspaceId: string, sku: string) {
   const { db, cardEventsTable } = await database();
-  return db.select().from(cardEventsTable).where(and(eq(cardEventsTable.userId, userId), eq(cardEventsTable.sku, sku))).orderBy(desc(cardEventsTable.happenedAt)).limit(50);
+  return db.select().from(cardEventsTable).where(and(eq(cardEventsTable.workspaceId, workspaceId), eq(cardEventsTable.sku, sku))).orderBy(desc(cardEventsTable.happenedAt)).limit(50);
 }
 
-export async function createCardEvent(userId: string, input: { sku: string; kind: string; note?: string; happenedAt?: string }) {
+export async function createCardEvent(workspaceId: string, input: { sku: string; kind: string; note?: string; happenedAt?: string }) {
   const { db, cardEventsTable } = await database();
   const happenedAt = input.happenedAt && !Number.isNaN(Date.parse(input.happenedAt)) ? new Date(input.happenedAt) : new Date();
-  const row = { id: randomUUID(), userId, sku: input.sku.trim(), kind: input.kind, note: input.note?.trim().slice(0, 300) || null, happenedAt };
+  const row = { id: randomUUID(), workspaceId, sku: input.sku.trim(), kind: input.kind, note: input.note?.trim().slice(0, 300) || null, happenedAt };
   await db.insert(cardEventsTable).values(row);
   return { id: row.id, sku: row.sku, kind: row.kind as "PHOTO", note: row.note, happenedAt: happenedAt.toISOString(), beforePerDay: null, afterPerDay: null, changePct: null, daysAfter: 0 };
 }
 
 const pct = (value: number) => Math.round(value * 1000) / 10;
 
-export async function userCardAnalysis(userId: string, requestedSku?: string) {
-  const data = await loadUserData(userId);
+export async function userCardAnalysis(workspaceId: string, requestedSku?: string) {
+  const data = await loadUserData(workspaceId);
   const now = new Date();
   const stats = skuStats(data.lines, data.catalog, data.ads, now, 30, "previous");
   const products = stats.map((s) => ({ sku: s.sku, name: s.name, kaspiCode: s.kaspiCode }));
@@ -88,7 +88,7 @@ export async function userCardAnalysis(userId: string, requestedSku?: string) {
   if (!selected) return base;
 
   const kaspiCode = selected.kaspiCode;
-  const redstat = await getIntegration(userId, "REDSTAT_MCP");
+  const redstat = await getIntegration(workspaceId, "REDSTAT_MCP");
   let digest: ReviewDigest | undefined;
   let sellers: ReturnType<typeof mapRedstatSellers> = [];
   let detail: "connector.redstat.connect_in_settings" | "connector.redstat.unavailable" | undefined;
@@ -121,7 +121,7 @@ export async function userCardAnalysis(userId: string, requestedSku?: string) {
   checklist.push(selected.returnRate === null ? { key: "card.returns", status: "UNKNOWN" } : { key: "card.returns", status: selected.returnRate <= 0.05 ? "PASS" : "WARN", params: { pct: pct(selected.returnRate) } });
   checklist.push(selected.trendPct === null ? { key: "card.trend", status: "UNKNOWN" } : { key: "card.trend", status: selected.trendPct >= 0 ? "PASS" : "WARN", params: { trend: selected.trendPct } });
 
-  const events = (await cardEvents(userId, selected.sku)).map((event) => ({
+  const events = (await cardEvents(workspaceId, selected.sku)).map((event) => ({
     id: event.id, sku: event.sku, kind: event.kind as "PHOTO", note: event.note, happenedAt: event.happenedAt.toISOString(),
     ...beforeAfter(data.lines, event.happenedAt, now, selected.sku),
   }));

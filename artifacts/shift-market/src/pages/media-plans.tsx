@@ -6,6 +6,8 @@ import {
   getGetMediaPlanQueryKey,
   getGetMediaPlansQueryKey,
   useCreateMediaPlan,
+  getGetClientsQueryKey,
+  useGetClients,
   useGetMediaPlan,
   useGetMediaPlans,
   useSaveMediaFact,
@@ -37,15 +39,31 @@ export default function MediaPlansPage() {
 
 function PlansList({ head }: { head: ReactNode }) {
   const { locale, t } = useI18n();
-  const query = useGetMediaPlans();
+  const { canEdit } = useSession();
+  // The client filter lives in the address so a link to "L'Oréal's plans" can be shared.
+  const [clientId, setClientId] = useState(() => new URLSearchParams(window.location.search).get('client') ?? '');
+  const clientsQuery = useGetClients({ query: { queryKey: getGetClientsQueryKey() } });
+  const query = useGetMediaPlans(clientId ? { clientId } : undefined);
+  const pick = (id: string) => {
+    setClientId(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('client', id); else url.searchParams.delete('client');
+    window.history.replaceState(null, '', url);
+  };
   if (query.isLoading) return <LoadingState />;
   if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
   const { plans, benchmarks } = query.data;
-  const clients = [...new Set(plans.map((plan) => plan.client))];
+  const clients = clientsQuery.data ?? [];
   return (
     <PageFrame>
       {head}
-      <Upload clients={clients} />
+      {canEdit && <Upload clients={clients.map((client) => client.name)} />}
+      {clients.length > 1 && (
+        <div className="segmented media-clients" role="group" aria-label={t('media.client')} data-testid="media-client-filter">
+          <button type="button" className={clientId ? '' : 'active'} aria-pressed={!clientId} onClick={() => pick('')}>{t('media.allClients')}</button>
+          {clients.map((client) => <button type="button" key={client.id} className={clientId === client.id ? 'active' : ''} aria-pressed={clientId === client.id} onClick={() => pick(client.id)} data-testid={`media-client-${client.name}`}>{client.name} <span className="dim">{client.plans}</span></button>)}
+        </div>
+      )}
       {plans.length > 0 && <>
         <SectionTitle title={t('media.plans')} note={String(plans.length)} />
         <ul className="media-plans" data-testid="media-plan-list">
@@ -97,6 +115,7 @@ function Upload({ clients }: { clients: string[] }) {
     try {
       await create.mutateAsync({ data: { client: client.trim(), title: parsed.title || parsed.fileName, fileName: parsed.fileName, placements: parsed.placements, declaredTotals: parsed.declaredTotals } });
       await queryClient.invalidateQueries({ queryKey: getGetMediaPlansQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getGetClientsQueryKey() });
       setParsed(null);
       if (input.current) input.current.value = '';
     } catch {
@@ -196,6 +215,7 @@ function PlacementRow({ planId, placement }: { planId: string; placement: MediaP
   const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const save = useSaveMediaFact();
+  const { canEdit } = useSession();
   const [impressions, setImpressions] = useState(placement.factImpressions == null ? '' : String(placement.factImpressions));
   const [clicks, setClicks] = useState(placement.factClicks == null ? '' : String(placement.factClicks));
   const [error, setError] = useState(false);
@@ -226,12 +246,13 @@ function PlacementRow({ planId, placement }: { planId: string; placement: MediaP
       <td>{num(placement.planImpressions, locale)}<span className="table-sub">{placement.planClicks != null ? fill(t('media.clicksCtr'), { clicks: num(placement.planClicks, locale), ctr: pct(placement.planCtr, locale) }) : ''}</span></td>
       <td>{money(placement.planCpm, locale)}</td>
       <td>
+        {!canEdit ? <span data-testid={`media-fact-readonly-${placement.position}`}>{num(placement.factImpressions, locale)}<span className="table-sub">{placement.factClicks != null ? fill(t('media.clicksOnly'), { clicks: num(placement.factClicks, locale) }) : ''}</span></span> :
         <form className="media-fact" onSubmit={submit}>
           <input aria-label={t('media.factImpressions')} inputMode="numeric" placeholder={t('media.factImpressions')} value={impressions} onChange={(event) => setImpressions(event.target.value)} data-testid={`media-fact-impressions-${placement.position}`} />
           <input aria-label={t('media.factClicks')} inputMode="numeric" placeholder={t('media.factClicks')} value={clicks} onChange={(event) => setClicks(event.target.value)} data-testid={`media-fact-clicks-${placement.position}`} />
           {changed && <button type="submit" className="btn btn-small" disabled={save.isPending} data-testid={`media-fact-save-${placement.position}`}>{t('media.saveFact')}</button>}
           {error && <span className="negative" role="alert">{t('media.factError')}</span>}
-        </form>
+        </form>}
       </td>
       <td className={delivery == null ? '' : delivery < 0.95 ? 'negative' : 'positive'} data-testid={`media-delivery-${placement.position}`}>{pct(delivery, locale)}</td>
       <td>{money(placement.effectiveCpm, locale)}</td>

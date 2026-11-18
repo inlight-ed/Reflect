@@ -236,14 +236,18 @@ jobs:
       - name: Admin scripts (data-only, whole account, unlock)
         run: |
           psql_db() { docker compose exec -T db psql -U reflect -d reflect -At -v ON_ERROR_STOP=1 "$@"; }
-          psql_db -c "insert into users(id,email,password_hash) values ('ci-user','ci@example.kz','x')"
-          psql_db -c "insert into orders(user_id,order_code,line_key,ordered_at,sku,quantity,amount,status,source) values ('ci-user','1','A#1',now(),'A',1,100,'SOLD','FILE')"
-          psql_db -c "insert into integrations(user_id,kind,status) values ('ci-user','KASPI_API','CONNECTED')"
+          # ci-user is alone in their shop and shares an agency with a colleague: only the shop is theirs to delete.
+          psql_db -c "insert into users(id,email,password_hash) values ('ci-user','ci@example.kz','x'), ('ci-colleague','colleague@example.kz','x')"
+          psql_db -c "insert into workspaces(id,kind,name) values ('ci-ws','SHOP','CI shop'), ('ci-shared','AGENCY','CI agency')"
+          psql_db -c "insert into workspace_members(workspace_id,user_id,role) values ('ci-ws','ci-user','OWNER'), ('ci-shared','ci-user','OWNER'), ('ci-shared','ci-colleague','MEMBER')"
+          psql_db -c "insert into orders(workspace_id,order_code,line_key,ordered_at,sku,quantity,amount,status,source) values ('ci-ws','1','A#1',now(),'A',1,100,'SOLD','FILE'), ('ci-shared','2','B#1',now(),'B',1,100,'SOLD','FILE')"
+          psql_db -c "insert into integrations(workspace_id,kind,status) values ('ci-ws','KASPI_API','CONNECTED')"
 
           printf 'ci@example.kz\n' | ./deploy/delete-account.sh --data-only ci@example.kz
-          [ "$(psql_db -c "select count(*) from orders where user_id='ci-user'")" = "0" ] || { echo "orders were not deleted"; exit 1; }
+          [ "$(psql_db -c "select count(*) from orders where workspace_id='ci-ws'")" = "0" ] || { echo "orders were not deleted"; exit 1; }
+          [ "$(psql_db -c "select count(*) from orders where workspace_id='ci-shared'")" = "1" ] || { echo "--data-only touched a shared workspace"; exit 1; }
           [ "$(psql_db -c "select count(*) from users where id='ci-user'")" = "1" ] || { echo "--data-only removed the account"; exit 1; }
-          [ "$(psql_db -c "select count(*) from integrations where user_id='ci-user'")" = "1" ] || { echo "--data-only removed the connection"; exit 1; }
+          [ "$(psql_db -c "select count(*) from integrations where workspace_id='ci-ws'")" = "1" ] || { echo "--data-only removed the connection"; exit 1; }
 
           # wrong confirmation must delete nothing
           printf 'nope\n' | ./deploy/delete-account.sh ci@example.kz && { echo "deleted without confirmation"; exit 1; } || true
@@ -251,7 +255,11 @@ jobs:
 
           printf 'ci@example.kz\n' | ./deploy/delete-account.sh ci@example.kz
           [ "$(psql_db -c "select count(*) from users where id='ci-user'")" = "0" ] || { echo "account was not deleted"; exit 1; }
-          [ "$(psql_db -c "select count(*) from integrations where user_id='ci-user'")" = "0" ] || { echo "connection survived account deletion"; exit 1; }
+          [ "$(psql_db -c "select count(*) from integrations where workspace_id='ci-ws'")" = "0" ] || { echo "connection survived account deletion"; exit 1; }
+          [ "$(psql_db -c "select count(*) from workspaces where id='ci-ws'")" = "0" ] || { echo "the person's own workspace survived"; exit 1; }
+          [ "$(psql_db -c "select count(*) from orders where workspace_id='ci-shared'")" = "1" ] || { echo "a shared workspace lost its data"; exit 1; }
+          [ "$(psql_db -c "select count(*) from workspace_members where workspace_id='ci-shared'")" = "1" ] || { echo "the colleague lost access"; exit 1; }
+          [ "$(psql_db -c "select role from workspace_members where workspace_id='ci-shared'")" = "OWNER" ] || { echo "the shared workspace was left without an owner"; exit 1; }
           ls backups/before-delete-*.dump
 
           key="login:$(printf '%s' 'locked@example.kz' | sha256sum | cut -d' ' -f1)"

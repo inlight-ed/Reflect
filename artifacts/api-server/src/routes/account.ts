@@ -10,6 +10,7 @@ import {
   SaveConnectionBody,
   UpdateProductCostsBody,
 } from "@workspace/api-zod";
+import { listWorkspaces, requireEditor, requireWorkspace } from "../lib/workspaces";
 import { AuthError, createSession, login, logout, register, requireUser, SESSION_COOKIE, setSessionCookie, logoutEverywhere } from "../lib/auth";
 import { requestPasswordReset, resetPassword } from "../lib/password-reset";
 import { HashingBusyError } from "../lib/security";
@@ -122,10 +123,12 @@ router.get("/auth/me", async (req, res) => {
     res.json({ accountsEnabled: hasDatabase(), hasData: false });
     return;
   }
-  const status = await dataStatus(req.user.id);
-  const connections = await connectionViews(req.user.id);
+  const workspace = req.workspace!;
+  const [status, connections, workspaces] = await Promise.all([dataStatus(workspace.id), connectionViews(workspace.id), listWorkspaces(req.user.id)]);
   res.json({
     user: req.user,
+    workspace,
+    workspaces,
     accountsEnabled: true,
     hasData: status.orders > 0,
     hasProducts: status.products > 0,
@@ -133,7 +136,7 @@ router.get("/auth/me", async (req, res) => {
   });
 });
 
-router.post("/data/import", requireUser, importLimit, async (req, res) => {
+router.post("/data/import", requireEditor, importLimit, async (req, res) => {
   const parsed = ImportDataBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "INVALID_IMPORT" });
@@ -142,10 +145,10 @@ router.post("/data/import", requireUser, importLimit, async (req, res) => {
   const { kind, fileName = null, orders = [], products = [], ads = [] } = parsed.data;
   try {
     const result = kind === "ORDERS"
-      ? await importOrders(req.user!.id, orders, "FILE", fileName)
+      ? await importOrders(req.workspace!.id, orders, "FILE", fileName)
       : kind === "PRODUCTS"
-        ? await importProducts(req.user!.id, products, "FILE", fileName)
-        : await importAds(req.user!.id, ads, "FILE", fileName);
+        ? await importProducts(req.workspace!.id, products, "FILE", fileName)
+        : await importAds(req.workspace!.id, ads, "FILE", fileName);
     res.json(result);
   } catch (error) {
     if (error instanceof ImportValidationError) {
@@ -156,45 +159,45 @@ router.post("/data/import", requireUser, importLimit, async (req, res) => {
   }
 });
 
-router.put("/data/product-costs", requireUser, importLimit, async (req, res) => {
+router.put("/data/product-costs", requireEditor, importLimit, async (req, res) => {
   const parsed = UpdateProductCostsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "INVALID_VALUES" });
     return;
   }
-  await updateProductCosts(req.user!.id, parsed.data);
+  await updateProductCosts(req.workspace!.id, parsed.data);
   res.json({ ok: true });
 });
 
-router.get("/data/status", requireUser, async (req, res) => {
-  res.json(await dataStatus(req.user!.id));
+router.get("/data/status", requireWorkspace, async (req, res) => {
+  res.json(await dataStatus(req.workspace!.id));
 });
 
-router.get("/feedback", requireUser, async (req, res) => {
-  res.json(await listUserFeedback(req.user!.id));
+router.get("/feedback", requireWorkspace, async (req, res) => {
+  res.json(await listUserFeedback(req.workspace!.id));
 });
 
-router.post("/feedback", requireUser, importLimit, async (req, res) => {
+router.post("/feedback", requireEditor, importLimit, async (req, res) => {
   const parsed = CreateFeedbackBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "INVALID_FEEDBACK" });
     return;
   }
-  res.status(201).json(await createFeedback(req.user!.id, parsed.data));
+  res.status(201).json(await createFeedback(req.workspace!.id, parsed.data));
 });
 
-router.post("/content/events", requireUser, importLimit, async (req, res) => {
+router.post("/content/events", requireEditor, importLimit, async (req, res) => {
   const parsed = CreateCardEventBody.safeParse(req.body);
-  if (!parsed.success || !(await hasUserOrders(req.user!.id))) {
+  if (!parsed.success || !(await hasUserOrders(req.workspace!.id))) {
     res.status(400).json({ error: "INVALID_EVENT" });
     return;
   }
-  res.status(201).json(await createCardEvent(req.user!.id, parsed.data));
+  res.status(201).json(await createCardEvent(req.workspace!.id, parsed.data));
 });
 
 const kindOf = (value: unknown): IntegrationKind | undefined => (CONNECTION_KINDS.includes(value as IntegrationKind) ? (value as IntegrationKind) : undefined);
 
-router.put("/integrations/:kind", requireUser, syncLimit, async (req, res) => {
+router.put("/integrations/:kind", requireEditor, syncLimit, async (req, res) => {
   const kind = kindOf(req.params.kind);
   const parsed = SaveConnectionBody.safeParse(req.body ?? {});
   if (!kind || !parsed.success) {
@@ -202,7 +205,7 @@ router.put("/integrations/:kind", requireUser, syncLimit, async (req, res) => {
     return;
   }
   try {
-    res.json(await saveConnection(req.user!.id, kind, parsed.data));
+    res.json(await saveConnection(req.workspace!.id, kind, parsed.data));
   } catch (error) {
     if (error instanceof ConnectionInputError) {
       res.status(400).json({ error: error.message });
@@ -212,28 +215,28 @@ router.put("/integrations/:kind", requireUser, syncLimit, async (req, res) => {
   }
 });
 
-router.delete("/integrations/:kind", requireUser, async (req, res) => {
+router.delete("/integrations/:kind", requireEditor, async (req, res) => {
   const kind = kindOf(req.params.kind);
   if (!kind) {
     res.status(400).json({ error: "INVALID_CONNECTION" });
     return;
   }
-  await removeConnection(req.user!.id, kind);
+  await removeConnection(req.workspace!.id, kind);
   res.status(204).end();
 });
 
-router.get("/integrations/runs", requireUser, async (req, res) => {
-  res.json(await recentSyncRuns(req.user!.id));
+router.get("/integrations/runs", requireWorkspace, async (req, res) => {
+  res.json(await recentSyncRuns(req.workspace!.id));
 });
 
-router.post("/integrations/:kind/sync", requireUser, syncLimit, async (req, res) => {
+router.post("/integrations/:kind/sync", requireEditor, syncLimit, async (req, res) => {
   const kind = kindOf(req.params.kind);
   if (!kind) {
     res.status(400).json({ error: "INVALID_CONNECTION" });
     return;
   }
   // Returns immediately with status SYNCING; the page polls the connection until it changes.
-  res.json(await startSync(req.user!.id, kind));
+  res.json(await startSync(req.workspace!.id, kind));
 });
 
 export default router;

@@ -10,6 +10,8 @@ export const media: Catalog = {
   "media.upload": ["Загрузить медиаплан (.xlsx, .xls, .csv)", "Медиапланды жүктеу (.xlsx, .xls, .csv)", "Upload a media plan (.xlsx, .xls, .csv)"],
   "media.preview": ["«{title}»: лист «{sheet}», размещений — {placements}, вариантов — {variants}.", "«{title}»: «{sheet}» парағы, орналастырулар — {placements}, нұсқалар — {variants}.", "“{title}”: sheet “{sheet}”, placements: {placements}, variants: {variants}."],
   "media.client": ["Клиент", "Клиент", "Client"],
+  "media.allClients": ["Все клиенты", "Барлық клиенттер", "All clients"],
+  "media.clicksOnly": ["{clicks} кликов", "{clicks} басу", "{clicks} clicks"],
   "media.save": ["Сохранить план", "Жоспарды сақтау", "Save the plan"],
   "media.saving": ["Сохраняю…", "Сақталуда…", "Saving…"],
   "media.notAPlan": ["В файле не нашлось таблицы с колонками «Площадка», «Формат» и «Стоимость».", "Файлда «Алаң», «Формат» және «Құны» бағандары бар кесте табылмады.", "No table with Platform, Format and Cost columns was found in the file."],

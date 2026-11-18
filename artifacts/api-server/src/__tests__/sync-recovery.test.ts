@@ -12,6 +12,7 @@ import { register } from "../lib/auth";
 import { database } from "../lib/database";
 import { resumeInterruptedSyncs } from "../lib/integrations/service";
 import { saveIntegration } from "../lib/integrations/store";
+import { deleteAccountForTests } from "./helpers";
 
 const skip = process.env["DATABASE_URL"] ? false : "set DATABASE_URL to run database tests";
 const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -26,20 +27,19 @@ describe("sync recovery after a restart", { skip }, () => {
     process.env["KASPI_API_BASE"] = `http://127.0.0.1:${(server.address() as AddressInfo).port}/shop/api/v2`;
   });
   after(async () => {
-    const { db, usersTable } = await database();
-    for (const id of ids) await db.delete(usersTable).where(eq(usersTable.id, id));
+    for (const id of ids) await deleteAccountForTests(id);
     delete process.env["KASPI_API_BASE"];
     server.close();
   });
 
   async function sellerWithRun(heartbeatAgoMs: number) {
-    const { user } = await register(`recovery-${ids.length}-${stamp}@example.kz`, "password-123");
+    const { user, workspaceId } = await register(`recovery-${ids.length}-${stamp}@example.kz`, "password-123");
     ids.push(user.id);
-    await saveIntegration(user.id, "KASPI_API", { secret: `token-${stamp}`, status: "SYNCING" });
+    await saveIntegration(workspaceId, "KASPI_API", { secret: `token-${stamp}`, status: "SYNCING" });
     const { db, syncRunsTable } = await database();
     const runId = randomUUID();
-    await db.insert(syncRunsTable).values({ id: runId, userId: user.id, kind: "KASPI_API", status: "RUNNING", heartbeatAt: new Date(Date.now() - heartbeatAgoMs) });
-    return { userId: user.id, runId };
+    await db.insert(syncRunsTable).values({ id: runId, workspaceId, kind: "KASPI_API", status: "RUNNING", heartbeatAt: new Date(Date.now() - heartbeatAgoMs) });
+    return { workspaceId, runId };
   }
 
   it("resumes a run whose heartbeat stopped and leaves a live run alone", async () => {
@@ -52,7 +52,7 @@ describe("sync recovery after a restart", { skip }, () => {
     const [old] = await db.select().from(syncRunsTable).where(eq(syncRunsTable.id, dead.runId));
     assert.equal(old?.status, "FAILED");
     assert.equal(old?.detail, "connector.sync.interrupted");
-    const restarted = await db.select().from(syncRunsTable).where(and(eq(syncRunsTable.userId, dead.userId), eq(syncRunsTable.kind, "KASPI_API")));
+    const restarted = await db.select().from(syncRunsTable).where(and(eq(syncRunsTable.workspaceId, dead.workspaceId), eq(syncRunsTable.kind, "KASPI_API")));
     assert.equal(restarted.length, 2, "a new run was started for the interrupted seller");
 
     const [untouched] = await db.select().from(syncRunsTable).where(eq(syncRunsTable.id, live.runId));

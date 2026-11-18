@@ -6,7 +6,7 @@ import { logger, safeError } from "./logger";
 const SYNC_LOG_DAYS = 90;
 const DAY_MS = 24 * 60 * 60_000;
 
-export type MaintenanceResult = { sessions: number; syncRuns: number; stuckSyncs: number; counters: number; resetLinks: number };
+export type MaintenanceResult = { sessions: number; syncRuns: number; stuckSyncs: number; counters: number; resetLinks: number; invites: number };
 
 /**
  * Daily housekeeping: removes what only ever grows.
@@ -14,6 +14,7 @@ export type MaintenanceResult = { sessions: number; syncRuns: number; stuckSyncs
  *  - finished sync runs older than 90 days
  *  - sync runs still marked RUNNING after a day (the instance died), so they stop looking busy
  *  - expired rate-limit and login-attempt counters
+ *  - invitation links that expired or were used more than a day ago
  * Every statement is safe to repeat. A transaction-level advisory lock makes sure that with
  * several API instances only one of them does the work at a time; it returns null for the others.
  */
@@ -29,7 +30,8 @@ export async function runMaintenance(): Promise<MaintenanceResult | null> {
     const stuckSyncs = await count(sql`update sync_runs set status = 'FAILED', detail = 'connector.sync.interrupted', finished_at = now() where status = 'RUNNING' and started_at < now() - interval '1 day'`);
     const counters = await count(sql`delete from rate_limits where reset_at < now() - interval '1 day'`);
     const resetLinks = await count(sql`delete from password_resets where expires_at < now() - interval '1 day'`);
-    return { sessions, syncRuns, stuckSyncs, counters, resetLinks };
+    const invites = await count(sql`delete from workspace_invites where expires_at < now() - interval '1 day' or used_at < now() - interval '1 day'`);
+    return { sessions, syncRuns, stuckSyncs, counters, resetLinks, invites };
   });
 }
 

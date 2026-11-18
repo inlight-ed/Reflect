@@ -4,6 +4,7 @@ import { Link, useLocation } from 'wouter';
 import { ApiError, useLoginAccount, useRegisterAccount } from '@workspace/api-client-react';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
+import { nextPath } from '@/lib/next-path';
 
 function errorMessage(error: unknown, t: (key: string) => string) {
   if (error instanceof ApiError) {
@@ -35,7 +36,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       else await login.mutateAsync({ data: { email: email.trim(), password } });
       leaveDemo();
       await refresh();
-      navigate('/overview');
+      navigate(nextPath());
     } catch (err) {
       setError(errorMessage(err, t));
     }
@@ -52,7 +53,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         {!isRegister && <Link href="/forgot-password" className="auth-forgot" data-testid="link-forgot-password">{t('auth.forgot')}</Link>}
         {error && <p className="form-error" role="alert" data-testid="auth-error">{error}</p>}
         <button type="submit" className="btn auth-submit" disabled={pending || !email || !password} data-testid="button-auth-submit">{pending ? t('auth.pending') : t(isRegister ? 'auth.submit.register' : 'auth.submit.login')}</button>
-        <Link href={isRegister ? '/login' : '/register'} className="auth-switch">{t(isRegister ? 'auth.switch.toLogin' : 'auth.switch.toRegister')}</Link>
+        <Link href={`${isRegister ? '/login' : '/register'}${window.location.search}`} className="auth-switch">{t(isRegister ? 'auth.switch.toLogin' : 'auth.switch.toRegister')}</Link>
       </form>
     </div>
   );

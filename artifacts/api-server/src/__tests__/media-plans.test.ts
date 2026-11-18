@@ -9,9 +9,10 @@ import type { MediaPlacementRow } from "@workspace/db";
 import { register } from "../lib/auth";
 import { database } from "../lib/database";
 import { benchmarks, createMediaPlan, getMediaPlan, listMediaPlans, MediaPlanNotFound, placementView, planChecks, saveMediaFact, variantSummaries } from "../lib/media-plans";
+import { deleteAccountForTests } from "./helpers";
 
 const row = (extra: Partial<MediaPlacementRow>): MediaPlacementRow => ({
-  id: "p", planId: "plan", userId: "u", position: 0, variant: "Лайт", platform: "Wolt Ads", format: "Hero Banner",
+  id: "p", planId: "plan", workspaceId: "u", position: 0, variant: "Лайт", platform: "Wolt Ads", format: "Hero Banner",
   mechanic: null, buyType: "Fix / Месяц", period: "1 месяц", cost: 1_600_000, planImpressions: 1_200_000, planReach: 500_000,
   planClicks: 12_000, planCtr: 0.01, expectedEffect: null, factCost: null, factImpressions: null, factReach: null, factClicks: null, factUpdatedAt: null,
   ...extra,
@@ -89,16 +90,15 @@ const skip = process.env["DATABASE_URL"] ? false : "set DATABASE_URL to run data
 describe("media plans in the database", { skip }, () => {
   const ids: string[] = [];
   after(async () => {
-    const { db, usersTable } = await database();
-    for (const id of ids) await db.delete(usersTable).where(eq(usersTable.id, id));
+    for (const id of ids) await deleteAccountForTests(id);
   });
 
   it("saves a plan with its checks, records a fact, and keeps plans to their owner", async () => {
     const stamp = Date.now();
-    const { user } = await register(`media-a-${stamp}@example.kz`, "password-123");
-    const { user: other } = await register(`media-b-${stamp}@example.kz`, "password-123");
+    const { user, workspaceId: mine } = await register(`media-a-${stamp}@example.kz`, "password-123");
+    const { user: other, workspaceId: theirs } = await register(`media-b-${stamp}@example.kz`, "password-123");
     ids.push(user.id, other.id);
-    const plan = await createMediaPlan(user.id, {
+    const plan = await createMediaPlan(mine, {
       client: "L'Oréal",
       title: "Медиаплан ноябрь",
       fileName: "mp.xlsx",
@@ -111,16 +111,25 @@ describe("media plans in the database", { skip }, () => {
     assert.equal(plan.placements.length, 2);
     assert.equal(plan.checks[0]?.type, "TOTAL_MISMATCH");
 
-    const updated = await saveMediaFact(user.id, plan.id, plan.placements[0]!.id, { factImpressions: 1_000_000, factClicks: 9_000 });
+    const updated = await saveMediaFact(mine, plan.id, plan.placements[0]!.id, { factImpressions: 1_000_000, factClicks: 9_000 });
     assert.equal(updated.placements[0]?.delivery, 0.833);
     assert.equal(updated.variants[0]?.withFact, 1);
 
-    const list = await listMediaPlans(user.id);
+    const list = await listMediaPlans(mine);
     assert.equal(list.plans[0]?.client, "L'Oréal");
+    assert.equal(list.plans[0]?.clientId, plan.clientId);
+
+    // The client is matched by name in any letter case, so a second plan lands with the same client.
+    const second = await createMediaPlan(mine, { client: " l'oréal ", title: "Декабрь", placements: [{ variant: "Лайт", platform: "Wolt Ads", format: "Hero Banner", cost: 100 }] });
+    assert.equal(second.clientId, plan.clientId);
+    assert.equal(second.client, "L'Oréal");
+    const lg = await createMediaPlan(mine, { client: "LG", title: "LG", placements: [{ variant: "A", platform: "Kaspi", format: "Баннер", cost: 100 }] });
+    assert.equal((await listMediaPlans(mine, lg.clientId)).plans.length, 1);
+    assert.equal((await listMediaPlans(mine, plan.clientId)).plans.length, 2);
     assert.equal(list.benchmarks.length, 2);
 
-    await assert.rejects(getMediaPlan(other.id, plan.id), MediaPlanNotFound);
-    await assert.rejects(saveMediaFact(other.id, plan.id, plan.placements[0]!.id, { factImpressions: 1 }), MediaPlanNotFound);
-    assert.equal((await listMediaPlans(other.id)).plans.length, 0);
+    await assert.rejects(getMediaPlan(theirs, plan.id), MediaPlanNotFound);
+    await assert.rejects(saveMediaFact(theirs, plan.id, plan.placements[0]!.id, { factImpressions: 1 }), MediaPlanNotFound);
+    assert.equal((await listMediaPlans(theirs)).plans.length, 0);
   });
 });

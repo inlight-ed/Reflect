@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuthUser } from './authUser';
+import type { Workspace } from './workspace';
 
 export interface SessionState {
   user?: AuthUser;
+  workspace?: Workspace;
+  workspaces?: Workspace[];
   accountsEnabled: boolean;
   hasData: boolean;
   hasProducts?: boolean;

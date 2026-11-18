@@ -39,8 +39,8 @@ const okDetail: Record<IntegrationKind, SourceMessageKey> = {
   CUSTOM_MCP: "connector.mcp.connected",
 };
 
-export async function connectionViews(userId: string): Promise<ConnectionView[]> {
-  const stored = await listIntegrations(userId);
+export async function connectionViews(workspaceId: string): Promise<ConnectionView[]> {
+  const stored = await listIntegrations(workspaceId);
   return CONNECTION_KINDS.map((kind) => {
     const row = stored.find((item) => item.kind === kind);
     if (!row) return { kind, url: null, secretHint: null, status: "NOT_CONNECTED", detail: "connector.not_connected", lastSyncAt: null };
@@ -60,12 +60,12 @@ export async function connectionViews(userId: string): Promise<ConnectionView[]>
   });
 }
 
-async function view(userId: string, kind: IntegrationKind) {
-  return (await connectionViews(userId)).find((item) => item.kind === kind)!;
+async function view(workspaceId: string, kind: IntegrationKind) {
+  return (await connectionViews(workspaceId)).find((item) => item.kind === kind)!;
 }
 
-export async function saveConnection(userId: string, kind: IntegrationKind, input: { url?: string; secret?: string }) {
-  const previous = await getIntegration(userId, kind);
+export async function saveConnection(workspaceId: string, kind: IntegrationKind, input: { url?: string; secret?: string }) {
+  const previous = await getIntegration(workspaceId, kind);
   const secret = input.secret?.trim() || previous?.secret || null;
   const url = kind === "REDSTAT_MCP" || kind === "CUSTOM_MCP" ? input.url?.trim() || previous?.url || null : null;
   if ((kind === "KASPI_API" || kind === "MOYSKLAD") && !secret) throw new ConnectionInputError("SECRET_REQUIRED");
@@ -76,15 +76,15 @@ export async function saveConnection(userId: string, kind: IntegrationKind, inpu
     if (kind === "KASPI_API") await testKaspiToken(secret!);
     else if (kind === "MOYSKLAD") await testMoyskladToken(secret!);
     else tools = await listMcpTools(url!, secret);
-    await saveIntegration(userId, kind, { url, secret, status: "CONNECTED", detail: okDetail[kind], meta: tools ? { tools: tools.slice(0, 50) } : null, lastSyncAt: previous?.lastSyncAt ?? null });
+    await saveIntegration(workspaceId, kind, { url, secret, status: "CONNECTED", detail: okDetail[kind], meta: tools ? { tools: tools.slice(0, 50) } : null, lastSyncAt: previous?.lastSyncAt ?? null });
   } catch (error) {
-    await saveIntegration(userId, kind, { url, secret, status: "ERROR", detail: errorDetail(kind, error), meta: null });
+    await saveIntegration(workspaceId, kind, { url, secret, status: "ERROR", detail: errorDetail(kind, error), meta: null });
   }
-  return view(userId, kind);
+  return view(workspaceId, kind);
 }
 
-export async function removeConnection(userId: string, kind: IntegrationKind) {
-  await deleteIntegration(userId, kind);
+export async function removeConnection(workspaceId: string, kind: IntegrationKind) {
+  await deleteIntegration(workspaceId, kind);
 }
 
 const STALE_SYNC_MS = 15 * 60_000;
@@ -125,32 +125,32 @@ async function withRetries<T>(task: () => Promise<T>): Promise<T> {
 /**
  * Starts a sync in the background and returns at once with status SYNCING; the client polls
  * the connection until it changes. A RUNNING row in sync_runs is the lock: its partial unique
- * index allows one running sync per user and source across all API instances, so a second
+ * index allows one running sync per workspace and source across all API instances, so a second
  * click (or a second instance) joins the running sync instead of starting another.
  */
-export async function startSync(userId: string, kind: IntegrationKind) {
-  const stored = await getIntegration(userId, kind);
-  if (!stored || (!stored.secret && kind !== "CUSTOM_MCP" && kind !== "REDSTAT_MCP")) return view(userId, kind);
+export async function startSync(workspaceId: string, kind: IntegrationKind) {
+  const stored = await getIntegration(workspaceId, kind);
+  if (!stored || (!stored.secret && kind !== "CUSTOM_MCP" && kind !== "REDSTAT_MCP")) return view(workspaceId, kind);
   const { db, syncRunsTable } = await database();
   // Free locks left by a run that died with its instance.
   await db.update(syncRunsTable).set({ status: "FAILED", detail: "connector.sync.interrupted", finishedAt: new Date() })
-    .where(and(eq(syncRunsTable.userId, userId), eq(syncRunsTable.kind, kind), eq(syncRunsTable.status, "RUNNING"), lt(syncRunsTable.heartbeatAt, new Date(Date.now() - HEARTBEAT_TIMEOUT_MS))));
+    .where(and(eq(syncRunsTable.workspaceId, workspaceId), eq(syncRunsTable.kind, kind), eq(syncRunsTable.status, "RUNNING"), lt(syncRunsTable.heartbeatAt, new Date(Date.now() - HEARTBEAT_TIMEOUT_MS))));
   const runId = randomUUID();
-  const inserted = await db.insert(syncRunsTable).values({ id: runId, userId, kind, status: "RUNNING" }).onConflictDoNothing().returning({ id: syncRunsTable.id });
-  if (!inserted.length) return { ...(await view(userId, kind)), status: "SYNCING" as const };
-  await updateIntegrationStatus(userId, kind, "SYNCING", null);
+  const inserted = await db.insert(syncRunsTable).values({ id: runId, workspaceId, kind, status: "RUNNING" }).onConflictDoNothing().returning({ id: syncRunsTable.id });
+  if (!inserted.length) return { ...(await view(workspaceId, kind)), status: "SYNCING" as const };
+  await updateIntegrationStatus(workspaceId, kind, "SYNCING", null);
   ownRuns.add(runId);
   // Queued behind other sellers' syncs; the run counts as started when it gets a slot, so a long
   // wait in the queue is not mistaken for a run that died.
   void syncSlots.run(
-    () => runSync(userId, kind, runId, stored),
+    () => runSync(workspaceId, kind, runId, stored),
     async () => { await db.update(syncRunsTable).set({ startedAt: new Date(), heartbeatAt: new Date() }).where(eq(syncRunsTable.id, runId)); },
   ).catch((err) => logger.error({ err: safeError(err), kind }, "Sync crashed"))
     .finally(() => ownRuns.delete(runId));
-  return { ...(await view(userId, kind)), status: "SYNCING" as const };
+  return { ...(await view(workspaceId, kind)), status: "SYNCING" as const };
 }
 
-async function runSync(userId: string, kind: IntegrationKind, runId: string, stored: NonNullable<Awaited<ReturnType<typeof getIntegration>>>) {
+async function runSync(workspaceId: string, kind: IntegrationKind, runId: string, stored: NonNullable<Awaited<ReturnType<typeof getIntegration>>>) {
   const { db, syncRunsTable } = await database();
   const started = Date.now();
   let rows: number | null = null;
@@ -163,48 +163,48 @@ async function runSync(userId: string, kind: IntegrationKind, runId: string, sto
       const previous = typeof stored.meta?.completeThrough === "string" ? new Date(stored.meta.completeThrough) : undefined;
       const since = previous && !Number.isNaN(previous.getTime()) ? new Date(previous.getTime() - KASPI_OVERLAP_DAYS * 86_400_000) : undefined;
       const { lines, truncated } = await fetchKaspiOrders(stored.secret!, 60, since);
-      const result = lines.length ? await importOrders(userId, lines, "KASPI_API", null) : { accepted: 0 };
+      const result = lines.length ? await importOrders(workspaceId, lines, "KASPI_API", null) : { accepted: 0 };
       rows = result.accepted;
       detail = truncated ? "connector.sync.truncated" : "connector.sync.done";
       const completeThrough = truncated ? previous?.toISOString() : new Date(started).toISOString();
-      await updateIntegrationStatus(userId, kind, "CONNECTED", detail, { meta: { imported: result.accepted, ...(completeThrough ? { completeThrough } : {}) }, lastSyncAt: new Date() });
+      await updateIntegrationStatus(workspaceId, kind, "CONNECTED", detail, { meta: { imported: result.accepted, ...(completeThrough ? { completeThrough } : {}) }, lastSyncAt: new Date() });
     } else if (kind === "MOYSKLAD") {
       const products = await withRetries(() => fetchMoyskladStock(stored.secret!));
-      const result = products.length ? await importProducts(userId, products, "MOYSKLAD", null) : { accepted: 0 };
+      const result = products.length ? await importProducts(workspaceId, products, "MOYSKLAD", null) : { accepted: 0 };
       rows = result.accepted;
       detail = "connector.sync.done";
-      await updateIntegrationStatus(userId, kind, "CONNECTED", detail, { meta: { imported: result.accepted }, lastSyncAt: new Date() });
+      await updateIntegrationStatus(workspaceId, kind, "CONNECTED", detail, { meta: { imported: result.accepted }, lastSyncAt: new Date() });
     } else {
       const tools = await withRetries(() => listMcpTools(stored.url!, stored.secret));
       detail = okDetail[kind];
-      await updateIntegrationStatus(userId, kind, "CONNECTED", detail, { meta: { tools: tools.slice(0, 50) }, lastSyncAt: new Date() });
+      await updateIntegrationStatus(workspaceId, kind, "CONNECTED", detail, { meta: { tools: tools.slice(0, 50) }, lastSyncAt: new Date() });
     }
   } catch (error) {
     ok = false;
     detail = errorDetail(kind, error);
-    await updateIntegrationStatus(userId, kind, "ERROR", detail);
+    await updateIntegrationStatus(workspaceId, kind, "ERROR", detail);
   }
   await db.update(syncRunsTable).set({ status: ok ? "DONE" : "FAILED", detail, rows, finishedAt: new Date() }).where(eq(syncRunsTable.id, runId));
   logger.info({ kind, ok, rows, ms: Date.now() - started }, "Sync finished");
 }
 
 /** Waits for a background sync to finish (tests and scripts). */
-export async function syncConnection(userId: string, kind: IntegrationKind, timeoutMs = 120_000) {
-  await startSync(userId, kind);
+export async function syncConnection(workspaceId: string, kind: IntegrationKind, timeoutMs = 120_000) {
+  await startSync(workspaceId, kind);
   const { db, syncRunsTable } = await database();
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const [running] = await db.select({ id: syncRunsTable.id }).from(syncRunsTable).where(and(eq(syncRunsTable.userId, userId), eq(syncRunsTable.kind, kind), eq(syncRunsTable.status, "RUNNING"))).limit(1);
+    const [running] = await db.select({ id: syncRunsTable.id }).from(syncRunsTable).where(and(eq(syncRunsTable.workspaceId, workspaceId), eq(syncRunsTable.kind, kind), eq(syncRunsTable.status, "RUNNING"))).limit(1);
     if (!running) break;
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  return view(userId, kind);
+  return view(workspaceId, kind);
 }
 
 /** Last sync runs for the settings page log. */
-export async function recentSyncRuns(userId: string, limit = 10) {
+export async function recentSyncRuns(workspaceId: string, limit = 10) {
   const { db, syncRunsTable } = await database();
-  const rows = await db.select().from(syncRunsTable).where(eq(syncRunsTable.userId, userId)).orderBy(sql`${syncRunsTable.startedAt} desc`).limit(limit);
+  const rows = await db.select().from(syncRunsTable).where(eq(syncRunsTable.workspaceId, workspaceId)).orderBy(sql`${syncRunsTable.startedAt} desc`).limit(limit);
   return rows.map((row) => ({ id: row.id, kind: row.kind as IntegrationKind, status: row.status as "RUNNING" | "DONE" | "FAILED", detail: (row.detail ?? undefined) as SourceMessageKey | undefined, rows: row.rows, startedAt: row.startedAt.toISOString(), finishedAt: row.finishedAt?.toISOString() ?? null }));
 }
 
@@ -218,11 +218,11 @@ export async function resumeInterruptedSyncs(limit = 50) {
   const { db, syncRunsTable } = await database();
   const dead = await db.update(syncRunsTable).set({ status: "FAILED", detail: "connector.sync.interrupted", finishedAt: new Date() })
     .where(and(eq(syncRunsTable.status, "RUNNING"), lt(syncRunsTable.heartbeatAt, new Date(Date.now() - HEARTBEAT_TIMEOUT_MS))))
-    .returning({ userId: syncRunsTable.userId, kind: syncRunsTable.kind });
+    .returning({ workspaceId: syncRunsTable.workspaceId, kind: syncRunsTable.kind });
   let resumed = 0;
   for (const run of dead.slice(0, limit)) {
     try {
-      const view = await startSync(run.userId, run.kind as IntegrationKind);
+      const view = await startSync(run.workspaceId, run.kind as IntegrationKind);
       if (view.status === "SYNCING") resumed += 1;
     } catch (err) {
       logger.warn({ err: safeError(err), kind: run.kind }, "Could not resume a sync");

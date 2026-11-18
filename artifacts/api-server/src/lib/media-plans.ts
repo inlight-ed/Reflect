@@ -12,6 +12,7 @@ import type {
 } from "@workspace/api-zod";
 import type { MediaPlacementRow } from "@workspace/db";
 import { database } from "./database";
+import { ensureClient } from "./workspaces";
 
 /**
  * Agency media plans: the plan as written, checks of its own arithmetic, and plan against fact.
@@ -164,7 +165,7 @@ export function benchmarks(rows: Array<MediaPlacementRow & { client: string }>):
       buyType: group.find((r) => r.buyType)?.buyType ?? null,
       placements: group.length,
       plans: new Set(group.map((r) => r.planId)).size,
-      clients: new Set(group.map((r) => r.client.trim().toLowerCase())).size,
+      clients: new Set(group.map((r) => r.client)).size,
       planCpm: planCpm === null ? null : round(planCpm * 1000, 1),
       effectiveCpm: effectiveCpm === null ? null : round(effectiveCpm * 1000, 1),
       delivery: deliveryMedian === null ? null : round(deliveryMedian, 3),
@@ -183,13 +184,13 @@ const parseChecks = (raw: string): MediaCheck[] => {
   }
 };
 
-export async function createMediaPlan(userId: string, input: MediaPlanInput): Promise<MediaPlan> {
+export async function createMediaPlan(workspaceId: string, input: MediaPlanInput): Promise<MediaPlan> {
   const { db, mediaPlansTable, mediaPlacementsTable } = await database();
   const planId = randomUUID();
   const rows = input.placements.map((placement, position) => ({
     id: randomUUID(),
     planId,
-    userId,
+    workspaceId,
     position,
     variant: placement.variant.trim(),
     platform: placement.platform.trim(),
@@ -206,20 +207,25 @@ export async function createMediaPlan(userId: string, input: MediaPlanInput): Pr
   }));
   const checks = planChecks(rows, input.declaredTotals);
   await db.transaction(async (tx) => {
-    await tx.insert(mediaPlansTable).values({ id: planId, userId, client: input.client.trim(), title: input.title.trim(), fileName: input.fileName ?? null, checks: JSON.stringify(checks) });
+    const client = await ensureClient(tx, workspaceId, input.client);
+    await tx.insert(mediaPlansTable).values({ id: planId, workspaceId, clientId: client.id, title: input.title.trim(), fileName: input.fileName ?? null, checks: JSON.stringify(checks) });
     for (let i = 0; i < rows.length; i += 200) await tx.insert(mediaPlacementsTable).values(rows.slice(i, i + 200));
   });
-  return getMediaPlan(userId, planId);
+  return getMediaPlan(workspaceId, planId);
 }
 
-export async function getMediaPlan(userId: string, planId: string): Promise<MediaPlan> {
-  const { db, mediaPlansTable, mediaPlacementsTable } = await database();
-  const [plan] = await db.select().from(mediaPlansTable).where(and(eq(mediaPlansTable.id, planId), eq(mediaPlansTable.userId, userId)));
-  if (!plan) throw new MediaPlanNotFound();
+export async function getMediaPlan(workspaceId: string, planId: string): Promise<MediaPlan> {
+  const { db, mediaPlansTable, mediaPlacementsTable, clientsTable } = await database();
+  const [found] = await db.select({ plan: mediaPlansTable, client: clientsTable.name }).from(mediaPlansTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, mediaPlansTable.clientId))
+    .where(and(eq(mediaPlansTable.id, planId), eq(mediaPlansTable.workspaceId, workspaceId)));
+  if (!found) throw new MediaPlanNotFound();
+  const { plan, client } = found;
   const rows = await db.select().from(mediaPlacementsTable).where(eq(mediaPlacementsTable.planId, planId)).orderBy(asc(mediaPlacementsTable.position));
   return {
     id: plan.id,
-    client: plan.client,
+    client,
+    clientId: plan.clientId,
     title: plan.title,
     fileName: plan.fileName,
     createdAt: plan.createdAt.toISOString(),
@@ -229,18 +235,26 @@ export async function getMediaPlan(userId: string, planId: string): Promise<Medi
   };
 }
 
-export async function listMediaPlans(userId: string): Promise<{ plans: MediaPlanListItem[]; benchmarks: MediaBenchmark[] }> {
-  const { db, mediaPlansTable, mediaPlacementsTable } = await database();
-  const plans = await db.select().from(mediaPlansTable).where(eq(mediaPlansTable.userId, userId)).orderBy(desc(mediaPlansTable.createdAt)).limit(200);
-  if (!plans.length) return { plans: [], benchmarks: [] };
-  const rows = await db.select().from(mediaPlacementsTable).where(inArray(mediaPlacementsTable.planId, plans.map((plan) => plan.id)));
-  const clientOf = new Map(plans.map((plan) => [plan.id, plan.client]));
+/**
+ * Plans of the workspace, newest first, optionally of one client. Benchmarks always cover every
+ * plan of the workspace: the point is to compare one client's prices with the agency's.
+ */
+export async function listMediaPlans(workspaceId: string, clientId?: string): Promise<{ plans: MediaPlanListItem[]; benchmarks: MediaBenchmark[] }> {
+  const { db, mediaPlansTable, mediaPlacementsTable, clientsTable } = await database();
+  const all = await db.select({ plan: mediaPlansTable, client: clientsTable.name }).from(mediaPlansTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, mediaPlansTable.clientId))
+    .where(eq(mediaPlansTable.workspaceId, workspaceId)).orderBy(desc(mediaPlansTable.createdAt)).limit(500);
+  if (!all.length) return { plans: [], benchmarks: [] };
+  const rows = await db.select().from(mediaPlacementsTable).where(inArray(mediaPlacementsTable.planId, all.map(({ plan }) => plan.id)));
+  const clientOf = new Map(all.map(({ plan }) => [plan.id, plan.clientId]));
+  const shown = (clientId ? all.filter(({ plan }) => plan.clientId === clientId) : all).slice(0, 200);
   return {
-    plans: plans.map((plan) => {
+    plans: shown.map(({ plan, client }) => {
       const own = rows.filter((row) => row.planId === plan.id);
       return {
         id: plan.id,
-        client: plan.client,
+        client,
+        clientId: plan.clientId,
         title: plan.title,
         createdAt: plan.createdAt.toISOString(),
         variants: variantSummaries(own),
@@ -253,7 +267,7 @@ export async function listMediaPlans(userId: string): Promise<{ plans: MediaPlan
   };
 }
 
-export async function saveMediaFact(userId: string, planId: string, placementId: string, fact: MediaFactInput): Promise<MediaPlan> {
+export async function saveMediaFact(workspaceId: string, planId: string, placementId: string, fact: MediaFactInput): Promise<MediaPlan> {
   const { db, mediaPlacementsTable } = await database();
   const fields = {
     ...(fact.factCost !== undefined ? { factCost: fact.factCost } : {}),
@@ -263,8 +277,8 @@ export async function saveMediaFact(userId: string, planId: string, placementId:
   };
   const updated = await db.update(mediaPlacementsTable)
     .set({ ...fields, factUpdatedAt: new Date() })
-    .where(and(eq(mediaPlacementsTable.id, placementId), eq(mediaPlacementsTable.planId, planId), eq(mediaPlacementsTable.userId, userId)))
+    .where(and(eq(mediaPlacementsTable.id, placementId), eq(mediaPlacementsTable.planId, planId), eq(mediaPlacementsTable.workspaceId, workspaceId)))
     .returning({ id: mediaPlacementsTable.id });
   if (!updated.length) throw new MediaPlanNotFound();
-  return getMediaPlan(userId, planId);
+  return getMediaPlan(workspaceId, planId);
 }

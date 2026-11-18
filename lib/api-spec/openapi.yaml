@@ -20,6 +20,8 @@ tags:
     description: Reflect demo intelligence
   - name: media
     description: Agency media plans, plan against fact
+  - name: workspaces
+    description: Shops and agencies, their members, invitation links and clients
 paths:
   /healthz:
     get:
@@ -357,11 +359,211 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProductsOverview"
+  /workspaces:
+    get:
+      operationId: getWorkspaces
+      tags: [workspaces]
+      summary: Workspaces the person is a member of
+      responses:
+        "200":
+          description: Workspaces
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Workspace" } }
+        "401": { description: Sign in required }
+    post:
+      operationId: createWorkspace
+      tags: [workspaces]
+      summary: Create a shop or agency workspace and open it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkspaceInput" }
+      responses:
+        "201":
+          description: Created and opened
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "400": { description: Invalid name or too many workspaces }
+        "401": { description: Sign in required }
+  /workspaces/{workspaceId}/open:
+    post:
+      operationId: openWorkspace
+      tags: [workspaces]
+      summary: Open another workspace in this session
+      parameters:
+        - { in: path, name: workspaceId, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Opened
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { description: Sign in required }
+        "404": { description: Not a member }
+  /workspace:
+    patch:
+      operationId: renameWorkspace
+      tags: [workspaces]
+      summary: Rename the open workspace (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameInput" }
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "400": { description: Invalid name }
+        "403": { description: Owner only }
+  /workspace/members:
+    get:
+      operationId: getWorkspaceMembers
+      tags: [workspaces]
+      summary: People in the open workspace
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/WorkspaceMember" } }
+        "401": { description: Sign in required }
+  /workspace/members/{userId}:
+    put:
+      operationId: setWorkspaceMemberRole
+      tags: [workspaces]
+      summary: Change a member's role (owner only)
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleInput" }
+      responses:
+        "204": { description: Changed }
+        "403": { description: Owner only }
+        "404": { description: Not a member }
+        "409": { description: The workspace would be left without an owner }
+    delete:
+      operationId: removeWorkspaceMember
+      tags: [workspaces]
+      summary: Take a person out of the workspace (owner), or leave it (self). Data stays.
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        "403": { description: Owner only }
+        "404": { description: Not a member }
+        "409": { description: The workspace would be left without an owner }
+  /workspace/invites:
+    post:
+      operationId: createWorkspaceInvite
+      tags: [workspaces]
+      summary: Create a one-time invitation link (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleInput" }
+      responses:
+        "201":
+          description: The link token; shown once
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceInvite" }
+        "403": { description: Owner only }
+  /invites/{token}:
+    get:
+      operationId: getInvite
+      tags: [workspaces]
+      summary: What an invitation link opens
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string, maxLength: 100 } }
+      responses:
+        "200":
+          description: Workspace name and role
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitePreview" }
+        "404": { description: "Link used, expired or unknown" }
+  /invites/{token}/accept:
+    post:
+      operationId: acceptInvite
+      tags: [workspaces]
+      summary: Join the workspace of an invitation link and open it
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string, maxLength: 100 } }
+      responses:
+        "200":
+          description: Joined and opened
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { description: Sign in required }
+        "404": { description: "Link used, expired or unknown" }
+  /clients:
+    get:
+      operationId: getClients
+      tags: [workspaces]
+      summary: Clients of the open workspace
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Client" } }
+        "401": { description: Sign in required }
+    post:
+      operationId: createClient
+      tags: [workspaces]
+      summary: Add a client (returns the existing one if the name is taken)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameInput" }
+      responses:
+        "201":
+          description: The client
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+        "400": { description: Invalid name or too many clients }
+        "403": { description: Read-only role }
+  /clients/{clientId}:
+    patch:
+      operationId: renameClient
+      tags: [workspaces]
+      summary: Rename a client
+      parameters:
+        - { in: path, name: clientId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameInput" }
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+        "400": { description: Invalid or taken name }
+        "403": { description: Read-only role }
+        "404": { description: Not found }
   /media-plans:
     get:
       operationId: getMediaPlans
       tags: [media]
-      summary: The agency's media plans and how platforms compare across them
+      summary: The workspace's media plans (optionally of one client) and how platforms compare across all of them
+      parameters:
+        - { in: query, name: clientId, required: false, schema: { type: string, maxLength: 80 } }
       responses:
         "200":
           description: Plans and platform comparison
@@ -923,10 +1125,11 @@ components:
         effectiveCpm: { type: [number, "null"] }
     MediaPlan:
       type: object
-      required: [id, client, title, createdAt, placements, variants, checks]
+      required: [id, client, clientId, title, createdAt, placements, variants, checks]
       properties:
         id: { type: string }
         client: { type: string }
+        clientId: { type: string }
         title: { type: string }
         fileName: { type: [string, "null"] }
         createdAt: { type: string }
@@ -941,10 +1144,11 @@ components:
           items: { $ref: "#/components/schemas/MediaCheck" }
     MediaPlanListItem:
       type: object
-      required: [id, client, title, createdAt, variants, placements, checks, withFact]
+      required: [id, client, clientId, title, createdAt, variants, placements, checks, withFact]
       properties:
         id: { type: string }
         client: { type: string }
+        clientId: { type: string }
         title: { type: string }
         createdAt: { type: string }
         variants:
@@ -1387,11 +1591,70 @@ components:
       properties:
         email: { type: string, minLength: 3, maxLength: 254 }
         password: { type: string, minLength: 1, maxLength: 200 }
+    Workspace:
+      type: object
+      required: [id, kind, name, role]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [SHOP, AGENCY] }
+        name: { type: string }
+        role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+    WorkspaceInput:
+      type: object
+      required: [kind, name]
+      properties:
+        kind: { type: string, enum: [SHOP, AGENCY] }
+        name: { type: string, minLength: 1, maxLength: 80 }
+    NameInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+    RoleInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+    WorkspaceMember:
+      type: object
+      required: [userId, email, role, joinedAt]
+      properties:
+        userId: { type: string }
+        email: { type: string }
+        name: { type: [string, "null"] }
+        role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        joinedAt: { type: string }
+    WorkspaceInvite:
+      type: object
+      required: [token, role, expiresAt]
+      properties:
+        token: { type: string }
+        role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+        expiresAt: { type: string }
+    InvitePreview:
+      type: object
+      required: [name, kind, role]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [SHOP, AGENCY] }
+        role: { type: string, enum: [OWNER, MEMBER, VIEWER] }
+    Client:
+      type: object
+      required: [id, name, createdAt, plans]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        createdAt: { type: string }
+        plans: { type: integer, description: "Media plans of this client" }
     SessionState:
       type: object
       required: [accountsEnabled, hasData]
       properties:
         user: { $ref: "#/components/schemas/AuthUser" }
+        workspace: { $ref: "#/components/schemas/Workspace" }
+        workspaces:
+          type: array
+          items: { $ref: "#/components/schemas/Workspace" }
         accountsEnabled: { type: boolean }
         hasData: { type: boolean }
         hasProducts: { type: boolean }

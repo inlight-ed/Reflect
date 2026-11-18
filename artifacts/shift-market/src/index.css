@@ -886,3 +886,32 @@ a.btn { text-decoration:none; }
 .media-fact input:focus { outline:none; border-color:var(--app-accent); }
 .btn-small { padding:6px 10px; font-size:11px; }
 @media (max-width: 900px) { .media-totals { grid-template-columns:repeat(2,minmax(0,1fr)); } .media-preview input { width:100%; } }
+
+/* Workspace switcher (sidebar foot and mobile menu) */
+.ws-switcher { position:relative; margin-bottom:12px; }
+.ws-current { display:flex; align-items:center; gap:9px; width:100%; padding:8px 9px; color:#e6e9ee; background:#141920; border:1px solid #2a323d; border-radius:7px; text-align:left; cursor:pointer; }
+.ws-current:hover, .ws-current[aria-expanded="true"] { border-color:#3a4552; }
+.ws-icon { display:grid; place-items:center; width:26px; height:26px; flex:none; color:#101318; background:var(--app-accent); border-radius:6px; }
+.ws-text { display:flex; flex-direction:column; min-width:0; flex:1; line-height:1.25; }
+.ws-text strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; }
+.ws-text small { color:#8b94a0; font-size:11px; }
+.ws-menu { position:absolute; left:0; right:0; bottom:calc(100% + 6px); z-index:40; display:flex; flex-direction:column; padding:5px; background:#12161c; border:1px solid #2c3540; border-radius:8px; box-shadow:0 12px 30px rgba(0,0,0,.45); }
+.mobile-menu .ws-menu { bottom:auto; top:calc(100% + 6px); }
+.ws-option { display:flex; align-items:center; gap:8px; padding:7px 8px; color:#cfd5dc; background:transparent; border:0; border-radius:5px; font-size:13px; text-align:left; cursor:pointer; }
+.ws-option span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ws-option:hover, .ws-option.active { color:#f2f4f7; background:#1c222b; }
+.ws-divider { height:1px; margin:4px 2px; background:#232a33; }
+.ws-create { display:flex; flex-direction:column; gap:6px; padding:6px; font-size:12px; color:#9aa3ae; }
+.ws-create input { padding:6px 8px; color:#e6e9ee; background:#0e1116; border:1px solid #2c3540; border-radius:5px; }
+.ws-create-actions { display:flex; gap:6px; }
+.viewer-banner { padding:10px 38px; color:#cfd5dc; background:#161b22; border-bottom:1px solid #2c3540; font-size:13px; }
+
+/* Team (settings) */
+.team { margin-top:22px; }
+.team-card { display:flex; flex-direction:column; gap:14px; }
+.team-rename, .team-invite, .team-link { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:13px; color:#9aa3ae; }
+.team-rename input, .team-link input { min-width:240px; flex:1; padding:7px 9px; color:#e6e9ee; background:#0e1116; border:1px solid #2c3540; border-radius:6px; }
+.team-invite select, .team-card td select { padding:6px 8px; color:#e6e9ee; background:#0e1116; border:1px solid #2c3540; border-radius:6px; }
+.team-link small { flex-basis:100%; }
+.team-actions { text-align:right; }
+.media-clients { flex-wrap:wrap; margin:6px 0 16px; }

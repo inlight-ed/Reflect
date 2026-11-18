@@ -10,6 +10,7 @@ import type { MediaVariantSummary } from './mediaVariantSummary';
 export interface MediaPlanListItem {
   id: string;
   client: string;
+  clientId: string;
   title: string;
   createdAt: string;
   variants: MediaVariantSummary[];

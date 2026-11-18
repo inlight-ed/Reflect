@@ -11,6 +11,7 @@ import { Shell } from '@/components/shell';
 import { I18nProvider, useI18n } from '@/lib/i18n';
 import { PeriodProvider } from '@/lib/period';
 import { SessionProvider, useSession } from '@/lib/session';
+import { nextPath } from '@/lib/next-path';
 import NotFound from '@/pages/not-found';
 import OverviewPage from '@/pages/overview';
 
@@ -26,6 +27,7 @@ const SettingsPage = lazy(() => import('@/pages/settings'));
 const AssistantPage = lazy(() => import('@/pages/assistant'));
 const DataPage = lazy(() => import('@/pages/data'));
 const LandingPage = lazy(() => import('@/pages/landing'));
+const InvitePage = lazy(() => import('@/pages/invite'));
 const AuthPage = lazy(() => import('@/pages/auth'));
 const ForgotPasswordPage = lazy(() => import('@/pages/password-reset').then((module) => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('@/pages/password-reset').then((module) => ({ default: module.ResetPasswordPage })));
@@ -87,10 +89,11 @@ function Router() {
   const { loading, signedIn, demo } = useSession();
   return <Suspense fallback={<Splash />}><Switch>
     <Route path="/">{loading ? <Splash /> : signedIn || demo ? <Redirect to="/overview" /> : <LandingPage />}</Route>
-    <Route path="/login">{signedIn ? <Redirect to="/overview" /> : <AuthPage mode="login" />}</Route>
+    <Route path="/invite/:token"><InvitePage /></Route>
+    <Route path="/login">{signedIn ? <Redirect to={nextPath()} /> : <AuthPage mode="login" />}</Route>
     <Route path="/forgot-password">{signedIn ? <Redirect to="/overview" /> : <ForgotPasswordPage />}</Route>
     <Route path="/reset-password"><ResetPasswordPage /></Route>
-    <Route path="/register">{signedIn ? <Redirect to="/overview" /> : <AuthPage mode="register" />}</Route>
+    <Route path="/register">{signedIn ? <Redirect to={nextPath()} /> : <AuthPage mode="register" />}</Route>
     <Route><Gate><AppRoutes /></Gate></Route>
   </Switch></Suspense>;
 }

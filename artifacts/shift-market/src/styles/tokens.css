@@ -30,6 +30,7 @@
   --rf-color-border-subtle: #20242b;   /* row dividers */
   --rf-color-border: #2c3540;          /* cards, inputs */
   --rf-color-border-strong: #2a3039;   /* emphasised outlines */
+  --rf-color-border-control: #5f6a78;  /* input and select outlines: ≥ 3:1 on every surface (WCAG 1.4.11) */
 
   /* ---- Accent: one warm amber for action and focus ---- */
   --rf-color-accent: #e7b24f;

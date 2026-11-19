@@ -23,7 +23,7 @@
 |---|---|
 | Поверхности | `bg`, `bg-sunken`, `surface-1` (карточки), `surface-2` (наведение), `surface-inset`, `surface-raised`, `surface-control` |
 | Текст | `text-strong`, `text`, `text-secondary`, `text-muted`, `text-subtle`, `text-on-accent` |
-| Границы | `border-subtle`, `border`, `border-strong` |
+| Границы | `border-subtle`, `border`, `border-strong`, `border-control` (поля ввода, ≥ 3:1) |
 | Акцент | `accent`, `accent-hover`, `accent-text`, `accent-border`, `accent-border-focus`, `accent-surface`, `focus-ring` |
 | Статусы | `success` (+ `-surface`, `-border`), `warning` (+ `-border`), `danger` (+ `-text`, `-border`), `info`, `neutral` |
 
@@ -52,7 +52,7 @@
 
 **Что исправить позже:**
 - `text-subtle` не ставить на `surface-control`.
-- Граница `border` на карточке даёт 1.44:1. Для границ полей ввода норма 3:1 (WCAG 1.4.11), поэтому полям нужен более светлый токен. Это меняет вид, делается в PR базовых компонентов.
+- Граница `border` на карточке даёт 1.44:1. Для границ полей ввода норма 3:1 (WCAG 1.4.11). Для них введён `border-control` (#5f6a78): 3.1–3.4:1 на всех поверхностях. Его используют новые `TextField`, `Select` и кнопка `secondary`; старые поля `.field` перейдут на него при миграции экранов.
 
 ## Типографика, отступы, радиусы, движение
 

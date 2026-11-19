@@ -29,8 +29,11 @@ import { Button, IconButton, TextField, Select, Badge, Card, InlineNotice, Skele
 | `.top-action` | `IconButton` |
 | `.field` + `<small>` | `TextField` / `Select` |
 | `.status-tag.tag-*`, `.source-pill` | `Badge` (подписи решений и источников — в PR со статусами) |
-| `.card`, `.card-pad` | `Card` |
+| `.card` (без внутренних отступов) | `Card padding="none"` |
+| `.card.card-pad` (отступ 20 px) | `Card` (по умолчанию `padding="default"`, отступ 24 px, на мобильном 16 px) |
 | `.report-notice`, `.assumption-note`, `.advertising-note`, `.form-error` | `InlineNotice` |
 | `.skeleton` в `LoadingState` | `Skeleton*` |
+
+**Карточки при переносе.** У `Card` по умолчанию есть внутренний отступ, а у старой `.card` его нет. Поэтому `.card` без `.card-pad` переносится только как `Card padding="none"`, иначе карточка с таблицей или списком получит лишние поля. Даже при правильном варианте вид немного меняется: отступ 20 → 24 px, радиус 6 → 12 px, рамка `#252b35` → `border-strong`. Это плановое изменение, его сверяют скриншотами экрана.
 
 Уже есть и не дублируются: `ProgressBar` и `HoldButton` в `components/motion.tsx`, подсказка `Hint` в `components/common.tsx`.

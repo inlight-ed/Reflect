@@ -3,6 +3,8 @@ import type { Catalog } from './types';
 /** Interface text keyed by its source text (Russian or English). Mostly page copy and demo snapshot strings. */
 export const ui: Catalog = {
   "LIVE": ["LIVE", "LIVE", "LIVE"],
+  "motion.hold": ["Удерживайте, чтобы подтвердить", "Растау үшін басып тұрыңыз", "Hold to confirm"],
+  "motion.holding": ["Держите…", "Ұстап тұрыңыз…", "Keep holding…"],
   "Источник недоступен": ["Источник недоступен", "Дерек көзі қолжетімсіз", "Source unavailable"],
   "Статус недоступен": ["Статус недоступен", "Күй қолжетімсіз", "Status unavailable"],
   "Произошла непредвиденная ошибка. Повторите попытку.": ["Произошла непредвиденная ошибка. Повторите попытку.", "Күтпеген қате орын алды. Қайталап көріңіз.", "An unexpected error occurred. Try again."],

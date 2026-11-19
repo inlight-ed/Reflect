@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { fill, formatCompactCurrency, formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import type { GlossaryTerm } from '@/lib/i18n';
+import { useAnimatedNumber } from '@/components/motion';
 
 export const demoSource = 'DEMO DATA';
 
@@ -201,15 +202,21 @@ function metricTerm(label: string): GlossaryTerm | undefined {
   return undefined;
 }
 
+/** The number in a metric card; numeric values count up to the final figure (instantly with reduced motion). */
+function MetricValue({ metric }: { metric: Metric }) {
+  const { locale, t } = useI18n();
+  const numeric = metric.amount != null && !!metric.unit;
+  const amount = useAnimatedNumber(numeric ? metric.amount! : 0);
+  if (!numeric) return <>{t(metric.value)}</>;
+  const shown = amount === metric.amount ? amount : metric.unit === 'MULTIPLIER' ? amount : Math.round(amount);
+  if (metric.unit === 'CURRENCY') return <>{formatCompactCurrency(shown, locale)}</>;
+  if (metric.unit === 'MULTIPLIER') return <>{`${formatNumber(shown, locale, 2)}x`}</>;
+  if (metric.unit === 'DAYS') return <>{fill(t('metric.days'), { days: formatNumber(shown, locale) })}</>;
+  return <>{formatNumber(shown, locale)}</>;
+}
+
 export function MetricCards({ metrics }: { metrics: Metric[] }) {
   const { locale, t } = useI18n();
-  const display = (metric: Metric) => {
-    if (metric.amount == null || !metric.unit) return t(metric.value);
-    if (metric.unit === 'CURRENCY') return formatCompactCurrency(metric.amount, locale);
-    if (metric.unit === 'MULTIPLIER') return `${formatNumber(metric.amount, locale, 2)}x`;
-    if (metric.unit === 'DAYS') return fill(t('metric.days'), { days: formatNumber(metric.amount, locale) });
-    return formatNumber(metric.amount, locale);
-  };
   if (!metrics.length) return <div className="card"><EmptyState label="metrics" /></div>;
   return (
     <div className="grid grid-4">
@@ -218,7 +225,7 @@ export function MetricCards({ metrics }: { metrics: Metric[] }) {
         return (
           <div className="card metric-card fade-in" key={`${metric.label}-${index}`} data-testid={`metric-card-${index}`}>
             <div className="eyebrow">{term ? <Hint term={term}>{t(metric.label)}</Hint> : t(metric.label)}</div>
-            <div className="metric-value" data-testid={`text-metric-${index}`}>{display(metric)}{metric.estimated && <span className="metric-estimate" title={t('metric.estimated.hint')} data-testid={`metric-estimated-${index}`}>{t('metric.estimated')}</span>}</div>
+            <div className="metric-value" data-testid={`text-metric-${index}`}><MetricValue metric={metric} />{metric.estimated && <span className="metric-estimate" title={t('metric.estimated.hint')} data-testid={`metric-estimated-${index}`}>{t('metric.estimated')}</span>}</div>
             <div className={`metric-change ${metric.positive ? 'positive' : 'negative'}`}>
               {metric.changePct === null ? <span className="neutral">—</span> : <>{metric.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {metric.changePct !== undefined ? `${metric.changePct > 0 ? '+' : ''}${formatNumber(metric.changePct, locale, 1)}%` : t(metric.change)}</>}
             </div>

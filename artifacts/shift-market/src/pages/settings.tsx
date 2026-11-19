@@ -7,6 +7,7 @@ import { formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { EmptyState, ErrorState, LoadingState, PageFrame, PageHead, SectionTitle, demoSource, statusLabel, useText } from '@/components/common';
 import { TeamSection } from '@/components/workspace';
+import { HoldButton } from '@/components/motion';
 
 const needsUrl = (kind: ConnectionKind) => kind === 'REDSTAT_MCP' || kind === 'CUSTOM_MCP';
 const canSync = (kind: ConnectionKind) => kind === 'KASPI_API' || kind === 'MOYSKLAD';
@@ -48,7 +49,7 @@ function ConnectionCard({ connection }: { connection: Connection }) {
         <div className="connection-actions">
           <button type="submit" className="btn" disabled={busy} data-testid={`button-save-${kind.toLowerCase()}`}>{save.isPending ? t('conn.saving') : t('conn.save')}</button>
           {(status === 'CONNECTED' || syncing) && canSync(kind) && <button type="button" className="btn secondary" disabled={busy} onClick={() => sync.mutate({ kind }, { onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetIntegrationsQueryKey() }) })} data-testid={`button-sync-${kind.toLowerCase()}`}><RefreshCw size={14} className={syncing ? 'spin' : undefined} /> {syncing || sync.isPending ? t('conn.syncing') : t('conn.sync')}</button>}
-          {status !== 'NOT_CONNECTED' && <button type="button" className="btn secondary danger" disabled={busy} onClick={() => remove.mutate({ kind }, { onSuccess: () => { setSecret(''); void after(); } })}><Unplug size={14} /> {t('conn.remove')}</button>}
+          {status !== 'NOT_CONNECTED' && <HoldButton className="secondary danger" disabled={busy} description={t('conn.remove.confirm')} onConfirm={() => remove.mutate({ kind }, { onSuccess: () => { setSecret(''); void after(); } })} testId={`button-remove-${kind.toLowerCase()}`}><Unplug size={14} /> {t('conn.remove')}</HoldButton>}
         </div>
       </form>
       <div className="connection-meta">
@@ -107,7 +108,7 @@ export default function SettingsPage() {
           <div className="account-actions">
             <Link href="/data" className="btn secondary"><UploadCloud size={14} /> {t('nav.data')}</Link>
             <button type="button" className="btn secondary" onClick={() => void signOut()} data-testid="button-logout"><LogOut size={14} /> {t('auth.logout')}</button>
-            <button type="button" className="btn secondary" disabled={logoutAll.isPending} onClick={() => { if (window.confirm(t('settings.logoutAll.confirm'))) logoutAll.mutate(undefined, { onSuccess: () => void signOut().catch(() => window.location.assign('/')) }); }} data-testid="button-logout-all"><MonitorSmartphone size={14} /> {t('settings.logoutAll')}</button>
+            <HoldButton className="secondary danger" disabled={logoutAll.isPending} description={t('settings.logoutAll.confirm')} onConfirm={() => logoutAll.mutate(undefined, { onSuccess: () => void signOut().catch(() => window.location.assign('/')) })} testId="button-logout-all"><MonitorSmartphone size={14} /> {t('settings.logoutAll')}</HoldButton>
           </div>
         </div>
         <TeamSection />

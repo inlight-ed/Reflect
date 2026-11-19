@@ -915,3 +915,26 @@ a.btn { text-decoration:none; }
 .team-link small { flex-basis:100%; }
 .team-actions { text-align:right; }
 .media-clients { flex-wrap:wrap; margin:6px 0 16px; }
+
+/* ---- Motion: hold-to-confirm, progress, success pop (components/motion.tsx) ---- */
+.visually-hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.hold-button { position:relative; overflow:hidden; isolation:isolate; user-select:none; -webkit-user-select:none; touch-action:none; }
+.hold-button .hold-fill { position:absolute; inset:0; z-index:-1; background:#3a2220; transform:scaleX(0); transform-origin:left; transition:transform .18s ease-out; }
+.hold-button.holding .hold-fill { transform:scaleX(1); transition:transform var(--hold-ms, 1100ms) linear; }
+.hold-button.holding { transform:scale(.98); }
+.hold-button .hold-label { display:inline-flex; align-items:center; gap:8px; }
+.btn.danger.hold-button.holding { color:#ffd2cc !important; }
+.progress { position:relative; height:4px; margin-top:8px; overflow:hidden; background:#202630; border-radius:999px; }
+.progress-fill { position:absolute; inset:0 auto 0 0; background:var(--app-accent); border-radius:inherit; transition:width .35s ease-out; }
+.progress-fill::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); background-size:200% 100%; animation:shimmer 1.2s linear infinite; }
+.import-card.done { animation:success-glow 1.1s ease-out 1; }
+.success-pop { display:inline-flex; animation:success-pop .45s cubic-bezier(.34,1.56,.64,1) both; }
+.dropzone.dragging svg { animation:drop-bob .8s ease-in-out infinite; }
+@keyframes success-pop { 0% { opacity:0; transform:scale(.4); } 100% { opacity:1; transform:scale(1); } }
+@keyframes success-glow { 0% { box-shadow:0 0 0 0 rgba(163,214,96,.45); } 100% { box-shadow:0 0 0 10px rgba(163,214,96,0); } }
+@keyframes drop-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .hold-button .hold-fill, .hold-button.holding .hold-fill, .progress-fill { transition:none; }
+  .hold-button.holding .hold-fill { transform:scaleX(1); }
+  .progress-fill::after, .import-card.done, .success-pop, .dropzone.dragging svg { animation:none; }
+}

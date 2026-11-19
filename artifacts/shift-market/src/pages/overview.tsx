@@ -21,12 +21,12 @@ export default function OverviewPage() {
   const query = useGetDashboard(signedIn ? params : undefined);
   const now = useNow(60_000);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={demoSource} />;
+  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
   const dashboard = query.data;
   const metrics = Array.isArray(dashboard.metrics) ? dashboard.metrics : [];
   const actions = Array.isArray(dashboard.actions) ? dashboard.actions : [];
   const timeline = Array.isArray(dashboard.timeline) ? dashboard.timeline : [];
-  const head = <PageHead eyebrow={formatLongDate(now, locale)} title={greetingKey(now)} subtitle="Вот где ваше внимание сегодня принесёт больше всего результата." source={dashboard.source ?? demoSource} refreshedAt={dashboard.refreshedAt} action={dashboard.mode === 'USER' ? <PeriodBar /> : undefined} />;
+  const head = <PageHead eyebrow={formatLongDate(now, locale)} title={greetingKey(now)} subtitle="Вот где ваше внимание сегодня принесёт больше всего результата." source={dashboard.source ?? demoSource} mode={dashboard.mode} refreshedAt={dashboard.refreshedAt} dataAsOf={dashboard.dataAsOf} action={dashboard.mode === 'USER' ? <PeriodBar /> : undefined} />;
 
   if (dashboard.mode === 'EMPTY') {
     return <PageFrame>{head}<Onboarding /></PageFrame>;

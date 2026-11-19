@@ -28,7 +28,7 @@ export default function CompetitorsPage() {
           : undefined;
   const canSubmit = skuInput.trim().length > 0 && !query.isFetching;
   return <PageFrame>
-    <PageHead eyebrow={t('REDSTAT COMPETITOR ANALYSIS')} title={t('Analyze competitors')} subtitle={t('Enter a Kaspi SKU to inspect its sellers and comparable products.')} source={data.source} refreshedAt={data.source === 'REDSTAT' ? data.refreshedAt : undefined} />
+    <PageHead eyebrow={t('REDSTAT COMPETITOR ANALYSIS')} title={t('Analyze competitors')} subtitle={t('Enter a Kaspi SKU to inspect its sellers and comparable products.')} source={data.source} sourceStatus={data.source === 'REDSTAT' ? data.status : undefined} refreshedAt={data.source === 'REDSTAT' ? data.refreshedAt : undefined} refreshedKind="checked" dataAsOf={data.dataAsOf} />
     <form className="card competitor-query" onSubmit={(event) => { event.preventDefault(); const nextSku = skuInput.trim(); if (nextSku === selectedSku) void query.refetch(); else setSelectedSku(nextSku); }}>
       <div className="field"><label htmlFor="competitor-kaspi-sku"><Hint term="SKU">{t('Kaspi product code')}</Hint></label><input id="competitor-kaspi-sku" inputMode="numeric" value={skuInput} onChange={(event) => setSkuInput(event.target.value)} maxLength={64} required data-testid="input-competitor-sku" /></div>
       <button className="btn" type="submit" disabled={!canSubmit} data-testid="button-analyze-competitors">{query.isFetching ? t('Loading…') : t('Analyze SKU')}</button>

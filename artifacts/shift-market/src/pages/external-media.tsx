@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Check, Plus, X } from 'lucide-react';
 import { getGetExternalMediaQueryKey, useCreateExternalCampaign, useGetExternalMedia } from '@workspace/api-client-react';
 import { fill, formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
-import { ConfidenceBasisView, EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, Reveal, SectionTitle, SummaryCard, demoSource, statusLabel } from '@/components/common';
+import { ConfidenceDisclosure, EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, SectionTitle, SummaryCard, demoSource, statusLabel } from '@/components/common';
 import { Link } from 'wouter';
 import { useSession } from '@/lib/session';
 
@@ -46,7 +46,7 @@ export default function ExternalMediaPage() {
   };
   return (
     <PageFrame>
-      <PageHead eyebrow="Спрос за пределами Kaspi" title="Понимайте, что меняет продажи." subtitle="События кампаний в разрезе до / во время / после." source={data.source ?? demoSource} refreshedAt={data.refreshedAt} action={signedIn ? <button className="btn" onClick={() => setModalOpen(true)} data-testid="button-add-campaign"><Plus size={14} /> {t('Добавить кампанию')}</button> : <Link href="/register" className="btn secondary" title={t('media.signin')}><Plus size={14} /> {t('Добавить кампанию')}</Link>} />
+      <PageHead eyebrow="Спрос за пределами Kaspi" title="Понимайте, что меняет продажи." subtitle="События кампаний в разрезе до / во время / после." source={data.source ?? demoSource} mode={data.mode} refreshedAt={data.mode === 'DEMO' ? data.refreshedAt : undefined /* for a workspace the API sends the moment of the request, not a data update */} action={signedIn ? <button className="btn" onClick={() => setModalOpen(true)} data-testid="button-add-campaign"><Plus size={14} /> {t('Добавить кампанию')}</button> : <Link href="/register" className="btn secondary" title={t('media.signin')}><Plus size={14} /> {t('Добавить кампанию')}</Link>} />
       <div className="grid split-7-5 media-split">
         <div className="card">
           <div className="card-header"><span className="card-title">{t('Реестр кампаний')}</span><span className="card-kicker">{campaigns.length} {t('событий')}</span></div>
@@ -64,7 +64,7 @@ export default function ExternalMediaPage() {
           <div className="card-header"><span className="card-title">{t('До / во время / после')}</span><span className="card-kicker">{t('GMV и рост заказов')}</span></div>
           {Array.isArray(selectedImpact.periods) ? <div className="table-wrap"><table className="data-table"><thead><tr><th>{t('Период')}</th><th><Hint term="GMV">GMV</Hint></th><th>{t('Заказы')}</th><th>{t('Единицы')}</th><th><Hint term="AOV">{t('Средний чек')}</Hint></th><th>{t('Рост')}</th></tr></thead><tbody>{selectedImpact.periods.map((period, index) => <tr key={`${period.label}-${index}`}><td>{t(period.label)}</td><td>{formatCurrency(period.gmv, locale)}</td><td>{formatNumber(period.orders, locale)}</td><td>{formatNumber(period.units, locale)}</td><td>{formatCurrency(period.aov, locale, 2)}</td><td className={period.growth >= 0 ? 'positive' : 'negative'}>{period.growth > 0 ? '+' : ''}{formatNumber(period.growth, locale, 1)}%</td></tr>)}</tbody></table></div> : <EmptyState label="breakdown" />}
           <div className="card-pad impact-totals"><div><div className="eyebrow">{t('Базовый GMV')}</div><div className="metric-value">{formatCurrency(selectedImpact.baseline, locale)}</div></div><div><div className="eyebrow">{t('Дополнительный GMV')}</div><div className="metric-value positive">{formatCurrency(selectedImpact.incremental, locale)}</div></div><div><div className="eyebrow"><Hint term="confidence">{t('УВЕРЕННОСТЬ')}</Hint></div><div className="metric-value">{selectedImpact.confidence}%</div></div></div>
-          <div className="card-pad impact-basis"><Reveal label={t('Почему такая уверенность')} meta={fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: selectedImpact.confidenceBasis.supporting, total: selectedImpact.confidenceBasis.total })}><ConfidenceBasisView basis={selectedImpact.confidenceBasis} /></Reveal></div>
+          <div className="card-pad impact-basis"><ConfidenceDisclosure basis={selectedImpact.confidenceBasis} testId="reveal-impact-confidence" /></div>
         </> : <EmptyState label="impact" message={t(selectedCampaign?.status === 'PLANNED' ? 'media.noImpact' : 'Для этой кампании разбор эффекта ещё не рассчитан. Он появится, когда накопятся данные о продажах до, во время и после кампании.')} />}
       </div>
       {modalOpen && <CampaignModal form={form} setForm={setForm} error={formError} pending={createCampaign.isPending} onClose={closeModal} onSubmit={submitCampaign} />}

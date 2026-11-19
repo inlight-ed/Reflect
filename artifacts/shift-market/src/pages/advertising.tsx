@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Database } from 'lucide-react';
+import { Database, FlaskConical } from 'lucide-react';
 import { Link } from 'wouter';
 import { useGetAdvertising, type AdvertisingActivity, type AdvertisingChannel, type SkuAd } from '@workspace/api-client-react';
 import { usePeriod } from '@/lib/period';
@@ -7,6 +7,8 @@ import { useSession } from '@/lib/session';
 import { PeriodBar } from '@/components/seller';
 import { formatCurrency, formatDate, formatNumber, useI18n } from '@/lib/i18n';
 import { EmptyState, ErrorState, Hint, LoadingState, MetricCards, PageFrame, PageHead, Reveal, SectionTitle, SummaryCard, demoSource } from '@/components/common';
+import { DataSourceBadge } from '@/components/data-trust';
+import { Badge } from '@/components/ui';
 
 export default function AdvertisingPage() {
   const { t } = useI18n();
@@ -19,7 +21,7 @@ export default function AdvertisingPage() {
   if (data.mode === 'USER' || data.mode === 'EMPTY') {
     return (
       <PageFrame>
-        <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source} refreshedAt={data.refreshedAt} action={<PeriodBar />} />
+        <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source} mode={data.mode} /* No time for the workspace's ads: the API puts the moment of the request in refreshedAt, not when the data changed. */ action={<PeriodBar />} />
         {data.mode === 'EMPTY' ? (
           <div className="card"><EmptyState label="ads" message={t('ads.empty')} /><div className="center-actions"><Link href="/data" className="btn">{t('nav.data')}</Link></div></div>
         ) : (
@@ -38,9 +40,9 @@ export default function AdvertisingPage() {
   const activities = Array.isArray(data.activities) ? data.activities : [];
   return (
     <PageFrame>
-      <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source ?? demoSource} refreshedAt={data.refreshedAt} />
+      <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source ?? demoSource} mode={data.mode} refreshedAt={data.refreshedAt} />
       <div className="advertising-note" data-testid="advertising-demo-notice"><Database size={14} /><span>{t('Демо-данные и причинное влияние оценены, а не подтверждены live-источником.')}</span></div>
-      <SectionTitle title={t('Рекламные каналы')} note={t('ДЕМО / ОЦЕНКА')} />
+      <SectionTitle title={t('Рекламные каналы')} note={t('source.demoEstimate')} />
       {channels.length ? <div className="ad-channel-grid">{channels.map((channel) => <AdvertisingChannelCard channel={channel} key={channel.id} />)}</div> : <div className="card"><EmptyState label="channels" /></div>}
       <SectionTitle title={t('Последние активности')} note={t('последние изменения, повлиявшие на оценку заказов')} />
       <AdvertisingActivityFeed activities={activities} />
@@ -59,7 +61,9 @@ function AdvertisingChannelCard({ channel }: { channel: AdvertisingChannel }) {
   ];
   return <section className="ad-channel-card" data-testid={`card-ad-channel-${channel.id.toLowerCase()}`}>
     <div className="ad-channel-heading">
-      <div><span className="source-pill"><span className="source-dot" />{t('ДЕМО / ОЦЕНКА')}</span><h2>{t(channel.name)}</h2></div>
+      <div>{channel.source === 'DEMO DATA' || channel.source === 'MOCK'
+        ? <Badge tone="warning" icon={<FlaskConical />} description={t('source.demoEstimate.hint')}>{t('source.demoEstimate')}</Badge>
+        : <DataSourceBadge source={channel.source} testId={`channel-source-${channel.id.toLowerCase()}`} />}<h2>{t(channel.name)}</h2></div>
       <span className="ad-channel-source">{t(channel.id === 'KASPI' ? 'Внутренняя реклама Kaspi' : `Канал ${channel.id[0]}${channel.id.slice(1).toLowerCase()}`)}</span>
     </div>
     <div className="channel-metrics">

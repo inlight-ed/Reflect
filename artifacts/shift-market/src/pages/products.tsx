@@ -33,7 +33,7 @@ export default function ProductsPage() {
   const matrix = (Array.isArray(data.matrix) ? data.matrix : []).filter((item) => seller || item.label !== 'WATCH');
   const filters: Filter[] = seller ? ['ALL', 'SCALE', 'FIX', 'DEFEND', 'STOP', 'WATCH'] : ['ALL', 'SCALE', 'FIX', 'DEFEND', 'STOP'];
   const selected = allProducts.find((product) => product.sku === selectedSku);
-  const head = <PageHead eyebrow="Портфель SKU" title="Масштабируйте товары с потенциалом." subtitle="Возможность — это сочетание динамики, сигнала маржинальности и доступного запаса." source={data.source ?? demoSource} refreshedAt={data.refreshedAt} action={seller ? <PeriodBar /> : undefined} />;
+  const head = <PageHead eyebrow="Портфель SKU" title="Масштабируйте товары с потенциалом." subtitle="Возможность — это сочетание динамики, сигнала маржинальности и доступного запаса." source={data.source ?? demoSource} mode={data.mode} refreshedAt={data.refreshedAt} action={seller ? <PeriodBar /> : undefined} />;
   if (data.mode === 'EMPTY') return <PageFrame>{head}<Onboarding /></PageFrame>;
 
   const point = (product: Product) => seller

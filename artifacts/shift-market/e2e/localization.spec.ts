@@ -11,11 +11,14 @@ type LocaleExpectation = {
   locale: 'ru' | 'kk' | 'en';
   languageText: string;
   advertisingHeading: string;
-  refreshed: string;
+  /** The freshness label; the date part depends on the day the tests run, so only the label and the time are checked. */
+  refreshedLabel: RegExp;
+  refreshedTime: string;
   activityDate: string;
   ctr: string;
   currency: string;
   demoLabel: string;
+  demoSource: string;
   signalLabel: string;
   errorTitle: string;
   errorBody: string;
@@ -29,11 +32,13 @@ const expectations: LocaleExpectation[] = [
     locale: 'ru',
     languageText: 'Русский',
     advertisingHeading: 'Рекламные каналы',
-    refreshed: 'ОБНОВЛЕНО 09:42',
+    refreshedLabel: /обновлено/i,
+    refreshedTime: '09:42',
     activityDate: '17 авг.',
     ctr: '4,57%',
     currency: '92,40 ₸',
-    demoLabel: 'ДЕМО / ОЦЕНКА',
+    demoLabel: 'Демо · оценка',
+    demoSource: 'Демо-данные',
     signalLabel: 'СИГНАЛ ИИ · ДЕМО-ОЦЕНКА',
     errorTitle: 'Сигнал недоступен',
     errorBody: 'Источник не вернул корректный снимок данных. Повторите подключение.',
@@ -45,11 +50,13 @@ const expectations: LocaleExpectation[] = [
     locale: 'kk',
     languageText: 'Қазақша',
     advertisingHeading: 'Жарнама арналары',
-    refreshed: 'ЖАҢАРТЫЛДЫ 09:42',
+    refreshedLabel: /жаңартылды/i,
+    refreshedTime: '09:42',
     activityDate: '17 там.',
     ctr: '4,57%',
     currency: '92,40 ₸',
-    demoLabel: 'ДЕМО / БАҒАЛАУ',
+    demoLabel: 'Демо · бағалау',
+    demoSource: 'Демо деректер',
     signalLabel: 'AI СИГНАЛЫ · ДЕМО БАҒАЛАУ',
     errorTitle: 'Сигнал қолжетімсіз',
     errorBody: 'Дерек көзі дұрыс дерек үзіндісін қайтармады. Қайта қосып көріңіз.',
@@ -61,11 +68,13 @@ const expectations: LocaleExpectation[] = [
     locale: 'en',
     languageText: 'English',
     advertisingHeading: 'Advertising channels',
-    refreshed: 'UPDATED 09:42 AM',
+    refreshedLabel: /updated/i,
+    refreshedTime: '09:42 AM',
     activityDate: 'Aug 17',
     ctr: '4.57%',
     currency: '₸92.40',
-    demoLabel: 'DEMO / ESTIMATED',
+    demoLabel: 'Demo · estimate',
+    demoSource: 'Demo data',
     signalLabel: 'AI SIGNAL · DEMO ESTIMATE',
     errorTitle: 'Signal unavailable',
     errorBody: 'The source did not return a valid data snapshot. Try the connection again.',
@@ -149,7 +158,8 @@ for (const expected of expectations) {
     await expect(page).toHaveURL(/\/advertising$/);
     await expect(page.getByRole('heading', { name: expected.advertisingHeading, exact: true })).toBeVisible();
 
-    await expect(page.locator('.page-meta')).toContainText(expected.refreshed);
+    await expect(page.getByTestId('page-refreshed-at')).toContainText(expected.refreshedLabel);
+    await expect(page.getByTestId('page-refreshed-at')).toContainText(expected.refreshedTime);
     await expect(page.getByTestId('advertising-activity-google-1').locator('td').first()).toHaveText(expected.activityDate);
 
     const googleMetrics = page.getByTestId('card-ad-channel-google').locator('.channel-metrics');
@@ -193,13 +203,13 @@ for (const expected of expectations) {
     await expect(errorState).toContainText(expected.errorTitle);
     await expect(errorState).toContainText(expected.errorBody);
     await expect(errorState).toContainText(expected.retryLabel);
-    await expect(errorState).toContainText(expected.locale === 'en' ? 'DATA / DEMO' : expected.locale === 'kk' ? 'ДЕРЕКТЕР / ДЕМО' : 'ДАННЫЕ / ДЕМО');
+    await expect(errorState).toContainText(expected.demoSource);
     await expect(errorState).not.toContainText(rawApiMessage);
 
     responseMode = 'empty';
     await page.getByTestId('button-retry').click();
     await expect(page.getByTestId('empty-channels')).toBeVisible();
-    await expect(page.getByTestId('status-data-source')).toHaveText(expected.locale === 'en' ? 'DATA / DEMO' : expected.locale === 'kk' ? 'ДЕРЕКТЕР / ДЕМО' : 'ДАННЫЕ / ДЕМО');
+    await expect(page.getByTestId('status-data-source')).toContainText(expected.demoSource);
     await expect(page.getByTestId('advertising-demo-notice')).toContainText(expected.locale === 'en' ? 'Demo data' : expected.locale === 'kk' ? 'Демо деректер' : 'Демо-данные');
 
     await page.getByTestId('link-nav-settings').click();
@@ -324,6 +334,42 @@ test('first screen: a Kaspi token loads orders and the plan without any file', a
   // The first sync runs in the background; the overview appears when it is done.
   await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('chart-data-as-of')).toBeVisible();
+});
+
+// A timestamp the server makes at the moment of the request is not a data update: none is shown for it.
+const freshnessRoutes = ['/overview', '/attention', '/products', '/advertising', '/external-media'];
+
+test('freshness: an empty workspace shows no update time', async ({ page }) => {
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`fresh-empty-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+  for (const route of freshnessRoutes) {
+    await page.goto(route);
+    await expect(page.locator('.page-head')).toBeVisible();
+    await expect(page.getByTestId('page-refreshed-at'), route).toHaveCount(0);
+  }
+});
+
+test('freshness: with seller data, ads and campaigns show no update time the API cannot vouch for', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`fresh-user-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  // The overview's time is the last import and its "data up to" the last order: both shown.
+  await expect(page.getByTestId('page-refreshed-at')).toBeVisible();
+  await expect(page.getByTestId('page-data-as-of')).toBeVisible();
+  for (const route of ['/advertising', '/external-media']) {
+    await page.goto(route);
+    await expect(page.locator('.page-head')).toBeVisible();
+    await expect(page.getByTestId('status-data-source'), route).toBeVisible();
+    await expect(page.getByTestId('page-refreshed-at'), route).toHaveCount(0);
+  }
 });
 
 test('competitors: the card in its market from RedStat, without growth claims across broken months', async ({ page }) => {

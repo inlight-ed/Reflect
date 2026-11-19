@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { BrainCircuit, SendHorizontal } from 'lucide-react';
 import { ApiError, useAskAssistant, type AskAnswer } from '@workspace/api-client-react';
 import { useI18n } from '@/lib/i18n';
-import { PageFrame, PageHead, SourcePill } from '@/components/common';
+import { PageFrame, PageHead, demoSource } from '@/components/common';
+import { DataSourceBadge } from '@/components/data-trust';
+import { useSession } from '@/lib/session';
 
 const suggestions = [
   'Почему продажи упали?',
@@ -16,6 +18,7 @@ type Turn = { id: number; question: string; answer?: AskAnswer; error?: string }
 
 export default function AssistantPage() {
   const { locale, t } = useI18n();
+  const { signedIn } = useSession();
   const ask = useAskAssistant();
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -60,7 +63,8 @@ export default function AssistantPage() {
                     <span>{t(turn.answer.mode === 'AI' ? 'Ответ ИИ по данным' : 'Ответ по правилам (ИИ не подключён)')}</span>
                     {turn.answer.insufficientData && <span className="status-tag tag-optimize">{t('Мало данных')}</span>}
                     {turn.answer.references.length > 0 && <span>{t('Связанные товары:')} {turn.answer.references.join(', ')}</span>}
-                    <SourcePill />
+                    {/* Signed in, the assistant answers from the workspace's data; a guest gets the demo shop. */}
+                    <DataSourceBadge source={signedIn ? 'USER DATA' : demoSource} />
                   </div>
                 </div>
               ) : turn.error ? (

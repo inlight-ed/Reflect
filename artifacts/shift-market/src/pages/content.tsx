@@ -52,7 +52,7 @@ export default function ContentPage() {
   if (query.isLoading) return <LoadingState />;
   if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
   const data = query.data;
-  const head = <PageHead eyebrow={t('card.eyebrow')} title={t('card.title')} subtitle={t('card.subtitle')} source={data.source} />;
+  const head = <PageHead eyebrow={t('card.eyebrow')} title={t('card.title')} subtitle={t('card.subtitle')} source={data.source} mode={data.mode} />;
   if (data.mode === 'EMPTY') return <PageFrame>{head}<Onboarding /></PageFrame>;
   if (!data.sku) return <PageFrame>{head}<div className="card"><EmptyState label="products" message={t('card.noProducts')} /></div></PageFrame>;
 

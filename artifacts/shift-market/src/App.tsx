@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { ErrorBoundary, type ErrorFallbackProps } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { LoadingState, SourcePill } from '@/components/common';
+import { LoadingState, SourcePill, demoSource } from '@/components/common';
 import { Shell } from '@/components/shell';
 import { I18nProvider, useI18n } from '@/lib/i18n';
 import { PeriodProvider } from '@/lib/period';
@@ -40,9 +40,10 @@ const queryClient = new QueryClient({
 
 function LocalizedErrorFallback({ resetError }: ErrorFallbackProps) {
   const { t } = useI18n();
+  const { demo } = useSession();
   return (
     <div className="page" data-testid="status-error">
-      <div className="page-meta" style={{ marginBottom: 18 }}><SourcePill /></div>
+      {demo && <div className="page-meta" style={{ marginBottom: 18 }}><SourcePill source={demoSource} /></div>}
       <div className="error-box" role="alert">
         <AlertTriangle size={22} />
         <h3>{t('Сигнал недоступен')}</h3>

@@ -96,7 +96,7 @@ export default function SettingsPage() {
     previousSyncing.current = syncingCount;
   }, [syncingCount, refresh, runs]);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={demoSource} />;
+  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
   const data = query.data;
   const demoIntegrations = [data.kaspi, data.redstat, ...(Array.isArray(data.media) ? data.media : [])].filter(Boolean) as IntegrationStatus[];
   return <PageFrame>

@@ -18,6 +18,7 @@ import {
 import { fill, formatDate, useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { SectionTitle } from '@/components/common';
+import { HoldButton } from '@/components/motion';
 
 const ROLES: WorkspaceRole[] = ['OWNER', 'MEMBER', 'VIEWER'];
 const KindIcon = ({ kind }: { kind: WorkspaceKind }) => (kind === 'AGENCY' ? <Briefcase size={14} /> : <Store size={14} />);
@@ -164,8 +165,8 @@ export function TeamSection() {
                 : t(`workspace.role.${member.role}`)}</td>
               <td>{formatDate(member.joinedAt, locale)}</td>
               <td className="team-actions">{member.userId === me
-                ? !soleOwner && <button type="button" className="btn btn-small secondary" onClick={() => { if (window.confirm(t('workspace.leave.confirm'))) void run(async () => { await remove.mutateAsync({ userId: member.userId }); await enteredWorkspace(); navigate('/overview'); }); }} data-testid="workspace-leave">{t('workspace.leave')}</button>
-                : isOwner && <button type="button" className="btn btn-small secondary" onClick={() => { if (window.confirm(fill(t('workspace.remove.confirm'), { name: member.name || member.email }))) void run(() => remove.mutateAsync({ userId: member.userId })); }} data-testid={`member-remove-${member.email}`}>{t('workspace.remove')}</button>}</td>
+                ? !soleOwner && <HoldButton className="btn-small secondary danger" description={t('workspace.leave.confirm')} onConfirm={() => void run(async () => { await remove.mutateAsync({ userId: member.userId }); await enteredWorkspace(); navigate('/overview'); })} testId="workspace-leave">{t('workspace.leave')}</HoldButton>
+                : isOwner && <HoldButton className="btn-small secondary danger" description={fill(t('workspace.remove.confirm'), { name: member.name || member.email })} onConfirm={() => void run(() => remove.mutateAsync({ userId: member.userId }))} testId={`member-remove-${member.email}`}>{t('workspace.remove')}</HoldButton>}</td>
             </tr>
           ))}</tbody>
         </table></div>

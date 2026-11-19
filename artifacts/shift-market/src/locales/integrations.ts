@@ -18,6 +18,7 @@ export const integrations: Catalog = {
   "conn.sync": ["Обновить данные", "Деректерді жаңарту", "Sync now"],
   "conn.syncing": ["Обновляем…", "Жаңартып жатырмыз…", "Syncing…"],
   "conn.remove": ["Отключить", "Ажырату", "Disconnect"],
+  "conn.remove.confirm": ["Отключить источник? Сохранённый ключ доступа будет удалён, его придётся ввести заново.", "Дерек көзін ажырату керек пе? Сақталған қол жеткізу кілті жойылады, оны қайта енгізу қажет болады.", "Disconnect this source? The saved access key is deleted and will have to be entered again."],
   "conn.lastSync": ["Обновлено {time}", "Жаңартылды {time}", "Synced {time}"],
   "conn.imported": ["загружено строк: {count}", "жүктелген жолдар: {count}", "{count} rows imported"],
   "conn.tools": ["Инструменты сервера: {tools}", "Сервер құралдары: {tools}", "Server tools: {tools}"],

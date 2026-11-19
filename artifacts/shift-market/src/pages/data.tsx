@@ -8,6 +8,7 @@ import { buildRows, FIELDS, missingRequired, readFile, remap, type Dataset, type
 import { useSession } from '@/lib/session';
 import { downloadTemplate } from '@/lib/template';
 import { EmptyState, PageFrame, PageHead, SectionTitle, useText } from '@/components/common';
+import { ProgressBar } from '@/components/motion';
 
 type Item = { id: string; order: number; fileName: string; candidate: SheetCandidate; state: 'ready' | 'importing' | 'done' | 'error'; message?: string; progress?: { done: number; total: number } };
 const CHUNK = 5000;
@@ -171,7 +172,7 @@ function ImportCard({ item, onChange, onImport, onRemove }: { item: Item; onChan
         </details>
       )}
       <div className="import-foot">
-        {item.state === 'done' ? <span className="positive"><CheckCircle2 size={14} /> {item.message}</span>
+        {item.state === 'done' ? <span className="positive"><span className="success-pop"><CheckCircle2 size={14} /></span> {item.message}</span>
           : item.state === 'error' ? <span className="negative" role="alert">{item.message}</span>
           : busy && item.progress ? <span>{text('data.importing', { done: item.progress.done, total: item.progress.total })}</span>
           : missing.length ? <span className="negative">{text('data.missing', { fields: missing.map((key) => t(`field.${key}`)).join(', ') })}</span>
@@ -181,6 +182,7 @@ function ImportCard({ item, onChange, onImport, onRemove }: { item: Item; onChan
           {item.state !== 'done' && candidate.dataset && <button type="button" className="btn" onClick={onImport} disabled={busy || missing.length > 0 || built.valid === 0} data-testid="button-import">{t('data.import')}</button>}
         </div>
       </div>
+      {busy && item.progress && <ProgressBar value={item.progress.done / Math.max(1, item.progress.total)} label={text('data.importing', { done: item.progress.done, total: item.progress.total })} />}
     </section>
   );
 }

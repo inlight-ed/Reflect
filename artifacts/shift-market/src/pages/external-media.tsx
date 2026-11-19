@@ -46,7 +46,7 @@ export default function ExternalMediaPage() {
   };
   return (
     <PageFrame>
-      <PageHead eyebrow="Спрос за пределами Kaspi" title="Понимайте, что меняет продажи." subtitle="События кампаний в разрезе до / во время / после." source={data.source ?? demoSource} refreshedAt={data.refreshedAt} action={signedIn ? <button className="btn" onClick={() => setModalOpen(true)} data-testid="button-add-campaign"><Plus size={14} /> {t('Добавить кампанию')}</button> : <Link href="/register" className="btn secondary" title={t('media.signin')}><Plus size={14} /> {t('Добавить кампанию')}</Link>} />
+      <PageHead eyebrow="Спрос за пределами Kaspi" title="Понимайте, что меняет продажи." subtitle="События кампаний в разрезе до / во время / после." source={data.source ?? demoSource} mode={data.mode} refreshedAt={data.mode === 'DEMO' ? data.refreshedAt : undefined /* for a workspace the API sends the moment of the request, not a data update */} action={signedIn ? <button className="btn" onClick={() => setModalOpen(true)} data-testid="button-add-campaign"><Plus size={14} /> {t('Добавить кампанию')}</button> : <Link href="/register" className="btn secondary" title={t('media.signin')}><Plus size={14} /> {t('Добавить кампанию')}</Link>} />
       <div className="grid split-7-5 media-split">
         <div className="card">
           <div className="card-header"><span className="card-title">{t('Реестр кампаний')}</span><span className="card-kicker">{campaigns.length} {t('событий')}</span></div>

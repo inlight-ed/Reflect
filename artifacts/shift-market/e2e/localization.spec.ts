@@ -336,6 +336,42 @@ test('first screen: a Kaspi token loads orders and the plan without any file', a
   await expect(page.getByTestId('chart-data-as-of')).toBeVisible();
 });
 
+// A timestamp the server makes at the moment of the request is not a data update: none is shown for it.
+const freshnessRoutes = ['/overview', '/attention', '/products', '/advertising', '/external-media'];
+
+test('freshness: an empty workspace shows no update time', async ({ page }) => {
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`fresh-empty-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+  for (const route of freshnessRoutes) {
+    await page.goto(route);
+    await expect(page.locator('.page-head')).toBeVisible();
+    await expect(page.getByTestId('page-refreshed-at'), route).toHaveCount(0);
+  }
+});
+
+test('freshness: with seller data, ads and campaigns show no update time the API cannot vouch for', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`fresh-user-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  // The overview's time is the last import and its "data up to" the last order: both shown.
+  await expect(page.getByTestId('page-refreshed-at')).toBeVisible();
+  await expect(page.getByTestId('page-data-as-of')).toBeVisible();
+  for (const route of ['/advertising', '/external-media']) {
+    await page.goto(route);
+    await expect(page.locator('.page-head')).toBeVisible();
+    await expect(page.getByTestId('status-data-source'), route).toBeVisible();
+    await expect(page.getByTestId('page-refreshed-at'), route).toHaveCount(0);
+  }
+});
+
 test('competitors: the card in its market from RedStat, without growth claims across broken months', async ({ page }) => {
   test.skip(!process.env.FAKE_REDSTAT, 'needs the fake RedStat MCP server (FAKE_REDSTAT=1, see e2e/fake-redstat.mjs)');
   await page.goto('/register');

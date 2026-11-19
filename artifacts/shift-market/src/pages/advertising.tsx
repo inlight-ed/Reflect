@@ -21,7 +21,7 @@ export default function AdvertisingPage() {
   if (data.mode === 'USER' || data.mode === 'EMPTY') {
     return (
       <PageFrame>
-        <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source} refreshedAt={data.refreshedAt} action={<PeriodBar />} />
+        <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source} mode={data.mode} /* No time for the workspace's ads: the API puts the moment of the request in refreshedAt, not when the data changed. */ action={<PeriodBar />} />
         {data.mode === 'EMPTY' ? (
           <div className="card"><EmptyState label="ads" message={t('ads.empty')} /><div className="center-actions"><Link href="/data" className="btn">{t('nav.data')}</Link></div></div>
         ) : (
@@ -40,7 +40,7 @@ export default function AdvertisingPage() {
   const activities = Array.isArray(data.activities) ? data.activities : [];
   return (
     <PageFrame>
-      <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source ?? demoSource} refreshedAt={data.refreshedAt} />
+      <PageHead eyebrow="Распределение внимания" title="Покупайте внимание с пониманием причины." subtitle="Эффективность каждого канала, а не усреднённая картина." source={data.source ?? demoSource} mode={data.mode} refreshedAt={data.refreshedAt} />
       <div className="advertising-note" data-testid="advertising-demo-notice"><Database size={14} /><span>{t('Демо-данные и причинное влияние оценены, а не подтверждены live-источником.')}</span></div>
       <SectionTitle title={t('Рекламные каналы')} note={t('source.demoEstimate')} />
       {channels.length ? <div className="ad-channel-grid">{channels.map((channel) => <AdvertisingChannelCard channel={channel} key={channel.id} />)}</div> : <div className="card"><EmptyState label="channels" /></div>}

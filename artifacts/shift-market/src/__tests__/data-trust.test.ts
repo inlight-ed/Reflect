@@ -9,6 +9,7 @@ let stored = 'ru';
 (globalThis as { window?: unknown }).window = { localStorage: { getItem: () => stored, setItem: () => undefined } };
 const { I18nProvider } = await import('../lib/i18n');
 const { DataFreshness, DataSourceBadge } = await import('../components/data-trust');
+const { PageHead } = await import('../components/common');
 const h = React.createElement;
 
 const render = (node: React.ReactElement, locale = 'ru') => {
@@ -82,5 +83,25 @@ describe('DataFreshness', () => {
 
   it('shows the day the data reaches for dataAsOf', () => {
     assert.match(render(h(DataFreshness, { at: '2026-08-17', kind: 'asOf' })), /Данные по 17 авг\.( 2026)?</);
+  });
+});
+
+describe('PageHead freshness', () => {
+  const head = (props: Record<string, unknown>) => render(h(PageHead, { eyebrow: 'e', title: 't', subtitle: 's', ...props }));
+  const at = '2026-08-18T04:42:00.000Z';
+
+  it('hides the time of an empty workspace: its timestamp is only the moment of the answer', () => {
+    const markup = head({ source: 'USER DATA', mode: 'EMPTY', refreshedAt: at });
+    assert.doesNotMatch(markup, /page-refreshed-at|Обновлено/);
+    assert.match(markup, /Ваши данные/);
+  });
+
+  it('shows the time for demo and for a workspace with data', () => {
+    assert.match(head({ source: 'DEMO DATA', mode: 'DEMO', refreshedAt: at }), /data-testid="page-refreshed-at"[^>]*>Обновлено 18 авг/);
+    assert.match(head({ mode: 'USER', refreshedAt: at, dataAsOf: '2026-08-17' }), /Ваши данные.*Обновлено 18 авг.*Данные по 17 авг/);
+  });
+
+  it('shows no time at all when the page passes none', () => {
+    assert.doesNotMatch(head({ source: 'USER DATA', mode: 'USER' }), /<time/);
   });
 });

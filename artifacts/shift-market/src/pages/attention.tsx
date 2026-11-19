@@ -44,7 +44,7 @@ export default function AttentionPage() {
   if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
   const data = query.data;
   const seller = data.mode === 'USER';
-  const head = <PageHead eyebrow="attention.eyebrow" title="attention.title" subtitle="attention.subtitle" source={seller ? undefined : demoSource} refreshedAt={data.refreshedAt} action={seller ? <PeriodBar /> : undefined} />;
+  const head = <PageHead eyebrow="attention.eyebrow" title="attention.title" subtitle="attention.subtitle" source={seller ? undefined : demoSource} mode={data.mode} refreshedAt={data.refreshedAt} action={seller ? <PeriodBar /> : undefined} />;
   if (data.mode === 'EMPTY') return <PageFrame>{head}<Onboarding /></PageFrame>;
   const high = data.items.filter((item) => item.severity === 'HIGH');
   const medium = data.items.filter((item) => item.severity === 'MEDIUM');

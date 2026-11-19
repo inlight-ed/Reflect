@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Check, ChevronDown, CloudOff, RefreshCw, X } from 'lucide-react';
-import { getGetDashboardQueryKey, getListFeedbackQueryKey, useCreateFeedback, type DashboardAction, type Insight, type Metric, type TemplateParams, type TimelineEvent, type Verdict } from '@workspace/api-client-react';
+import { getGetDashboardQueryKey, getListFeedbackQueryKey, useCreateFeedback, type ConfidenceBasis, type DashboardAction, type DataMode, type Insight, type Metric, type TemplateParams, type TimelineEvent, type Verdict } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { fill, formatCompactCurrency, formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import type { GlossaryTerm } from '@/lib/i18n';
 import { useAnimatedNumber } from '@/components/motion';
+import { DataFreshness, DataSourceBadge, type SourceStatus } from '@/components/data-trust';
 
 export const demoSource = 'DEMO DATA';
 
@@ -24,23 +25,9 @@ export function useText() {
   };
 }
 
-export function SourcePill({ source = demoSource }: { source?: string }) {
-  const { t } = useI18n();
-  const sourceLabel = source === demoSource || source === 'MOCK'
-    ? t('ДАННЫЕ / ДЕМО')
-    : source === 'LIVE'
-      ? t('LIVE')
-      : source === 'REDSTAT'
-        ? t('SOURCE: REDSTAT')
-      : source === 'USER DATA'
-        ? t('source.user')
-        : t('Источник недоступен');
-  return (
-    <span className="source-pill" data-testid="status-data-source">
-      <span className="source-dot" />
-      {sourceLabel}
-    </span>
-  );
+/** Kept for existing call sites; the source in words is drawn by DataSourceBadge. */
+export function SourcePill({ source, status }: { source?: string; status?: SourceStatus }) {
+  return <DataSourceBadge source={source} status={status} />;
 }
 
 const statusLabels: Record<string, string> = {
@@ -147,11 +134,14 @@ export function LoadingState() {
   );
 }
 
-export function ErrorState({ onRetry, source = demoSource }: { onRetry: () => void; source?: string }) {
+export function ErrorState({ onRetry, source }: { onRetry: () => void; source?: string }) {
   const { t } = useI18n();
+  const { demo } = useSession();
+  // The failed response carries no source. A guest is looking at the demo; for a signed-in person it is unknown, so no badge.
+  const shown = source ?? (demo ? demoSource : undefined);
   return (
     <div className="page" data-testid="status-error">
-      <div className="page-meta" style={{ marginBottom: 18 }}><SourcePill source={source} /></div>
+      {shown && <div className="page-meta" style={{ marginBottom: 18 }}><DataSourceBadge source={shown} /></div>}
       <div className="error-box" role="alert">
         <AlertTriangle size={22} />
         <h3>{t('Сигнал недоступен')}</h3>
@@ -299,6 +289,27 @@ export function ConfidenceBasisView({ basis }: { basis: DashboardAction['confide
   );
 }
 
+/** "Confirmed by 3 of 4 signals", shared by every place that explains a confidence. */
+export function useConfidenceSupport() {
+  const { t } = useI18n();
+  return (basis: ConfidenceBasis) => fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: basis.supporting, total: basis.total });
+}
+
+/**
+ * The reasons behind a confidence, one click away: how many signals confirm it and each signal, met or not.
+ * Built from the API's confidenceBasis; renders nothing when the response has none.
+ */
+export function ConfidenceDisclosure({ basis, label, testId }: { basis?: ConfidenceBasis | null; label?: string; testId?: string }) {
+  const { t } = useI18n();
+  const support = useConfidenceSupport();
+  if (!basis) return null;
+  return (
+    <Reveal label={label ?? t('Почему такая уверенность')} meta={support(basis)} testId={testId}>
+      <ConfidenceBasisView basis={basis} />
+    </Reveal>
+  );
+}
+
 const verdicts: Verdict[] = ['WORKED', 'NOT_WORKED', 'TOO_EARLY'];
 
 function FeedbackButtons({ action }: { action: DashboardAction }) {
@@ -332,6 +343,7 @@ function FeedbackButtons({ action }: { action: DashboardAction }) {
 export function ActionCard({ action, index }: { action: DashboardAction; index: number }) {
   const { t } = useI18n();
   const text = useText();
+  const support = useConfidenceSupport();
   const { signedIn } = useSession();
   const type = action.type.toLowerCase();
   const explanation = action.reasonKey ? text(action.reasonKey, action.params) : t(action.explanation);
@@ -350,7 +362,7 @@ export function ActionCard({ action, index }: { action: DashboardAction; index: 
         <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={action.confidence} aria-label={t('уверенность')}><span style={{ width: `${action.confidence}%` }} /></div>
         <span>{action.confidence}%</span>
       </div>
-      <Reveal testId="reveal-action" label={t('Почему')} meta={action.confidenceBasis ? fill(t('Подтверждают {supporting} из {total} сигналов'), { supporting: action.confidenceBasis.supporting, total: action.confidenceBasis.total }) : undefined}>
+      <Reveal testId="reveal-action" label={t('Почему')} meta={action.confidenceBasis ? support(action.confidenceBasis) : undefined}>
         <p className="action-explanation">{explanation}</p>
         {action.confidenceBasis && <ConfidenceBasisView basis={action.confidenceBasis} />}
       </Reveal>
@@ -377,15 +389,41 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
   );
 }
 
-export function PageHead({ eyebrow, title, subtitle, source, refreshedAt, action }: { eyebrow: string; title: string; subtitle: string; source?: string; refreshedAt?: string; action?: ReactNode }) {
-  const { locale, t } = useI18n();
+type PageHeadProps = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  /** DataSource from the response. Without it, mode USER still means the workspace's own data. */
+  source?: string;
+  /** RedStat's answer for the snapshot (ready, partial…). */
+  sourceStatus?: SourceStatus;
+  mode?: DataMode;
+  /** The response's refreshedAt; nothing is shown when it is missing, or when the workspace has no data yet (mode EMPTY). */
+  refreshedAt?: string;
+  /** "checked" when refreshedAt is the time a source was asked (RedStat), not when the data changed. */
+  refreshedKind?: 'updated' | 'checked';
+  /** The day the data reaches (dataAsOf), when the response has it. */
+  dataAsOf?: string;
+  action?: ReactNode;
+};
+
+export function PageHead({ eyebrow, title, subtitle, source, sourceStatus, mode, refreshedAt, refreshedKind = 'updated', dataAsOf, action }: PageHeadProps) {
+  const { t } = useI18n();
+  const shownSource = source ?? (mode === 'USER' ? 'USER DATA' : undefined);
+  // An empty workspace has nothing that could have been updated; its timestamp is only the time of the answer.
+  const updated = mode === 'EMPTY' ? undefined : refreshedAt;
   return (
     <div className="page-head">
       <div><div className="eyebrow">{t(eyebrow)}</div><h1 className="page-title">{t(title)}</h1><p className="page-subtitle">{t(subtitle)}</p></div>
       <div className="page-meta">
         {action}
-        {source && <SourcePill source={source} />}
-        {refreshedAt && <span>{t('ОБНОВЛЕНО')} {formatTime(refreshedAt, locale)}</span>}
+        {shownSource && <DataSourceBadge source={shownSource} status={sourceStatus} />}
+        {(updated || dataAsOf) && (
+          <span className="rf-freshness-group">
+            <DataFreshness at={updated} kind={refreshedKind} testId="page-refreshed-at" />
+            <DataFreshness at={dataAsOf} kind="asOf" testId="page-data-as-of" />
+          </span>
+        )}
       </div>
     </div>
   );

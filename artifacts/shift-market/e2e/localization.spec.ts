@@ -11,11 +11,14 @@ type LocaleExpectation = {
   locale: 'ru' | 'kk' | 'en';
   languageText: string;
   advertisingHeading: string;
-  refreshed: string;
+  /** The freshness label; the date part depends on the day the tests run, so only the label and the time are checked. */
+  refreshedLabel: RegExp;
+  refreshedTime: string;
   activityDate: string;
   ctr: string;
   currency: string;
   demoLabel: string;
+  demoSource: string;
   signalLabel: string;
   errorTitle: string;
   errorBody: string;
@@ -29,11 +32,13 @@ const expectations: LocaleExpectation[] = [
     locale: 'ru',
     languageText: 'Русский',
     advertisingHeading: 'Рекламные каналы',
-    refreshed: 'ОБНОВЛЕНО 09:42',
+    refreshedLabel: /обновлено/i,
+    refreshedTime: '09:42',
     activityDate: '17 авг.',
     ctr: '4,57%',
     currency: '92,40 ₸',
-    demoLabel: 'ДЕМО / ОЦЕНКА',
+    demoLabel: 'Демо · оценка',
+    demoSource: 'Демо-данные',
     signalLabel: 'СИГНАЛ ИИ · ДЕМО-ОЦЕНКА',
     errorTitle: 'Сигнал недоступен',
     errorBody: 'Источник не вернул корректный снимок данных. Повторите подключение.',
@@ -45,11 +50,13 @@ const expectations: LocaleExpectation[] = [
     locale: 'kk',
     languageText: 'Қазақша',
     advertisingHeading: 'Жарнама арналары',
-    refreshed: 'ЖАҢАРТЫЛДЫ 09:42',
+    refreshedLabel: /жаңартылды/i,
+    refreshedTime: '09:42',
     activityDate: '17 там.',
     ctr: '4,57%',
     currency: '92,40 ₸',
-    demoLabel: 'ДЕМО / БАҒАЛАУ',
+    demoLabel: 'Демо · бағалау',
+    demoSource: 'Демо деректер',
     signalLabel: 'AI СИГНАЛЫ · ДЕМО БАҒАЛАУ',
     errorTitle: 'Сигнал қолжетімсіз',
     errorBody: 'Дерек көзі дұрыс дерек үзіндісін қайтармады. Қайта қосып көріңіз.',
@@ -61,11 +68,13 @@ const expectations: LocaleExpectation[] = [
     locale: 'en',
     languageText: 'English',
     advertisingHeading: 'Advertising channels',
-    refreshed: 'UPDATED 09:42 AM',
+    refreshedLabel: /updated/i,
+    refreshedTime: '09:42 AM',
     activityDate: 'Aug 17',
     ctr: '4.57%',
     currency: '₸92.40',
-    demoLabel: 'DEMO / ESTIMATED',
+    demoLabel: 'Demo · estimate',
+    demoSource: 'Demo data',
     signalLabel: 'AI SIGNAL · DEMO ESTIMATE',
     errorTitle: 'Signal unavailable',
     errorBody: 'The source did not return a valid data snapshot. Try the connection again.',
@@ -149,7 +158,8 @@ for (const expected of expectations) {
     await expect(page).toHaveURL(/\/advertising$/);
     await expect(page.getByRole('heading', { name: expected.advertisingHeading, exact: true })).toBeVisible();
 
-    await expect(page.locator('.page-meta')).toContainText(expected.refreshed);
+    await expect(page.getByTestId('page-refreshed-at')).toContainText(expected.refreshedLabel);
+    await expect(page.getByTestId('page-refreshed-at')).toContainText(expected.refreshedTime);
     await expect(page.getByTestId('advertising-activity-google-1').locator('td').first()).toHaveText(expected.activityDate);
 
     const googleMetrics = page.getByTestId('card-ad-channel-google').locator('.channel-metrics');
@@ -193,13 +203,13 @@ for (const expected of expectations) {
     await expect(errorState).toContainText(expected.errorTitle);
     await expect(errorState).toContainText(expected.errorBody);
     await expect(errorState).toContainText(expected.retryLabel);
-    await expect(errorState).toContainText(expected.locale === 'en' ? 'DATA / DEMO' : expected.locale === 'kk' ? 'ДЕРЕКТЕР / ДЕМО' : 'ДАННЫЕ / ДЕМО');
+    await expect(errorState).toContainText(expected.demoSource);
     await expect(errorState).not.toContainText(rawApiMessage);
 
     responseMode = 'empty';
     await page.getByTestId('button-retry').click();
     await expect(page.getByTestId('empty-channels')).toBeVisible();
-    await expect(page.getByTestId('status-data-source')).toHaveText(expected.locale === 'en' ? 'DATA / DEMO' : expected.locale === 'kk' ? 'ДЕРЕКТЕР / ДЕМО' : 'ДАННЫЕ / ДЕМО');
+    await expect(page.getByTestId('status-data-source')).toContainText(expected.demoSource);
     await expect(page.getByTestId('advertising-demo-notice')).toContainText(expected.locale === 'en' ? 'Demo data' : expected.locale === 'kk' ? 'Демо деректер' : 'Демо-данные');
 
     await page.getByTestId('link-nav-settings').click();

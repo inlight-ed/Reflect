@@ -297,7 +297,7 @@ test('seller: registers, imports a Kaspi export and marks a recommendation', asy
   await expect(page.getByTestId('chart-data-as-of')).toContainText('данные по');
   await expect(page.getByTestId('forecast')).toContainText('Крем для рук');
   const firstAction = page.getByTestId('card-action-0');
-  await expect(firstAction).toContainText('ДОЗАКАЗАТЬ');
+  await expect(firstAction).toContainText('Дозаказать');
   await firstAction.getByTestId('verdict-worked').click();
   await expect(firstAction.getByTestId('verdict-worked')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('outcomes')).toContainText('Сработало');
@@ -336,6 +336,39 @@ test('first screen: a Kaspi token loads orders and the plan without any file', a
   await expect(page.getByTestId('chart-data-as-of')).toBeVisible();
 });
 
+test('overview: the period\'s figures come first, then actions with their kind, effect and confidence', async ({ page }) => {
+  const order = await page.locator('#main-content h2.section-title').allTextContents();
+  expect(order.indexOf('Пульс бизнеса')).toBeGreaterThanOrEqual(0);
+  expect(order.indexOf('Пульс бизнеса')).toBeLessThan(order.indexOf('Что сделать сегодня'));
+  const first = page.getByTestId('card-action-0');
+  await expect(first.locator('.rf-badge')).toHaveText(/Исправить|Масштабировать|Оптимизировать|Защищать|Наблюдать|Дозаказать/);
+  await expect(first.getByRole('meter')).toHaveAttribute('aria-valuenow', /\d+/);
+  await expect(first.locator('.rf-action-impact')).toContainText('Ожидаемый эффект');
+  // The demo's log covers a fixed window, and says so.
+  await expect(page.locator('.rf-timeline-window')).toHaveText('последние 7 дней');
+});
+
+test('overview: while loading, the page shows its own outline', async ({ page }) => {
+  await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 1500)); await route.continue(); });
+  await page.goto('/overview');
+  await expect(page.getByTestId('status-loading')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByTestId('status-loading').locator('.rf-skeleton-metric')).toHaveCount(4);
+  await expect(page.getByTestId('card-action-0')).toBeVisible();
+});
+
+test('overview: no sideways scrolling on a phone, with demo data and for a new workspace', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/overview');
+  await expect(page.getByTestId('card-action-0')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`phone-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await expect(page.getByTestId('onboarding')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
 // A timestamp the server makes at the moment of the request is not a data update: none is shown for it.
 const freshnessRoutes = ['/overview', '/attention', '/products', '/advertising', '/external-media'];
 
@@ -364,6 +397,9 @@ test('freshness: with seller data, ads and campaigns show no update time the API
   // The overview's time is the last import and its "data up to" the last order: both shown.
   await expect(page.getByTestId('page-refreshed-at')).toBeVisible();
   await expect(page.getByTestId('page-data-as-of')).toBeVisible();
+  // A workspace's log is its latest imports and verdicts, not a fixed window: no "last 7 days".
+  await expect(page.locator('.rf-timeline-card')).toBeVisible();
+  await expect(page.locator('.rf-timeline-window')).toHaveCount(0);
   for (const route of ['/advertising', '/external-media']) {
     await page.goto(route);
     await expect(page.locator('.page-head')).toBeVisible();

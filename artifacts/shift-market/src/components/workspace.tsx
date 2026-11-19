@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Check, ChevronsUpDown, Copy, Link2, Plus, Store } from 'lucide-react';
 import { useLocation } from 'wouter';
@@ -21,7 +21,7 @@ import { SectionTitle } from '@/components/common';
 import { HoldButton } from '@/components/motion';
 
 const ROLES: WorkspaceRole[] = ['OWNER', 'MEMBER', 'VIEWER'];
-const KindIcon = ({ kind }: { kind: WorkspaceKind }) => (kind === 'AGENCY' ? <Briefcase size={14} /> : <Store size={14} />);
+const KindIcon = ({ kind }: { kind: WorkspaceKind }) => (kind === 'AGENCY' ? <Briefcase size={14} aria-hidden /> : <Store size={14} aria-hidden />);
 const errorCode = (error: unknown) => (error instanceof ApiError ? (error.data as { error?: string } | undefined)?.error ?? 'generic' : 'generic');
 
 /**
@@ -38,14 +38,17 @@ export function WorkspaceSwitcher() {
   const [error, setError] = useState('');
   const create = useCreateWorkspace();
   const box = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
 
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => { if (!box.current?.contains(event.target as Node)) setOpen(false); };
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    // Escape closes the list first (not the whole menu around it) and puts focus back on the switcher.
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopImmediatePropagation(); setOpen(false); toggle.current?.focus(); } };
     document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', onKey); };
+    document.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', onKey, true); };
   }, [open]);
 
   if (!workspace) return null;
@@ -73,18 +76,18 @@ export function WorkspaceSwitcher() {
 
   return (
     <div className="ws-switcher" ref={box}>
-      <button type="button" className="ws-current" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" data-testid="workspace-switcher">
+      <button type="button" ref={toggle} className="ws-current" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls={panelId} data-testid="workspace-switcher">
         <span className="ws-icon"><KindIcon kind={workspace.kind} /></span>
         <span className="ws-text"><strong data-testid="workspace-name">{workspace.name}</strong><small>{t(`workspace.kind.${workspace.kind}`)}{workspace.role === 'VIEWER' ? ` · ${t('workspace.role.VIEWER')}` : ''}</small></span>
-        <ChevronsUpDown size={14} />
+        <ChevronsUpDown size={14} aria-hidden />
       </button>
       {open && (
-        <div className="ws-menu" role="menu">
-          {workspaces.map((item) => (
-            <button type="button" role="menuitem" key={item.id} className={`ws-option ${item.id === workspace.id ? 'active' : ''}`} onClick={() => void choose(item.id)} data-testid={`workspace-option-${item.kind.toLowerCase()}`}>
-              <KindIcon kind={item.kind} /><span>{item.name}</span>{item.id === workspace.id && <Check size={14} />}
-            </button>
-          ))}
+        <div className="ws-menu" id={panelId}>
+          <ul className="ws-list">{workspaces.map((item) => (
+            <li key={item.id}><button type="button" className={`ws-option ${item.id === workspace.id ? 'active' : ''}`} aria-current={item.id === workspace.id ? 'true' : undefined} onClick={() => void choose(item.id)} data-testid={`workspace-option-${item.kind.toLowerCase()}`}>
+              <KindIcon kind={item.kind} /><span>{item.name}<small className="visually-hidden"> · {t(`workspace.kind.${item.kind}`)}</small></span>{item.id === workspace.id && <Check size={14} aria-hidden />}
+            </button></li>
+          ))}</ul>
           <div className="ws-divider" />
           {creating ? (
             <form className="ws-create" onSubmit={(event) => void submit(event)}>
@@ -98,8 +101,8 @@ export function WorkspaceSwitcher() {
             </form>
           ) : (
             <>
-              <button type="button" role="menuitem" className="ws-option" onClick={() => setCreating('AGENCY')} data-testid="workspace-create-agency"><Plus size={14} /><span>{t('workspace.create.agency')}</span></button>
-              <button type="button" role="menuitem" className="ws-option" onClick={() => setCreating('SHOP')} data-testid="workspace-create-shop"><Plus size={14} /><span>{t('workspace.create.shop')}</span></button>
+              <button type="button" className="ws-option" onClick={() => setCreating('AGENCY')} data-testid="workspace-create-agency"><Plus size={14} aria-hidden /><span>{t('workspace.create.agency')}</span></button>
+              <button type="button" className="ws-option" onClick={() => setCreating('SHOP')} data-testid="workspace-create-shop"><Plus size={14} aria-hidden /><span>{t('workspace.create.shop')}</span></button>
             </>
           )}
         </div>

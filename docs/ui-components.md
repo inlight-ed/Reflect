@@ -15,7 +15,7 @@ import { Button, IconButton, TextField, Select, Badge, Card, InlineNotice, Skele
 | `TextField` | однострочный ввод | `label`, `description`, `error`. Связи `label`↔поле и `aria-describedby` на описание и ошибку проставляются сами, ошибка ставит `aria-invalid`. Остальные свойства — как у `<input>`. |
 | `Select` | выбор из списка | Нативный `<select>` (на телефоне системный выбор). `options`, необязательный `placeholder` с пустым значением. |
 | `Badge` | короткий статус | `tone`: `neutral`, `success`, `warning`, `danger`, `info`. Текст обязателен, цвет и точка декоративные. `description` — пояснение для скринридера и подсказки. |
-| `Card` | поверхность для группы | `padding="default"` для содержимого, `"none"` для таблицы или списка во всю ширину. `as="section"`, если внутри свой заголовок. |
+| `Card` | поверхность для группы | `padding` обязателен: `"default"` для содержимого, `"none"` для таблицы или списка во всю ширину. Без него код не компилируется. `as="section"`, если внутри свой заголовок. |
 | `InlineNotice` | сообщение внутри страницы | `tone` со своей иконкой, `title`, одно `action`. Объявление: `danger` — `alert`, остальные — `status`. `announce="none"` для сообщений, которые есть с первой отрисовки. |
 | `SkeletonText` / `SkeletonCard` / `SkeletonMetric` | пока данные грузятся | Скрыты от скринридера. Сам загружающийся блок помечается `aria-busy="true"`. |
 
@@ -30,10 +30,10 @@ import { Button, IconButton, TextField, Select, Badge, Card, InlineNotice, Skele
 | `.field` + `<small>` | `TextField` / `Select` |
 | `.status-tag.tag-*`, `.source-pill` | `Badge` (подписи решений и источников — в PR со статусами) |
 | `.card` (без внутренних отступов) | `Card padding="none"` |
-| `.card.card-pad` (отступ 20 px) | `Card` (по умолчанию `padding="default"`, отступ 24 px, на мобильном 16 px) |
+| `.card.card-pad` (отступ 20 px) | `Card padding="default"` (отступ 24 px, на мобильном 16 px) |
 | `.report-notice`, `.assumption-note`, `.advertising-note`, `.form-error` | `InlineNotice` |
 | `.skeleton` в `LoadingState` | `Skeleton*` |
 
-**Карточки при переносе.** У `Card` по умолчанию есть внутренний отступ, а у старой `.card` его нет. Поэтому `.card` без `.card-pad` переносится только как `Card padding="none"`, иначе карточка с таблицей или списком получит лишние поля. Даже при правильном варианте вид немного меняется: отступ 20 → 24 px, радиус 6 → 12 px, рамка `#252b35` → `border-strong`. Это плановое изменение, его сверяют скриншотами экрана.
+**Карточки при переносе.** `padding` у `Card` обязателен, поэтому плотность всегда выбирается явно: `.card` без `.card-pad` — это `padding="none"`, с ним — `padding="default"`. Даже при правильном варианте вид немного меняется: отступ 20 → 24 px, радиус 6 → 12 px, рамка `#252b35` → `border-strong`. Это плановое изменение, его сверяют скриншотами экрана.
 
 Уже есть и не дублируются: `ProgressBar` и `HoldButton` в `components/motion.tsx`, подсказка `Hint` в `components/common.tsx`.

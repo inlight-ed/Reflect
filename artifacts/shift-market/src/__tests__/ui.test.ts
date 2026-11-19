@@ -99,8 +99,8 @@ describe('InlineNotice', () => {
 });
 
 describe('Card and skeletons', () => {
-  it('Card is padded by default and can hold a table edge to edge', () => {
-    assert.match(html(h(Card, null, 'x')), /class="rf-card rf-card--pad"/);
+  it('Card padding is chosen explicitly: padded content or a table edge to edge', () => {
+    assert.match(html(h(Card, { padding: 'default' }, 'x')), /class="rf-card rf-card--pad"/);
     assert.match(html(h(Card, { padding: 'none', as: 'section' }, 'x')), /<section class="rf-card">/);
   });
 

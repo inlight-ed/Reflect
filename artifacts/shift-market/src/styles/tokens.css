@@ -1,0 +1,117 @@
+/*
+ * Reflect design tokens.
+ *
+ * One semantic name per role; components and page rules use these, never raw values.
+ * Prefix --rf- keeps them apart from Tailwind's own --color-* / --radius-* theme variables.
+ *
+ * The colour values are the shades the app already uses, so introducing the tokens changes nothing
+ * on screen. Near-duplicate shades that still sit in index.css are listed in docs/design-tokens.md and
+ * get folded into these tokens screen by screen, with a visual check each time.
+ */
+:root {
+  /* ---- Surfaces: page → card → raised / interactive ---- */
+  --rf-color-bg: #0e1117;              /* app background */
+  --rf-color-bg-sunken: #0b0e13;       /* mobile bar, deepest layer */
+  --rf-color-surface-1: #13171f;       /* cards */
+  --rf-color-surface-2: #171c24;       /* hovered card, secondary button */
+  --rf-color-surface-inset: #0f1319;   /* wells inside a card */
+  --rf-color-surface-raised: #151a21;  /* popovers, chart tooltips */
+  --rf-color-surface-control: #202630; /* controls on a card */
+
+  /* ---- Text ---- */
+  --rf-color-text-strong: #eef0f3;     /* headings, key numbers */
+  --rf-color-text: #e7eaf0;            /* body */
+  --rf-color-text-secondary: #9aa3ae;  /* supporting copy */
+  --rf-color-text-muted: #8a94a2;      /* captions, axis labels */
+  --rf-color-text-subtle: #7e8793;     /* least important meta */
+  --rf-color-text-on-accent: #101318;  /* text on the amber button */
+
+  /* ---- Borders ---- */
+  --rf-color-border-subtle: #20242b;   /* row dividers */
+  --rf-color-border: #2c3540;          /* cards, inputs */
+  --rf-color-border-strong: #2a3039;   /* emphasised outlines */
+
+  /* ---- Accent: one warm amber for action and focus ---- */
+  --rf-color-accent: #e7b24f;
+  --rf-color-accent-hover: #f0c872;
+  --rf-color-accent-text: #f1ca77;     /* amber text on dark controls */
+  --rf-color-accent-border: #725c30;
+  --rf-color-accent-border-focus: #977432;
+  --rf-color-accent-surface: #2a2419;
+  --rf-color-focus-ring: #e7b24f;
+
+  /* ---- Status (always paired with text or an icon, never colour alone) ---- */
+  --rf-color-success: #b9d94b;         /* growth, done */
+  --rf-color-success-surface: #202b16;
+  --rf-color-success-border: #3a4829;
+  --rf-color-warning: #e7b24f;         /* estimate, needs a look */
+  --rf-color-warning-border: #4e4126;
+  --rf-color-danger: #e88479;          /* loss, critical */
+  --rf-color-danger-text: #f0a39a;
+  --rf-color-danger-border: #5a3431;
+  --rf-color-info: #75c7ce;            /* neutral note, FIX decision */
+  --rf-color-neutral: #a3abb6;         /* no data / unknown */
+
+  /* ---- Typography ---- */
+  --rf-font-sans: 'Inter Variable', system-ui, sans-serif;
+  --rf-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace; /* SKU, source, sync time only */
+  --rf-font-numeric: tabular-nums;
+  --rf-text-xs: 11px;
+  --rf-text-sm: 12px;
+  --rf-text-md: 13px;
+  --rf-text-base: 14px;
+  --rf-text-lg: 16px;
+  --rf-text-xl: 20px;
+  --rf-text-2xl: 25px;
+  --rf-text-3xl: 30px;
+  --rf-weight-regular: 400;
+  --rf-weight-medium: 500;
+  --rf-weight-semibold: 600;
+  --rf-weight-bold: 700;
+
+  /* ---- Spacing: 8 px grid with half steps ---- */
+  --rf-space-1: 4px;
+  --rf-space-2: 8px;
+  --rf-space-3: 12px;
+  --rf-space-4: 16px;
+  --rf-space-5: 24px;
+  --rf-space-6: 32px;
+  --rf-space-7: 48px;
+
+  /* ---- Radii ---- */
+  --rf-radius-sm: 4px;   /* tags, small buttons */
+  --rf-radius-md: 8px;   /* inputs, buttons */
+  --rf-radius-lg: 12px;  /* cards */
+  --rf-radius-xl: 16px;  /* dialogs, sheets */
+  --rf-radius-pill: 999px;
+
+  /* ---- Elevation ---- */
+  --rf-shadow-1: 0 1px 2px rgba(0, 0, 0, .25);
+  --rf-shadow-2: 0 8px 24px rgba(0, 0, 0, .4);
+  --rf-overlay: rgba(3, 5, 8, .6);
+
+  /* ---- Sizing ---- */
+  --rf-control-height: 40px;
+  --rf-control-height-lg: 44px;
+  --rf-content-max: 1440px;
+
+  /* ---- Motion ---- */
+  --rf-duration-fast: 120ms;
+  --rf-duration: 180ms;
+  --rf-duration-slow: 320ms;
+  --rf-ease-out: cubic-bezier(.22, 1, .36, 1);
+  --rf-ease-in-out: cubic-bezier(.65, 0, .35, 1);
+
+  /*
+   * Breakpoints (CSS variables cannot be used inside @media; these are the agreed values):
+   *   mobile ≤ 760px · tablet 761–1050px · desktop > 1050px · wide ≥ 1500px
+   */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --rf-duration-fast: 0ms;
+    --rf-duration: 0ms;
+    --rf-duration-slow: 0ms;
+  }
+}

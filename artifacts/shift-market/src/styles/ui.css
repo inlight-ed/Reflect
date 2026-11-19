@@ -1,0 +1,148 @@
+/*
+ * Base UI components (src/components/ui). Every class starts with rf- so these rules never touch the
+ * existing .btn / .field / .card styles; screens move to the components one by one.
+ * Values come from styles/tokens.css only.
+ */
+
+/* ---- Button / IconButton ---- */
+.rf-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rf-space-2);
+  min-height: var(--rf-control-height);
+  padding: 0 var(--rf-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--rf-radius-md);
+  font: var(--rf-weight-semibold) var(--rf-text-md) / 1.2 var(--rf-font-sans);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--rf-duration) var(--rf-ease-out), border-color var(--rf-duration) var(--rf-ease-out), color var(--rf-duration) var(--rf-ease-out);
+}
+.rf-button svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.rf-button__icon { display: inline-flex; }
+.rf-button:focus-visible { outline: 2px solid var(--rf-color-focus-ring); outline-offset: 2px; }
+.rf-button:disabled, .rf-button[aria-disabled='true'] { opacity: .55; cursor: not-allowed; }
+.rf-button[aria-busy='true'] { cursor: progress; }
+
+.rf-button--sm { min-height: 32px; padding: 0 var(--rf-space-3); font-size: var(--rf-text-sm); gap: 6px; }
+.rf-button--sm svg { width: 14px; height: 14px; }
+
+.rf-button--primary { color: var(--rf-color-text-on-accent); background: var(--rf-color-accent); border-color: var(--rf-color-accent); }
+.rf-button--primary:hover:not(:disabled) { background: var(--rf-color-accent-hover); border-color: var(--rf-color-accent-hover); }
+
+.rf-button--secondary { color: var(--rf-color-text); background: var(--rf-color-surface-2); border-color: var(--rf-color-border-control); }
+.rf-button--secondary:hover:not(:disabled) { color: var(--rf-color-accent-text); background: var(--rf-color-surface-control); border-color: var(--rf-color-accent-border); }
+
+.rf-button--tertiary { color: var(--rf-color-text-secondary); background: transparent; }
+.rf-button--tertiary:hover:not(:disabled) { color: var(--rf-color-accent-text); background: var(--rf-color-surface-2); }
+
+.rf-button--danger { color: var(--rf-color-danger-text); background: transparent; border-color: var(--rf-color-danger-border); }
+.rf-button--danger:hover:not(:disabled) { color: var(--rf-color-text-strong); background: var(--rf-color-danger-border); }
+
+.rf-icon-button { width: var(--rf-control-height); padding: 0; }
+.rf-icon-button.rf-button--sm { width: 32px; }
+
+.rf-button__spinner { animation: spin 1s linear infinite; }
+
+/* ---- Field: TextField / Select ---- */
+.rf-field { display: grid; gap: 6px; min-width: 0; }
+.rf-field__label { color: var(--rf-color-text); font: var(--rf-weight-medium) var(--rf-text-md) / 1.3 var(--rf-font-sans); }
+.rf-field__required { color: var(--rf-color-text-muted); font-weight: var(--rf-weight-regular); }
+.rf-field__description { margin: 0; color: var(--rf-color-text-muted); font-size: var(--rf-text-sm); line-height: 1.4; }
+.rf-field__error { display: flex; align-items: flex-start; gap: 6px; margin: 0; color: var(--rf-color-danger-text); font-size: var(--rf-text-sm); line-height: 1.4; }
+.rf-field__error svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; }
+
+.rf-field__control {
+  width: 100%;
+  min-height: var(--rf-control-height);
+  padding: 0 var(--rf-space-3);
+  color: var(--rf-color-text-strong);
+  background: var(--rf-color-surface-inset);
+  border: 1px solid var(--rf-color-border-control);
+  border-radius: var(--rf-radius-md);
+  font: var(--rf-text-base) / 1.3 var(--rf-font-sans);
+  transition: border-color var(--rf-duration-fast) var(--rf-ease-out);
+}
+.rf-field__control::placeholder { color: var(--rf-color-text-subtle); }
+.rf-field__control:hover:not(:disabled) { border-color: var(--rf-color-text-muted); }
+.rf-field__control:focus { outline: none; }
+.rf-field__control:focus-visible { border-color: var(--rf-color-accent); outline: 2px solid var(--rf-color-focus-ring); outline-offset: 1px; }
+.rf-field__control[aria-invalid='true'] { border-color: var(--rf-color-danger); }
+.rf-field__control:disabled { color: var(--rf-color-text-muted); cursor: not-allowed; opacity: .7; }
+
+.rf-select { position: relative; }
+.rf-select .rf-field__control { padding-right: 36px; appearance: none; cursor: pointer; }
+.rf-select__chevron { position: absolute; top: 50%; right: var(--rf-space-3); width: 16px; height: 16px; color: var(--rf-color-text-muted); transform: translateY(-50%); pointer-events: none; }
+
+/* ---- Badge ---- */
+.rf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px var(--rf-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--rf-radius-pill);
+  font: var(--rf-weight-medium) var(--rf-text-sm) / 1.4 var(--rf-font-sans);
+  white-space: nowrap;
+}
+.rf-badge svg { width: 12px; height: 12px; flex: 0 0 auto; }
+.rf-badge__icon { display: inline-flex; }
+.rf-badge__dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: var(--rf-radius-pill); background: currentColor; }
+.rf-badge--neutral { color: var(--rf-color-neutral); background: var(--rf-color-surface-control); }
+.rf-badge--success { color: var(--rf-color-success); background: var(--rf-color-success-surface); border-color: var(--rf-color-success-border); }
+.rf-badge--warning { color: var(--rf-color-accent-text); background: var(--rf-color-accent-surface); border-color: var(--rf-color-warning-border); }
+.rf-badge--danger { color: var(--rf-color-danger-text); background: var(--rf-color-surface-raised); border-color: var(--rf-color-danger-border); }
+.rf-badge--info { color: var(--rf-color-info); background: var(--rf-color-surface-raised); border-color: var(--rf-color-border); }
+
+/* ---- Card ---- */
+.rf-card { min-width: 0; background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border-strong); border-radius: var(--rf-radius-lg); }
+.rf-card--pad { padding: var(--rf-space-5); }
+@media (max-width: 760px) { .rf-card--pad { padding: var(--rf-space-4); } }
+
+/* ---- InlineNotice ---- */
+.rf-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rf-space-3);
+  padding: var(--rf-space-3) var(--rf-space-4);
+  color: var(--rf-color-text);
+  background: var(--rf-color-surface-raised);
+  border: 1px solid var(--rf-color-border);
+  border-left-width: 3px;
+  border-radius: var(--rf-radius-md);
+  font-size: var(--rf-text-md);
+  line-height: 1.45;
+}
+.rf-notice__icon { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+.rf-notice__body { flex: 1; min-width: 0; }
+.rf-notice__title { display: block; margin-bottom: 2px; color: var(--rf-color-text-strong); font-weight: var(--rf-weight-semibold); }
+.rf-notice__action { flex: 0 0 auto; align-self: center; }
+.rf-notice--info { border-left-color: var(--rf-color-info); } .rf-notice--info .rf-notice__icon { color: var(--rf-color-info); }
+.rf-notice--success { border-left-color: var(--rf-color-success); } .rf-notice--success .rf-notice__icon { color: var(--rf-color-success); }
+.rf-notice--warning { border-left-color: var(--rf-color-warning); } .rf-notice--warning .rf-notice__icon { color: var(--rf-color-warning); }
+.rf-notice--danger { border-left-color: var(--rf-color-danger); } .rf-notice--danger .rf-notice__icon { color: var(--rf-color-danger); }
+@media (max-width: 760px) { .rf-notice { flex-wrap: wrap; } .rf-notice__action { flex-basis: 100%; } }
+
+/* ---- Skeleton ---- */
+.rf-skeleton {
+  display: block;
+  border-radius: var(--rf-radius-sm);
+  background: linear-gradient(90deg, var(--rf-color-surface-raised), var(--rf-color-surface-control), var(--rf-color-surface-raised));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.rf-skeleton--line { height: 12px; }
+.rf-skeleton--line:last-child:not(:only-child) { width: 60%; }
+.rf-skeleton-text { display: grid; gap: var(--rf-space-2); }
+.rf-skeleton--card { height: 160px; border-radius: var(--rf-radius-lg); }
+.rf-skeleton-metric { display: grid; gap: var(--rf-space-3); padding: var(--rf-space-4); border: 1px solid var(--rf-color-border-strong); border-radius: var(--rf-radius-lg); background: var(--rf-color-surface-1); }
+.rf-skeleton-metric .rf-skeleton:nth-child(1) { width: 45%; height: 10px; }
+.rf-skeleton-metric .rf-skeleton:nth-child(2) { width: 70%; height: 26px; }
+.rf-skeleton-metric .rf-skeleton:nth-child(3) { width: 30%; height: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .rf-skeleton, .rf-button__spinner { animation: none; }
+}

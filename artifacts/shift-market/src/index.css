@@ -495,7 +495,6 @@ button.matrix-dot::after { content:''; position:absolute; inset:-9px; border-rad
 
 
 @media (max-width: 760px) {
-  
   .content-score-card { grid-template-columns:1fr; text-align:center; }
   .assistant-layout { grid-template-columns:1fr; }
   .assistant-suggestions { order:-1; }
@@ -786,7 +785,6 @@ a.btn { text-decoration:none; }
 }
 @media (max-width: 760px) {
   .grid-5 { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  
   .landing-features { grid-template-columns:1fr; }
   .forecast-row { grid-template-columns:1fr auto; }
   .forecast-meter, .forecast-stock { display:none; }

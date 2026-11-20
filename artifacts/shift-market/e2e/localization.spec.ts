@@ -751,3 +751,166 @@ test('agency: one sign-in, an agency next to the shop, and a viewer invited by l
   await expect(page.getByTestId(`member-agency-viewer-${stamp}@example.kz`)).toContainText('Наблюдатель');
   await context.close();
 });
+
+// ---- C01-01 / C01-02: responsive layout and table visibility ----
+// Phone, tablet, laptop and wide desktop. The page itself never scrolls sideways; a wide table
+// scrolls inside its own wrapper, keeps the row name in view and, from tablet up, the decision too.
+const layoutViewports = [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }];
+
+async function checkLayout(page: Page, label: string, decisionFrom?: number) {
+  const width = page.viewportSize()?.width ?? 0;
+  const layout = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    return {
+      pageOverflow: document.documentElement.scrollWidth - viewport,
+      tables: [...document.querySelectorAll('.table-scroll')].map((wrap) => {
+        const box = wrap.getBoundingClientRect();
+        const first = wrap.querySelector('thead th')?.getBoundingClientRect();
+        const decision = wrap.querySelector('thead .col-decision')?.getBoundingClientRect();
+        const visible = (cell?: DOMRect) => (cell ? cell.left >= box.left - 1 && cell.right <= Math.min(box.right, viewport) + 1 : null);
+        return { inside: box.right <= viewport + 1, firstVisible: visible(first), decisionVisible: visible(decision) };
+      }),
+    };
+  });
+  expect(layout.pageOverflow, `${label} at ${width}px: page scrolls sideways`).toBeLessThanOrEqual(0);
+  expect(layout.tables.length, `${label}: tables found`).toBeGreaterThan(0);
+  for (const table of layout.tables) {
+    expect(table.inside, `${label} at ${width}px: table wrapper stays inside the page`).toBe(true);
+    expect(table.firstVisible, `${label} at ${width}px: first column in view`).toBe(true);
+    if (decisionFrom !== undefined && table.decisionVisible !== null && width >= decisionFrom) expect(table.decisionVisible, `${label} at ${width}px: decision column in view`).toBe(true);
+  }
+}
+
+test('layout: external media, products and advertising fit every screen width with demo data', async ({ page }) => {
+  const routes: Array<[string, string, string, number?]> = [
+    ['/external-media', '[data-testid^="row-campaign-"]', 'external media'],
+    ['/products', '[data-testid^="row-product-"]', 'products', 768],
+    ['/advertising', '[data-testid="advertising-activity-feed"]', 'advertising'],
+  ];
+  for (const viewport of layoutViewports) {
+    await page.setViewportSize(viewport);
+    for (const [route, ready, label, decisionFrom] of routes) {
+      await page.goto(route);
+      await expect(page.locator(ready).first()).toBeVisible();
+      await checkLayout(page, label, decisionFrom);
+    }
+  }
+});
+
+test('layout: a seller\'s products keep the period, the source and the update time in view at every width, and the decision from tablet up', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`layout-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  for (const viewport of layoutViewports) {
+    await page.setViewportSize(viewport);
+    await page.goto('/products');
+    await expect(page.locator('[data-testid^="row-product-"]').first()).toBeVisible();
+    // The page head: period (7/30/90 and the comparison), data source and update time, all within the screen.
+    for (const testId of ['period-7', 'period-30', 'period-90', 'select-compare', 'status-data-source', 'page-refreshed-at']) {
+      const element = page.getByTestId(testId);
+      await expect(element, `${testId} at ${viewport.width}px`).toHaveCount(1);
+      await expect(element, `${testId} at ${viewport.width}px`).toBeVisible();
+      const box = await element.boundingBox();
+      expect(box && box.x >= 0 && box.x + box.width <= viewport.width + 1, `${testId} at ${viewport.width}px: within the screen`).toBe(true);
+    }
+    await checkLayout(page, 'seller products', 768);
+  }
+});
+
+// The scroll cue is a scroll-driven CSS animation of two custom properties on the wrapper:
+// --rf-table-start (0 at the left edge, then 1) and --rf-table-end (1 until the right edge, then 0).
+// Where the browser lacks scroll-driven animations only the geometry is checked.
+async function tableScroll(page: Page, wrapper: string) {
+  return page.evaluate((selector) => {
+    const wrap = document.querySelector(selector) as HTMLElement;
+    const box = wrap.getBoundingClientRect();
+    const style = getComputedStyle(wrap);
+    const rect = (cell: Element | null) => cell?.getBoundingClientRect();
+    const first = rect(wrap.querySelector('thead th'));
+    const decision = rect(wrap.querySelector('thead .col-decision'));
+    const last = rect(wrap.querySelector('thead th:last-child'));
+    return {
+      scrollLeft: wrap.scrollLeft, maxScroll: wrap.scrollWidth - wrap.clientWidth,
+      pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      firstOffset: first ? Math.round(first.left - box.left) : null,
+      decisionOffset: decision ? Math.round(box.right - decision.right) : null,
+      lastVisible: last ? last.right <= box.right + 1 && last.left >= box.left - 1 : null,
+      cue: CSS.supports('animation-timeline: scroll()') ? { start: Number(style.getPropertyValue('--rf-table-start')), end: Number(style.getPropertyValue('--rf-table-end')) } : null,
+    };
+  }, wrapper);
+}
+
+async function scrollTable(page: Page, wrapper: string, deltaX: number) {
+  const before = (await tableScroll(page, wrapper)).scrollLeft;
+  await page.locator(wrapper).hover();
+  await page.mouse.wheel(deltaX, 0);
+  await expect.poll(async () => (await tableScroll(page, wrapper)).scrollLeft).not.toBe(before);
+}
+
+test('layout: a wide table scrolls inside its wrapper with pinned columns and a cue at start, middle and end', async ({ page }) => {
+  const cases: Array<{ route: string; ready: string; wrapper: string; width: number; pinned: 'first' | 'decision' | 'none' }> = [
+    { route: '/products', ready: '[data-testid^="row-product-"]', wrapper: 'main .table-scroll', width: 768, pinned: 'decision' },
+    { route: '/products', ready: '[data-testid^="row-product-"]', wrapper: 'main .table-scroll', width: 375, pinned: 'first' },
+    { route: '/advertising', ready: '[data-testid="advertising-activity-feed"]', wrapper: '[data-testid="advertising-activity-feed"] .table-scroll', width: 768, pinned: 'none' },
+  ];
+  for (const { route, ready, wrapper, width, pinned } of cases) {
+    const label = `${route} at ${width}px`;
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(route);
+    await expect(page.locator(ready).first()).toBeVisible();
+
+    // Start: the table is wider than its wrapper, the page is not.
+    const start = await tableScroll(page, wrapper);
+    expect(start.maxScroll, `${label}: table overflows its wrapper`).toBeGreaterThan(0);
+    expect(start.scrollLeft, label).toBe(0);
+    expect(start.pageOverflow, `${label}: page scrolls sideways`).toBeLessThanOrEqual(0);
+    if (start.cue) await expect.poll(async () => (await tableScroll(page, wrapper)).cue, `${label}: cue at start`).toEqual({ start: 0, end: 1 });
+
+    // Middle: scrolled by the wheel, the page still does not move, pinned columns stay where they were.
+    await scrollTable(page, wrapper, 120);
+    const middle = await tableScroll(page, wrapper);
+    expect(middle.scrollLeft, label).toBeLessThan(middle.maxScroll);
+    expect(middle.pageOverflow, `${label}: page scrolls sideways`).toBeLessThanOrEqual(0);
+    if (pinned === 'first') expect(middle.firstOffset, `${label}: first column pinned`).toBe(start.firstOffset);
+    if (pinned === 'decision') expect(middle.decisionOffset, `${label}: decision column pinned`).toBe(start.decisionOffset);
+    if (middle.cue) await expect.poll(async () => (await tableScroll(page, wrapper)).cue, `${label}: cue in the middle`).toEqual({ start: 1, end: 1 });
+
+    // End: every column reachable, including the last one (decision / impact on orders).
+    await scrollTable(page, wrapper, 5000);
+    await expect.poll(async () => { const state = await tableScroll(page, wrapper); return state.maxScroll - state.scrollLeft; }, `${label}: scrolled to the end`).toBeLessThanOrEqual(1);
+    const end = await tableScroll(page, wrapper);
+    expect(end.lastVisible, `${label}: last column in view at the end`).toBe(true);
+    expect(end.pageOverflow, `${label}: page scrolls sideways`).toBeLessThanOrEqual(0);
+    if (pinned === 'first') expect(end.firstOffset, `${label}: first column pinned`).toBe(start.firstOffset);
+    if (pinned === 'decision') expect(end.decisionOffset, `${label}: decision column pinned`).toBe(start.decisionOffset);
+    if (end.cue) await expect.poll(async () => (await tableScroll(page, wrapper)).cue, `${label}: cue at the end`).toEqual({ start: 1, end: 0 });
+  }
+});
+
+test('layout: advertising keeps the whole impact on orders readable at every width', async ({ page }) => {
+  for (const viewport of layoutViewports) {
+    await page.setViewportSize(viewport);
+    await page.goto('/advertising');
+    await expect(page.getByTestId('advertising-activity-feed')).toBeVisible();
+    const impact = await page.evaluate(() => {
+      const wrap = document.querySelector('[data-testid="advertising-activity-feed"] .table-wrap') as HTMLElement;
+      const cells = [...wrap.querySelectorAll('tbody td:last-child')] as HTMLElement[];
+      const header = wrap.querySelector('thead th:last-child') as HTMLElement;
+      return {
+        rows: cells.length,
+        clipped: cells.filter((cell) => cell.scrollWidth > cell.clientWidth + 1).map((cell) => cell.textContent),
+        columnEnd: header.offsetLeft + header.offsetWidth,
+        scrollWidth: wrap.scrollWidth,
+      };
+    });
+    expect(impact.rows, `${viewport.width}px`).toBeGreaterThan(0);
+    // No value is cut off, and the column lies within the scrollable width, so it can be reached.
+    expect(impact.clipped, `${viewport.width}px: clipped impact values`).toEqual([]);
+    expect(impact.columnEnd, `${viewport.width}px: impact column inside the scrollable table`).toBeLessThanOrEqual(impact.scrollWidth + 1);
+  }
+});

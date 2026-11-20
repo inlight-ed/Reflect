@@ -100,10 +100,10 @@ export default function ProductsPage() {
         <div className="filter-row">{filters.map((item) => <button className={`filter ${filter === item ? 'active' : ''}`} onClick={() => setFilter(item)} key={item} aria-pressed={filter === item} data-testid={`filter-products-${item.toLowerCase()}`}>{item === 'ALL' ? t('ВСЕ') : t(statusLabel(item))}</button>)}</div>
       </SectionTitle>
       {seller && selected && <ProductEconomics product={selected} onClose={() => setSelectedSku(undefined)} />}
-      <div className="card table-wrap">{products.length ? (seller ? <SellerTable products={products} selectedSku={selectedSku} onPick={pick} /> : <DemoTable products={products} />)
+      <div className="card"><div className="table-wrap table-scroll">{products.length ? (seller ? <SellerTable products={products} selectedSku={selectedSku} onPick={pick} /> : <DemoTable products={products} />)
         : filter !== 'ALL' && allProducts.length
           ? <EmptyState label="filtered products" title={fill(t('products.filterEmpty.title'), { decision: t(statusLabel(filter)) })} hint={t('products.filterEmpty.hint')} action={<Button variant="secondary" size="sm" onClick={() => setFilter('ALL')} data-testid="button-reset-filter">{t('products.filterEmpty.reset')}</Button>} />
-          : <EmptyState label="товаров" />}</div>
+          : <EmptyState label="товаров" />}</div></div>
     </PageFrame>
   );
 }
@@ -112,7 +112,7 @@ function SellerTable({ products, selectedSku, onPick }: { products: Product[]; s
   const { locale, t } = useI18n();
   const pct = (value: number | null | undefined) => (value === null || value === undefined ? '—' : `${value > 0 ? '+' : ''}${formatNumber(value, locale, 1)}%`);
   return <table className="data-table"><thead><tr>
-    <th><Hint term="SKU">{t('SKU / товар')}</Hint></th>
+    <th className="col-wrap"><Hint term="SKU">{t('SKU / товар')}</Hint></th>
     <th>{t('Выручка')}</th>
     <th>{t('products.col.trend')}</th>
     <th>{t('products.col.units')}</th>
@@ -120,10 +120,10 @@ function SellerTable({ products, selectedSku, onPick }: { products: Product[]; s
     <th>{t('products.col.margin')}</th>
     <th><Hint term="stock">{t('Остаток')}</Hint></th>
     <th>{t('products.col.forecast')}</th>
-    <th>{t('Решение')}</th>
+    <th className="col-decision">{t('Решение')}</th>
   </tr></thead><tbody>{products.map((product) => (
     <tr key={product.sku} data-testid={`row-product-${product.sku}`} className={product.sku === selectedSku ? 'selected' : undefined}>
-      <td><button type="button" className="row-link" onClick={() => onPick(product.sku)} aria-pressed={product.sku === selectedSku}>{product.name}</button><span className="table-sub">{product.sku}{product.category && product.category !== '—' ? ` · ${product.category}` : ''}</span></td>
+      <td className="col-wrap"><button type="button" className="row-link" onClick={() => onPick(product.sku)} aria-pressed={product.sku === selectedSku}>{product.name}</button><span className="table-sub">{product.sku}{product.category && product.category !== '—' ? ` · ${product.category}` : ''}</span></td>
       <td>{formatCurrency(product.revenue, locale)}</td>
       <td className={(product.trendPct ?? 0) >= 0 ? 'positive' : 'negative'}>{pct(product.trendPct)}</td>
       <td>{formatNumber(product.units, locale)}</td>
@@ -131,7 +131,7 @@ function SellerTable({ products, selectedSku, onPick }: { products: Product[]; s
       <td className={product.marginPct !== null && product.marginPct !== undefined && product.marginPct < 0.1 ? 'negative' : 'neutral'}>{product.marginPct === null || product.marginPct === undefined ? <span className="neutral">{t('products.noCost')}</span> : formatPercent(product.marginPct, locale)}{product.marginPct != null && (product.missingCosts?.length ?? 0) > 0 && <span className="table-sub">{t('economics.estimate')}</span>}</td>
       <td>{product.stock === null || product.stock === undefined ? '—' : formatNumber(product.stock, locale)}</td>
       <td className={(product.stockCoverDays ?? 99) < (product.leadTimeDays ?? 14) ? 'negative' : 'neutral'}>{product.stockCoverDays === null || product.stockCoverDays === undefined ? '—' : fill(t('{days} дн.'), { days: Math.floor(product.stockCoverDays) })}{product.reorderQty ? <span className="table-sub">{fill(t('forecast.reorder'), { qty: product.reorderQty })}</span> : null}</td>
-      <td><span className={`status-tag tag-${product.opportunity.toLowerCase()}`}>{t(statusLabel(product.opportunity))}</span></td>
+      <td className="col-decision"><span className={`status-tag tag-${product.opportunity.toLowerCase()}`}>{t(statusLabel(product.opportunity))}</span></td>
     </tr>
   ))}</tbody></table>;
 }
@@ -139,17 +139,17 @@ function SellerTable({ products, selectedSku, onPick }: { products: Product[]; s
 function DemoTable({ products }: { products: Product[] }) {
   const { locale, t } = useI18n();
   return <table className="data-table"><thead><tr>
-    <th><Hint term="SKU">{t('SKU / товар')}</Hint></th><th>{t('Выручка')}</th><th>{t('Заказы')}</th><th><Hint term="CVR">{t('Конверсия')}</Hint></th><th>{t('Расход')}</th><th><Hint term="ROAS">ROAS</Hint></th><th><Hint term="stock">{t('Остаток')}</Hint></th><th>{t('Решение')}</th>
+    <th className="col-wrap"><Hint term="SKU">{t('SKU / товар')}</Hint></th><th>{t('Выручка')}</th><th>{t('Заказы')}</th><th><Hint term="CVR">{t('Конверсия')}</Hint></th><th>{t('Расход')}</th><th><Hint term="ROAS">ROAS</Hint></th><th><Hint term="stock">{t('Остаток')}</Hint></th><th className="col-decision">{t('Решение')}</th>
   </tr></thead><tbody>{products.map((product) => (
     <tr key={product.sku} data-testid={`row-product-${product.sku}`}>
-      <td>{product.name}<span className="table-sub">{product.sku} · {t(product.category)}</span></td>
+      <td className="col-wrap">{product.name}<span className="table-sub">{product.sku} · {t(product.category)}</span></td>
       <td>{formatCurrency(product.revenue, locale)}</td>
       <td>{formatNumber(product.orders, locale)}</td>
       <td>{formatPercent(product.conversion ?? 0, locale)}</td>
       <td>{formatCurrency(product.spend ?? 0, locale)}</td>
       <td className={(product.roas ?? 0) >= 5 ? 'positive' : 'neutral'}>{formatNumber(product.roas ?? 0, locale, 1)}x</td>
       <td className={(product.stockCoverDays ?? 99) < 7 ? 'negative' : 'neutral'}>{formatNumber(product.stock ?? 0, locale)}<span className="table-sub">{fill(t('{days} дн.'), { days: product.stockCoverDays ?? 0 })}</span></td>
-      <td><span className={`status-tag tag-${product.opportunity.toLowerCase()}`}>{t(statusLabel(product.opportunity))}</span></td>
+      <td className="col-decision"><span className={`status-tag tag-${product.opportunity.toLowerCase()}`}>{t(statusLabel(product.opportunity))}</span></td>
     </tr>
   ))}</tbody></table>;
 }

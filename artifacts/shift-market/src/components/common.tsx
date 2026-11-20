@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Check, ChevronDown, CloudOff, RefreshCw, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BrainCircuit, Check, ChevronDown, X } from 'lucide-react';
 import { getGetDashboardQueryKey, getListFeedbackQueryKey, useCreateFeedback, type ConfidenceBasis, type DashboardAction, type DataMode, type Insight, type Metric, type TemplateParams, type TimelineEvent, type Verdict } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { fill, formatCompactCurrency, formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
@@ -9,6 +9,10 @@ import type { GlossaryTerm } from '@/lib/i18n';
 import { useAnimatedNumber } from '@/components/motion';
 import { DataFreshness, DataSourceBadge, type SourceStatus } from '@/components/data-trust';
 import { Badge, type BadgeTone } from '@/components/ui';
+import { EmptyState } from '@/components/states';
+
+// Common UI states live in components/states; re-exported so existing imports keep working.
+export { BlockError, EmptyState, ErrorState, LoadingState, MissingValue, PageSkeleton, RefreshingNotice } from '@/components/states';
 
 export const demoSource = 'DEMO DATA';
 
@@ -123,66 +127,8 @@ export function Hint({ term, text, children }: { term?: GlossaryTerm; text?: str
   );
 }
 
-export function LoadingState() {
-  return (
-    <div className="page fade-in" data-testid="status-loading" aria-busy="true">
-      <div className="skeleton" style={{ height: 46, width: '42%', marginBottom: 29 }} />
-      <div className="loading-grid">
-        <div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton" />
-        <div className="skeleton large wide" /><div className="skeleton large wide" />
-      </div>
-    </div>
-  );
-}
 
-export function ErrorState({ onRetry, source }: { onRetry: () => void; source?: string }) {
-  const { t } = useI18n();
-  const { demo } = useSession();
-  // The failed response carries no source. A guest is looking at the demo; for a signed-in person it is unknown, so no badge.
-  const shown = source ?? (demo ? demoSource : undefined);
-  return (
-    <div className="page" data-testid="status-error">
-      {shown && <div className="page-meta" style={{ marginBottom: 18 }}><DataSourceBadge source={shown} /></div>}
-      <div className="error-box" role="alert">
-        <AlertTriangle size={22} />
-        <h3>{t('Сигнал недоступен')}</h3>
-        <p>{t('Источник не вернул корректный снимок данных. Повторите подключение.')}</p>
-        <button className="btn secondary" onClick={onRetry} data-testid="button-retry">
-          <RefreshCw size={14} /> {t('Повторить')}
-        </button>
-      </div>
-    </div>
-  );
-}
 
-const emptyLabelKeys: Record<string, string> = {
-  metrics: 'empty.metrics',
-  'timeline events': 'empty.timeline',
-  'market signal': 'empty.signal',
-  impact: 'empty.impact',
-  breakdown: 'empty.breakdown',
-  integrations: 'empty.integrations',
-  actions: 'empty.actions',
-  channels: 'empty.channels',
-  товаров: 'empty.products',
-  кампаний: 'empty.campaigns',
-  competitors: 'empty.competitors',
-  'seller offers': 'empty.sellerOffers',
-  'comparable products': 'empty.comparableProducts',
-  recommendations: 'empty.recommendations',
-  Strengths: 'empty.strengths',
-  Weaknesses: 'empty.weaknesses',
-};
-
-export function EmptyState({ label, message }: { label: string; message?: string }) {
-  const { t } = useI18n();
-  return (
-    <div className="empty-box" data-testid={`empty-${label.toLowerCase().replace(/\s/g, '-')}`}>
-      <CloudOff size={24} />
-      <p>{message ?? <>{t('В этом снимке нет данных:')} {t(emptyLabelKeys[label] ?? 'empty.items')}.</>}</p>
-    </div>
-  );
-}
 
 function metricTerm(label: string): GlossaryTerm | undefined {
   if (label.includes('ROAS')) return 'ROAS';
@@ -440,8 +386,8 @@ export function PageHead({ eyebrow, title, subtitle, source, sourceStatus, mode,
   );
 }
 
-export function PageFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <main className={`page fade-in ${className}`}>{children}</main>;
+export function PageFrame({ children, className = '', busy }: { children: ReactNode; className?: string; busy?: boolean }) {
+  return <main className={`page fade-in ${className}`} aria-busy={busy || undefined}>{children}</main>;
 }
 
 export function SectionTitle({ title, note, children }: { title: ReactNode; note?: ReactNode; children?: ReactNode }) {

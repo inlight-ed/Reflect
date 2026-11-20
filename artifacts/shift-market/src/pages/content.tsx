@@ -50,7 +50,7 @@ export default function ContentPage() {
   const [sku, setSku] = useState<string>();
   const query = useGetCardAnalysis(sku ? { sku } : undefined);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
   const data = query.data;
   const head = <PageHead eyebrow={t('card.eyebrow')} title={t('card.title')} subtitle={t('card.subtitle')} source={data.source} mode={data.mode} />;
   if (data.mode === 'EMPTY') return <PageFrame>{head}<Onboarding /></PageFrame>;

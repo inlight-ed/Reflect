@@ -47,10 +47,8 @@
 .rf-overview .timeline-date { font-family: var(--rf-font-sans); font-size: var(--rf-text-sm); font-variant-numeric: tabular-nums; }
 .rf-timeline-window { color: var(--rf-color-text-muted); font-size: var(--rf-text-sm); }
 
-/* ---- Loading ---- */
-.rf-overview-skeleton-head { max-width: 520px; margin-bottom: var(--rf-space-6); }
-.rf-overview-skeleton-head .rf-skeleton--line:first-child { width: 30%; }
-.rf-overview .rf-overview-actions:has(.rf-skeleton), .rf-overview-skeleton-chart { margin-top: var(--rf-space-5); }
+/* ---- Updating: the figures stay, dimmed, while a new period or a refresh loads ---- */
+.rf-overview[aria-busy='true'] .rf-overview-section { opacity: .6; transition: opacity var(--rf-duration) var(--rf-ease-out); }
 
 /* ---- Narrow screens ---- */
 @media (max-width: 1050px) {
@@ -59,7 +57,7 @@
 }
 @media (max-width: 760px) {
   /* Two figures per row: the period's numbers stay on one screen. */
-  .rf-overview .rf-overview-kpis .grid-4, .rf-overview .grid-4.rf-overview-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rf-space-3); }
+  .rf-overview .rf-overview-kpis .grid-4, .rf-overview .rf-page-skeleton-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rf-space-3); }
   .rf-overview .rf-overview-kpis .metric-card { min-height: 0; padding: var(--rf-space-3); }
   .rf-overview .rf-overview-kpis .metric-value { font-size: 20px; overflow-wrap: anywhere; }
   .rf-overview .grid-2.rf-overview-actions { grid-template-columns: 1fr; }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, BellDot, ClipboardList, Database, Eye, FileText, LayoutDashboard, LogOut, Megaphone, Menu, MessageSquareText, Package, Radio, RefreshCw, Settings2, Users, X, type LucideIcon } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useGetAttention, useHealthCheck } from '@workspace/api-client-react';
@@ -113,6 +113,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [location, navigate] = useLocation();
   const health = useHealthCheck();
   const queryClient = useQueryClient();
+  const fetching = useIsFetching() > 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const drawer = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
@@ -174,7 +175,8 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
         <div className="rf-topbar-actions">
           <LanguageSelect className="rf-language-select rf-topbar-language" testIdValue="select-language-mobile" />
-          <IconButton label={t('Обновить данные')} icon={<RefreshCw />} onClick={() => void queryClient.invalidateQueries()} data-testid="button-refresh-workspace" />
+          {/* While anything is loading, a second press would only queue the same requests again. */}
+          <IconButton label={t('Обновить данные')} icon={<RefreshCw className={fetching ? 'rf-refreshing-icon' : undefined} />} pending={false} aria-busy={fetching || undefined} aria-disabled={fetching || undefined} onClick={() => { if (!fetching) void queryClient.invalidateQueries(); }} data-testid="button-refresh-workspace" />
         </div>
       </header>
 

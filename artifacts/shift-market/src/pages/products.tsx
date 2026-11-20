@@ -6,6 +6,7 @@ import { useSession } from '@/lib/session';
 import { EmptyState, ErrorState, Hint, LoadingState, PageFrame, PageHead, SectionTitle, demoSource, statusLabel } from '@/components/common';
 import { Onboarding, PeriodBar } from '@/components/seller';
 import { DataIssues, ProductEconomics } from '@/components/product-economics';
+import { Button } from '@/components/ui';
 
 type Filter = 'ALL' | 'SCALE' | 'FIX' | 'DEFEND' | 'STOP' | 'WATCH';
 
@@ -26,7 +27,7 @@ export default function ProductsPage() {
   const [selectedSku, setSelectedSku] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get('sku') ?? undefined);
   const allProducts = useMemo(() => (Array.isArray(query.data?.products) ? query.data.products : []), [query.data]);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={query.data?.source} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} source={query.data?.source} />;
   const data = query.data;
   const seller = data.mode === 'USER';
   const products = filter === 'ALL' ? allProducts : allProducts.filter((product) => product.opportunity === filter);
@@ -99,7 +100,10 @@ export default function ProductsPage() {
         <div className="filter-row">{filters.map((item) => <button className={`filter ${filter === item ? 'active' : ''}`} onClick={() => setFilter(item)} key={item} aria-pressed={filter === item} data-testid={`filter-products-${item.toLowerCase()}`}>{item === 'ALL' ? t('ВСЕ') : t(statusLabel(item))}</button>)}</div>
       </SectionTitle>
       {seller && selected && <ProductEconomics product={selected} onClose={() => setSelectedSku(undefined)} />}
-      <div className="card table-wrap">{products.length ? (seller ? <SellerTable products={products} selectedSku={selectedSku} onPick={pick} /> : <DemoTable products={products} />) : <EmptyState label="товаров" />}</div>
+      <div className="card table-wrap">{products.length ? (seller ? <SellerTable products={products} selectedSku={selectedSku} onPick={pick} /> : <DemoTable products={products} />)
+        : filter !== 'ALL' && allProducts.length
+          ? <EmptyState label="filtered products" title={fill(t('products.filterEmpty.title'), { decision: t(statusLabel(filter)) })} hint={t('products.filterEmpty.hint')} action={<Button variant="secondary" size="sm" onClick={() => setFilter('ALL')} data-testid="button-reset-filter">{t('products.filterEmpty.reset')}</Button>} />
+          : <EmptyState label="товаров" />}</div>
     </PageFrame>
   );
 }

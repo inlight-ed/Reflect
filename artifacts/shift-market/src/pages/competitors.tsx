@@ -13,7 +13,7 @@ export default function CompetitorsPage() {
   const [selectedSku, setSelectedSku] = useState(DEFAULT_SKU);
   const query = useGetCompetitors({ kaspiSku: selectedSku });
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={query.data?.source} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} source={query.data?.source} />;
   const data = query.data;
   const sellers = Array.isArray(data.sellers) ? data.sellers : [];
   const alternatives = Array.isArray(data.alternatives) ? data.alternatives : [];

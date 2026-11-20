@@ -40,8 +40,9 @@ const expectations: LocaleExpectation[] = [
     demoLabel: 'Демо · оценка',
     demoSource: 'Демо-данные',
     signalLabel: 'СИГНАЛ ИИ · ДЕМО-ОЦЕНКА',
-    errorTitle: 'Сигнал недоступен',
-    errorBody: 'Источник не вернул корректный снимок данных. Повторите подключение.',
+    // A 503 is a failure on the server's side, and the state says so.
+    errorTitle: 'Сервис временно недоступен',
+    errorBody: 'Ошибка на стороне сервера. Повторите попытку чуть позже.',
     retryLabel: 'Повторить',
     connectorStatus: 'НЕ ПОДКЛЮЧЕНО',
     connectorDetail: 'Прямое подключение появится позже. Сейчас можно загрузить отчёт продаж из файла.',
@@ -58,8 +59,8 @@ const expectations: LocaleExpectation[] = [
     demoLabel: 'Демо · бағалау',
     demoSource: 'Демо деректер',
     signalLabel: 'AI СИГНАЛЫ · ДЕМО БАҒАЛАУ',
-    errorTitle: 'Сигнал қолжетімсіз',
-    errorBody: 'Дерек көзі дұрыс дерек үзіндісін қайтармады. Қайта қосып көріңіз.',
+    errorTitle: 'Сервис уақытша қолжетімсіз',
+    errorBody: 'Сервер жағындағы қате. Сәл кейінірек қайталап көріңіз.',
     retryLabel: 'Қайталау',
     connectorStatus: 'ҚОСЫЛМАҒАН',
     connectorDetail: 'Тікелей қосылым кейінірек пайда болады. Қазір сату есебін файлдан жүктеуге болады.',
@@ -76,8 +77,8 @@ const expectations: LocaleExpectation[] = [
     demoLabel: 'Demo · estimate',
     demoSource: 'Demo data',
     signalLabel: 'AI SIGNAL · DEMO ESTIMATE',
-    errorTitle: 'Signal unavailable',
-    errorBody: 'The source did not return a valid data snapshot. Try the connection again.',
+    errorTitle: 'The service is temporarily unavailable',
+    errorBody: 'Something went wrong on our side. Try again a little later.',
     retryLabel: 'Retry',
     connectorStatus: 'NOT CONNECTED',
     connectorDetail: 'A direct connection is coming later. You can upload a sales report from a file now.',
@@ -121,7 +122,14 @@ async function openDemo(page: Page) {
   await expect(page.getByTestId('select-language')).toHaveValue('ru');
 }
 
+// The API limits requests per client address. Each test is a separate person, so each gets its own
+// address; otherwise the whole suite, run from one machine, shares one person's limit and the tests
+// near the end fail with "too many requests" depending on how fast the earlier ones ran.
+let clientNumber = 0;
+
 test.beforeEach(async ({ page }, testInfo) => {
+  clientNumber += 1;
+  await page.context().setExtraHTTPHeaders({ 'X-Forwarded-For': `10.${testInfo.workerIndex % 250}.${Math.floor(clientNumber / 250) % 250}.${(clientNumber % 250) + 1}` });
   if (testInfo.title.startsWith('seller:')) return;
   await openDemo(page);
 });
@@ -367,6 +375,187 @@ test('overview: no sideways scrolling on a phone, with demo data and for a new w
   await page.getByTestId('button-auth-submit').click();
   await expect(page.getByTestId('onboarding')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+// ---- Common UI states: transitions between loading, error, retry and data ----
+
+test('states: a failed overview says what failed, then loads again and shows the data after one retry request', async ({ page }) => {
+  let failing = true;
+  let requests = 0;
+  await page.route('**/api/shift-market/dashboard**', async (route) => {
+    requests += 1;
+    if (failing) { await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"down"}' }); return; }
+    await new Promise((done) => setTimeout(done, 600));
+    await route.continue();
+  });
+  await page.goto('/overview');
+  const error = page.getByTestId('status-error');
+  await expect(error).toHaveAttribute('data-error-kind', 'server');
+  await expect(error.getByRole('heading', { level: 1 })).toHaveText('Сервис временно недоступен');
+  failing = false;
+  const before = requests;
+  const retry = page.getByTestId('button-retry');
+  // Error → loading (the page's outline) → data; a quick second click lands on nothing.
+  await retry.click();
+  await retry.click({ timeout: 300 }).catch(() => undefined);
+  await expect(page.getByTestId('status-loading')).toBeVisible();
+  await expect(page.getByTestId('card-action-0')).toBeVisible();
+  expect(requests - before).toBe(1);
+  // Focus is not left on a button that disappeared.
+  await expect(page.locator('#main-content')).toBeFocused();
+});
+
+test('states: a lost connection is not called a server error', async ({ page }) => {
+  await page.route('**/api/shift-market/dashboard**', (route) => route.abort('internetdisconnected'));
+  await page.goto('/overview');
+  await expect(page.getByTestId('status-error')).toHaveAttribute('data-error-kind', 'network');
+  await expect(page.getByTestId('status-error')).toContainText('Нет связи с сервером');
+});
+
+test('states: a filter that hides every product explains itself and can be reset', async ({ page }) => {
+  await page.route('**/api/shift-market/products**', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.products = body.products.map((product: Record<string, unknown>) => ({ ...product, opportunity: 'SCALE' }));
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto('/products');
+  await page.getByTestId('filter-products-fix').click();
+  const empty = page.getByTestId('empty-filtered-products');
+  await expect(empty).toContainText('Фильтр скрыл все товары');
+  await empty.getByTestId('button-reset-filter').click();
+  await expect(page.getByTestId('empty-filtered-products')).toHaveCount(0);
+  await expect(page.getByTestId('filter-products-all')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('states with seller data: partial failure, a new period and a failed refresh keep what is on screen', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`states-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+
+  // One block fails, the rest of the page keeps working.
+  await page.route('**/api/feedback**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.reload();
+  await expect(page.getByTestId('outcomes-error')).toContainText('Результаты действий');
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  // The block keeps its retry button busy while it retries, so a second click sends nothing.
+  let feedbackRequests = 0;
+  await page.unroute('**/api/feedback**');
+  await page.route('**/api/feedback**', async (route) => { feedbackRequests += 1; await new Promise((done) => setTimeout(done, 800)); await route.continue(); });
+  const blockRetry = page.getByTestId('outcomes-error-retry');
+  await blockRetry.click();
+  await expect(blockRetry).toBeDisabled();
+  await expect(blockRetry).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByTestId('outcomes-error')).toHaveCount(0);
+  expect(feedbackRequests).toBe(1);
+  await page.unroute('**/api/feedback**');
+
+  // Verdicts already on screen stay when their update fails, marked as older, with a retry.
+  const verdict = { id: 'f1', actionKey: 'k1', actionType: 'RESTOCK', sku: 'X-1', object: 'Тестовый товар', verdict: 'TOO_EARLY', createdAt: new Date().toISOString(), beforePerDay: 1000, afterPerDay: null, changePct: null };
+  await page.route('**/api/feedback**', (route) => route.fulfill({ json: [verdict] }));
+  await page.reload();
+  await expect(page.getByTestId('outcomes')).toContainText('Тестовый товар');
+  await page.unroute('**/api/feedback**');
+  await page.route('**/api/feedback**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('outcomes-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('outcomes-error-retry')).toBeEnabled();
+  await expect(page.getByTestId('outcomes')).toContainText('Тестовый товар');
+  await page.unroute('**/api/feedback**');
+
+  // A new period: the figures stay on screen, marked as updating, until the answer comes.
+  await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 1200)); await route.continue(); });
+  await page.getByTestId('period-7').click();
+  await expect(page.getByTestId('status-refreshing')).toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await expect(page.locator('main.rf-overview')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByTestId('status-refreshing')).not.toHaveAttribute('data-active', 'true');
+  await page.unroute('**/api/shift-market/dashboard**');
+
+  // The refresh fails: the earlier figures stay, with a warning and a retry, not an error page.
+  await page.route('**/api/shift-market/dashboard**', (route) => route.fulfill({ status: 503, body: '{}' }));
+  await page.getByTestId('period-90').click();
+  await expect(page.getByTestId('overview-stale-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await expect(page.getByTestId('status-error')).toHaveCount(0);
+  await page.unroute('**/api/shift-market/dashboard**');
+  const stale = page.getByTestId('overview-stale-error');
+  const staleRetry = page.getByTestId('overview-stale-error-retry');
+  // A retry that fails again: the warning stays while it runs and says so (the only notice), then shows the error again.
+  await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 800)); await route.fulfill({ status: 503, body: '{}' }); });
+  await staleRetry.click();
+  await expect(stale).toContainText('Обновляем данные…');
+  await expect(staleRetry).toBeDisabled();
+  await expect(page.getByTestId('status-refreshing')).not.toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await expect(stale).toContainText('Ошибка на стороне сервера');
+  await expect(staleRetry).toBeEnabled();
+  await page.unroute('**/api/shift-market/dashboard**');
+  // A retry that succeeds: the warning stays until the answer comes, then goes.
+  await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 800)); await route.continue(); });
+  await staleRetry.click();
+  await expect(stale).toContainText('Обновляем данные…');
+  await expect(stale).toHaveCount(0);
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await page.unroute('**/api/shift-market/dashboard**');
+
+  // The data summary on screen stays when its update fails, marked as older.
+  await page.goto('/data');
+  await expect(page.locator('.grid-3 .metric-value')).toHaveCount(3);
+  await page.route('**/api/data/status**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('data-summary-error')).toContainText('Показаны прежние данные');
+  await expect(page.locator('.grid-3 .metric-value')).toHaveCount(3);
+  // With nothing loaded yet, it never shows a made-up 0 when its request fails.
+  await page.goto('/data');
+  await expect(page.getByTestId('data-summary-error')).toBeVisible();
+  await expect(page.getByTestId('data-summary-error')).not.toContainText('Показаны прежние данные');
+  await expect(page.locator('.grid-3 .metric-value')).toHaveCount(0);
+  await page.unroute('**/api/data/status**');
+
+  // The team list and the sync log on screen stay when their update fails, each marked as older.
+  await page.goto('/settings');
+  await expect(page.getByTestId('team-members')).toBeVisible();
+  await expect(page.getByTestId('sync-runs')).toBeVisible();
+  await page.route('**/api/workspace/members**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.route('**/api/integrations/runs**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('team-members-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('team-members')).toBeVisible();
+  await expect(page.getByTestId('sync-log-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('sync-runs')).toBeVisible();
+  await page.unroute('**/api/workspace/members**');
+  await page.unroute('**/api/integrations/runs**');
+
+  // Signed in, but the server no longer accepts the session: a way back in, not a dead end or a loop.
+  await page.route('**/api/shift-market/dashboard**', (route) => route.fulfill({ status: 401, body: '{}' }));
+  await page.goto('/overview');
+  await expect(page.getByTestId('status-error')).toHaveAttribute('data-error-kind', 'auth');
+  await page.getByTestId('button-signin-again').click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByTestId('input-email')).toBeVisible();
+  await page.unroute('**/api/shift-market/dashboard**');
+});
+
+test('states: signing in while the data page is open keeps the page working', async ({ page }) => {
+  const crashes: string[] = [];
+  page.on('pageerror', (error) => crashes.push(error.message));
+  // A guest in the demo (opened before each test) is asked to sign in here.
+  await page.goto('/data');
+  await expect(page.getByTestId('empty-data')).toBeVisible();
+  // Signed in elsewhere (another tab); the same page picks up the new session on refresh.
+  const registered = await page.request.post('/api/auth/register', { data: { email: `data-${Date.now()}@example.kz`, password: 'password-123' } });
+  expect(registered.ok()).toBe(true);
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('dropzone')).toBeVisible();
+  await expect(page.getByTestId('empty-data')).toHaveCount(0);
+  await expect(page.getByTestId('status-error')).toHaveCount(0);
+  expect(crashes).toEqual([]);
 });
 
 // A timestamp the server makes at the moment of the request is not a data update: none is shown for it.

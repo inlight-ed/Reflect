@@ -67,17 +67,22 @@ export function ErrorState({ error, onRetry, source, kind: knownKind }: { error?
   const box = useRef<HTMLDivElement>(null);
   // The failed response carries no source. A guest is looking at the demo; for a signed-in person it is unknown, so no badge.
   const shown = source ?? (demo ? demoSource : undefined);
+  // Whether focus is in the block. A pending retry disables its button, and the browser then drops focus to <body>
+  // before the block unmounts, so focus inside the block at unmount time alone is not enough to know.
+  const hadFocus = useRef(false);
   // Layout cleanup runs before the node leaves the DOM, while it can still tell whether it held focus.
   useLayoutEffect(() => {
     const node = box.current;
     return () => {
-      if (node && node.contains(document.activeElement)) requestAnimationFrame(() => document.getElementById('main-content')?.focus());
+      const active = document.activeElement;
+      const lost = !active || active === document.body;
+      if (node && (node.contains(active) || (hadFocus.current && lost))) requestAnimationFrame(() => document.getElementById('main-content')?.focus());
     };
   }, []);
   return (
     <main className="page" data-testid="status-error" data-error-kind={kind}>
       {shown && <div className="page-meta rf-state-meta"><DataSourceBadge source={shown} /></div>}
-      <div className="rf-state rf-state--error" role="alert" ref={box}>
+      <div className="rf-state rf-state--error" role="alert" ref={box} onFocus={() => { hadFocus.current = true; }} onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) hadFocus.current = false; }}>
         <span className="rf-state-icon">{errorIcon[kind]}</span>
         <h1 className="rf-state-title">{t(`error.${kind}.title`)}</h1>
         <p className="rf-state-text">{t(`error.${kind}.body`)}</p>

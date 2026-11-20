@@ -940,6 +940,48 @@ async function hitArea(page: Page, selector: string, { inline = true }: { inline
   }, { selector, inline });
 }
 
+// The effective target is the element's border box joined with its ::after, which these controls use to grow
+// their hit area (getBoundingClientRect() leaves the pseudo-element out). An absolutely positioned ::after is
+// placed against the element's padding box, so its box = padding box pushed out by the negative insets.
+// The joined box must measure at least 24 × 24 px, and its centre, four corners and four edge midpoints
+// (1 px inside the edge) must all land on the control itself: nothing clips it and nothing covers it.
+async function effectiveHitArea(page: Page, selector: string, { inline = true }: { inline?: boolean } = {}) {
+  return page.evaluate(async ({ selector, inline }) => {
+    const problems: string[] = [];
+    let checked = 0;
+    for (const control of document.querySelectorAll(selector)) {
+      if (!control.getBoundingClientRect().width) continue;
+      control.scrollIntoView({ block: 'center', inline: inline ? 'center' : 'nearest' });
+      await new Promise((done) => requestAnimationFrame(() => done(null)));
+      const box = control.getBoundingClientRect();
+      // Inside a wide table that is not scrolled: only controls the wrapper actually shows can be hit.
+      const wrapper = inline ? null : control.closest('.table-scroll')?.getBoundingClientRect();
+      if (wrapper && (box.left - 12 < wrapper.left || box.right + 12 > wrapper.right)) continue;
+      checked += 1;
+      const name = (control as HTMLElement).className.split(' ')[0];
+      const own = getComputedStyle(control);
+      const after = getComputedStyle(control, '::after');
+      let area = { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+      if (after.content !== 'none' && after.position === 'absolute' && after.display !== 'none') {
+        const px = (value: string) => parseFloat(value) || 0;
+        const padding = { left: box.left + px(own.borderLeftWidth), top: box.top + px(own.borderTopWidth), right: box.right - px(own.borderRightWidth), bottom: box.bottom - px(own.borderBottomWidth) };
+        const pseudo = { left: padding.left + px(after.left), top: padding.top + px(after.top), right: padding.right - px(after.right), bottom: padding.bottom - px(after.bottom) };
+        area = { left: Math.min(area.left, pseudo.left), top: Math.min(area.top, pseudo.top), right: Math.max(area.right, pseudo.right), bottom: Math.max(area.bottom, pseudo.bottom) };
+      }
+      const width = area.right - area.left;
+      const height = area.bottom - area.top;
+      if (width < 24 || height < 24) { problems.push(`${name}: ${width.toFixed(1)} × ${height.toFixed(1)} px`); continue; }
+      const xs = [area.left + 1, (area.left + area.right) / 2, area.right - 1];
+      const ys = [area.top + 1, (area.top + area.bottom) / 2, area.bottom - 1];
+      for (const x of xs) for (const y of ys) {
+        const hit = document.elementFromPoint(x, y);
+        if (!hit || !(hit === control || control.contains(hit))) { problems.push(`${name} at (${Math.round(x - area.left)}, ${Math.round(y - area.top)}) of ${width.toFixed(1)} × ${height.toFixed(1)} → ${hit ? `${hit.tagName.toLowerCase()}.${hit.className}` : 'nothing'}`); break; }
+      }
+    }
+    return { checked, problems };
+  }, { selector, inline });
+}
+
 test('hit areas: glossary hints and "more" toggles are at least 24 × 24 and still work from the keyboard', async ({ page }) => {
   for (const width of [375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
@@ -947,17 +989,17 @@ test('hit areas: glossary hints and "more" toggles are at least 24 × 24 and sti
       await page.goto(route);
       await expect(page.locator('.hint-trigger').first()).toBeVisible();
       for (const selector of ['.hint-trigger', '.reveal-toggle']) {
-        const result = await hitArea(page, selector);
+        const result = await effectiveHitArea(page, selector);
         expect(result.checked, `${route} ${selector} at ${width}px`).toBeGreaterThan(0);
-        expect(result.misses, `${route} ${selector} at ${width}px`).toEqual([]);
+        expect(result.problems, `${route} ${selector} at ${width}px`).toEqual([]);
       }
     }
     // Table headers, with the table at its start: the hints in columns the wrapper shows.
     await page.goto('/products');
     await expect(page.locator('[data-testid^="row-product-"]').first()).toBeVisible();
-    const headers = await hitArea(page, 'main .table-scroll .hint-trigger', { inline: false });
+    const headers = await effectiveHitArea(page, 'main .table-scroll .hint-trigger', { inline: false });
     expect(headers.checked, `products table hints at ${width}px`).toBeGreaterThan(0);
-    expect(headers.misses, `products table hints at ${width}px`).toEqual([]);
+    expect(headers.problems, `products table hints at ${width}px`).toEqual([]);
     // Matrix dots already had a 28 px area; where two products sit closer than that, the nearer dot wins.
     const dots = await hitArea(page, 'button.matrix-dot', { inline: false });
     expect(dots.checked).toBeGreaterThan(0);
@@ -1031,7 +1073,7 @@ test('seller: settings tell help from errors, give each card one main action, an
   // C01-11: the product name in the decision table is a full-size target too.
   await page.goto('/products');
   await expect(page.locator('.row-link').first()).toBeVisible();
-  const links = await hitArea(page, '.row-link', { inline: false });
+  const links = await effectiveHitArea(page, '.row-link', { inline: false });
   expect(links.checked).toBeGreaterThan(0);
-  expect(links.misses).toEqual([]);
+  expect(links.problems).toEqual([]);
 });

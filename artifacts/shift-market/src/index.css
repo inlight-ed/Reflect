@@ -356,7 +356,7 @@ button { cursor: pointer; }
 .hint-trigger, .reveal-toggle, .row-link { position:relative; }
 .hint-trigger::after { content:''; position:absolute; inset:-6px; } /* 13 px padding box + 2×6 = 25 px */
 .reveal-toggle::after { content:''; position:absolute; inset:-1px 0; }
-.row-link::after { content:''; position:absolute; inset:-2px 0; }
+.row-link::after { content:''; position:absolute; inset:-3px 0; } /* 19.5 px line box + 2×3 = 25.5 px */
 .hint-trigger:hover, .hint.open .hint-trigger { color:var(--app-accent); border-color:#8a6a2f; }
 .hint-bubble { position:fixed; z-index:70; display:block; width:max-content; max-width:min(280px, calc(100vw - 24px)); padding:10px 12px; color:#d9dee5; background:#1b2129; border:1px solid #3b4551; border-radius:5px; box-shadow:0 12px 28px rgba(0,0,0,.4); font:400 12px/1.45 var(--app-font-sans); letter-spacing:0; text-transform:none; white-space:normal; }
 .data-table th .hint-bubble { font-weight:400; }

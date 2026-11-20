@@ -25,6 +25,10 @@ function ConnectionCard({ connection }: { connection: Connection }) {
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
   const kind = connection.kind;
+  // The helper under the key and the form error are announced with the fields they are about (C01-09).
+  const hintId = `secret-hint-${kind}`;
+  const errorId = `connection-error-${kind}`;
+  const invalid = error ? { 'aria-invalid': true, 'aria-describedby': errorId } : {};
   const after = async () => { await queryClient.invalidateQueries({ queryKey: getGetIntegrationsQueryKey() }); await refresh(); };
   const submit = () => {
     setError('');
@@ -34,6 +38,9 @@ function ConnectionCard({ connection }: { connection: Connection }) {
   const status = connection.status;
   const syncing = status === 'SYNCING';
   const busy = save.isPending || sync.isPending || remove.isPending || syncing;
+  // One primary action per card (C01-10): connecting until the source is connected, then updating its data.
+  // Saving a new key stays available as a secondary action; disconnecting stays destructive.
+  const showSync = (status === 'CONNECTED' || syncing) && canSync(kind);
   return (
     <section className={`card connection-card ${status.toLowerCase()}`} data-testid={`connection-${kind.toLowerCase()}`}>
       <div className="connection-head">
@@ -44,12 +51,12 @@ function ConnectionCard({ connection }: { connection: Connection }) {
       </div>
       {connection.detail && status !== 'NOT_CONNECTED' && <p className={`connection-detail ${status === 'ERROR' ? 'negative' : ''}`} role="status">{sourceT(connection.detail)}</p>}
       <form className="connection-form" onSubmit={(event) => { event.preventDefault(); submit(); }}>
-        {needsUrl(kind) && <div className="field"><label htmlFor={`url-${kind}`}>{t('conn.url')}</label><input id={`url-${kind}`} type="url" inputMode="url" placeholder="https://" value={url} maxLength={500} onChange={(event) => setUrl(event.target.value)} data-testid={`input-url-${kind.toLowerCase()}`} /></div>}
-        <div className="field"><label htmlFor={`secret-${kind}`}>{t('conn.secret')}</label><input id={`secret-${kind}`} type="password" autoComplete="off" value={secret} maxLength={4096} onChange={(event) => setSecret(event.target.value)} placeholder={connection.secretHint ?? ''} data-testid={`input-secret-${kind.toLowerCase()}`} />{connection.secretHint && <small className="hint-text">{text('conn.secret.saved', { hint: connection.secretHint })}</small>}</div>
-        {error && <p className="form-error" role="alert">{error}</p>}
+        {needsUrl(kind) && <div className="field"><label htmlFor={`url-${kind}`}>{t('conn.url')}</label><input id={`url-${kind}`} type="url" inputMode="url" placeholder="https://" value={url} maxLength={500} onChange={(event) => setUrl(event.target.value)} {...invalid} data-testid={`input-url-${kind.toLowerCase()}`} /></div>}
+        <div className="field"><label htmlFor={`secret-${kind}`}>{t('conn.secret')}</label><input id={`secret-${kind}`} type="password" autoComplete="off" value={secret} maxLength={4096} onChange={(event) => setSecret(event.target.value)} placeholder={connection.secretHint ?? ''} {...invalid} aria-describedby={[connection.secretHint ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined} data-testid={`input-secret-${kind.toLowerCase()}`} />{connection.secretHint && <small className="hint-text" id={hintId} data-testid={`hint-secret-${kind.toLowerCase()}`}>{text('conn.secret.saved', { hint: connection.secretHint })}</small>}</div>
+        {error && <p className="form-error" id={errorId} role="alert" data-testid={`error-connection-${kind.toLowerCase()}`}>{error}</p>}
         <div className="connection-actions">
-          <button type="submit" className="btn" disabled={busy} data-testid={`button-save-${kind.toLowerCase()}`}>{save.isPending ? t('conn.saving') : t('conn.save')}</button>
-          {(status === 'CONNECTED' || syncing) && canSync(kind) && <button type="button" className="btn secondary" disabled={busy} onClick={() => sync.mutate({ kind }, { onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetIntegrationsQueryKey() }) })} data-testid={`button-sync-${kind.toLowerCase()}`}><RefreshCw size={14} className={syncing ? 'spin' : undefined} /> {syncing || sync.isPending ? t('conn.syncing') : t('conn.sync')}</button>}
+          <button type="submit" className={showSync ? 'btn secondary' : 'btn'} disabled={busy} data-testid={`button-save-${kind.toLowerCase()}`}>{save.isPending ? t('conn.saving') : t('conn.save')}</button>
+          {showSync && <button type="button" className="btn" disabled={busy} onClick={() => sync.mutate({ kind }, { onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetIntegrationsQueryKey() }) })} data-testid={`button-sync-${kind.toLowerCase()}`}><RefreshCw size={14} className={syncing ? 'spin' : undefined} /> {syncing || sync.isPending ? t('conn.syncing') : t('conn.sync')}</button>}
           {status !== 'NOT_CONNECTED' && <HoldButton className="secondary danger" disabled={busy} description={t('conn.remove.confirm')} onConfirm={() => remove.mutate({ kind }, { onSuccess: () => { setSecret(''); void after(); } })} testId={`button-remove-${kind.toLowerCase()}`}><Unplug size={14} /> {t('conn.remove')}</HoldButton>}
         </div>
       </form>

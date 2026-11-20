@@ -41,7 +41,7 @@ export default function AttentionPage() {
   const { params } = usePeriod();
   const query = useGetAttention(signedIn ? params : undefined);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
   const data = query.data;
   const seller = data.mode === 'USER';
   const head = <PageHead eyebrow="attention.eyebrow" title="attention.title" subtitle="attention.subtitle" source={seller ? undefined : demoSource} mode={data.mode} refreshedAt={data.refreshedAt} action={seller ? <PeriodBar /> : undefined} />;

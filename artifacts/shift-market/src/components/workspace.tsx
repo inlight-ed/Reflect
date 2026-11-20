@@ -18,6 +18,9 @@ import {
 import { fill, formatDate, useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { SectionTitle } from '@/components/common';
+import { BlockError } from '@/components/states';
+import { useShownError } from '@/lib/query-state';
+import { SkeletonText } from '@/components/ui';
 import { HoldButton } from '@/components/motion';
 
 const ROLES: WorkspaceRole[] = ['OWNER', 'MEMBER', 'VIEWER'];
@@ -117,6 +120,7 @@ export function TeamSection() {
   const { session, workspace, isOwner, enteredWorkspace } = useSession();
   const queryClient = useQueryClient();
   const members = useGetWorkspaceMembers({ query: { queryKey: getGetWorkspaceMembersQueryKey(), enabled: Boolean(workspace) } });
+  const membersError = useShownError(members);
   const setRole = useSetWorkspaceMemberRole();
   const remove = useRemoveWorkspaceMember();
   const rename = useRenameWorkspace();
@@ -158,7 +162,9 @@ export function TeamSection() {
             {name.trim() && name.trim() !== workspace.name && <button type="submit" className="btn btn-small secondary" disabled={rename.isPending}>{t('workspace.save')}</button>}
           </form>
         )}
-        <div className="table-wrap"><table className="data-table" data-testid="team-members">
+        {membersError && !members.data ? <BlockError error={membersError} onRetry={members.refetch} what={t('workspace.team')} testId="team-members-error" />
+          : !members.data ? <div className="card-pad" aria-busy="true"><SkeletonText lines={3} /></div>
+          : <div className="table-wrap"><table className="data-table" data-testid="team-members">
           <thead><tr><th>{t('workspace.member')}</th><th>{t('workspace.role')}</th><th>{t('workspace.joined')}</th><th /></tr></thead>
           <tbody>{(members.data ?? []).map((member) => (
             <tr key={member.userId} data-testid={`member-${member.email}`}>
@@ -172,7 +178,7 @@ export function TeamSection() {
                 : isOwner && <HoldButton className="btn-small secondary danger" description={fill(t('workspace.remove.confirm'), { name: member.name || member.email })} onConfirm={() => void run(() => remove.mutateAsync({ userId: member.userId }))} testId={`member-remove-${member.email}`}>{t('workspace.remove')}</HoldButton>}</td>
             </tr>
           ))}</tbody>
-        </table></div>
+        </table></div>}
         <p className="hint-text">{t('workspace.roles.help')}</p>
         {isOwner && (
           <div className="team-invite">

@@ -16,7 +16,7 @@ export default function AdvertisingPage() {
   const { params } = usePeriod();
   const query = useGetAdvertising(signedIn ? params : undefined);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={query.data?.source} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} source={query.data?.source} />;
   const data = query.data;
   if (data.mode === 'USER' || data.mode === 'EMPTY') {
     return (

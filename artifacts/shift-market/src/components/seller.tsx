@@ -10,6 +10,8 @@ import { axisTick, chartColors, gridProps, tooltipProps } from '@/lib/chart-them
 import { downloadTemplate } from '@/lib/template';
 import { EmptyState, SectionTitle, useText } from './common';
 import { InlineNotice } from '@/components/ui';
+import { BlockError, MissingValue } from '@/components/states';
+import { useShownError } from '@/lib/query-state';
 
 export function PeriodBar() {
   const { t } = useI18n();
@@ -108,6 +110,11 @@ export function Outcomes() {
   const text = useText();
   const query = useListFeedback();
   const items = query.data ?? [];
+  // Shown only once there are verdicts; a failed load is said out loud instead of looking like "no verdicts yet".
+  const error = useShownError(query);
+  if (error && !items.length) {
+    return <><SectionTitle title={t('outcomes.title')} note={t('outcomes.note')} /><BlockError error={error} onRetry={query.refetch} what={t('outcomes.title')} testId="outcomes-error" /></>;
+  }
   if (!items.length) return null;
   return (
     <>
@@ -120,9 +127,9 @@ export function Outcomes() {
               <td>{formatDate(item.createdAt, locale)}</td>
               <td>{item.object}<span className="table-sub">{t(item.actionType === 'RESTOCK' ? 'ДОЗАКАЗАТЬ' : item.actionType)}</span></td>
               <td><span className={`status-tag verdict-tag ${item.verdict.toLowerCase()}`}>{t(`verdict.${item.verdict}`)}</span></td>
-              <td>{item.beforePerDay === null || item.beforePerDay === undefined ? '—' : formatCurrency(item.beforePerDay, locale)}</td>
+              <td>{item.beforePerDay === null || item.beforePerDay === undefined ? <MissingValue reason="notCalculable" /> : formatCurrency(item.beforePerDay, locale)}</td>
               <td>{item.afterPerDay === null || item.afterPerDay === undefined ? <span className="neutral">{t('outcomes.waiting')}</span> : <>{formatCurrency(item.afterPerDay, locale)}<span className="table-sub">{text('outcomes.days', { days: item.daysAfter ?? 0 })}</span></>}</td>
-              <td className={(item.changePct ?? 0) >= 0 ? 'positive' : 'negative'}>{item.changePct === null || item.changePct === undefined ? '—' : `${item.changePct > 0 ? '+' : ''}${formatNumber(item.changePct, locale, 1)}%`}</td>
+              <td className={item.changePct === null || item.changePct === undefined ? undefined : item.changePct >= 0 ? 'positive' : 'negative'}>{item.changePct === null || item.changePct === undefined ? <MissingValue reason="notCalculable" /> : `${item.changePct > 0 ? '+' : ''}${formatNumber(item.changePct, locale, 1)}%`}</td>
             </tr>
           ))}</tbody>
         </table>

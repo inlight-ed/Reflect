@@ -51,7 +51,7 @@ function PlansList({ head }: { head: ReactNode }) {
     window.history.replaceState(null, '', url);
   };
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
   const { plans, benchmarks } = query.data;
   const clients = clientsQuery.data ?? [];
   return (
@@ -152,7 +152,7 @@ function PlanView({ planId }: { planId: string }) {
   const query = useGetMediaPlan(planId);
   const [variant, setVariant] = useState<string>();
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
   const plan = query.data;
   const current = variant && plan.variants.some((v) => v.variant === variant) ? variant : plan.variants[0]?.variant;
   const summary = plan.variants.find((v) => v.variant === current);

@@ -1,12 +1,11 @@
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
 import type { ReactNode } from 'react';
 import { ErrorBoundary, type ErrorFallbackProps } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { LoadingState, SourcePill, demoSource } from '@/components/common';
+import { ErrorState, LoadingState } from '@/components/common';
 import { Shell } from '@/components/shell';
 import { I18nProvider, useI18n } from '@/lib/i18n';
 import { PeriodProvider } from '@/lib/period';
@@ -38,22 +37,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function LocalizedErrorFallback({ resetError }: ErrorFallbackProps) {
-  const { t } = useI18n();
-  const { demo } = useSession();
-  return (
-    <div className="page" data-testid="status-error">
-      {demo && <div className="page-meta" style={{ marginBottom: 18 }}><SourcePill source={demoSource} /></div>}
-      <div className="error-box" role="alert">
-        <AlertTriangle size={22} />
-        <h3>{t('Сигнал недоступен')}</h3>
-        <p>{t('Произошла непредвиденная ошибка. Повторите попытку.')}</p>
-        <button className="btn secondary" onClick={resetError} data-testid="button-retry">
-          <RefreshCw size={14} /> {t('Повторить')}
-        </button>
-      </div>
-    </div>
-  );
+function LocalizedErrorFallback({ error, resetError }: ErrorFallbackProps) {
+  // A crash in the page's code: the same error state as a failed request, classified as unexpected.
+  return <ErrorState error={error} kind="unexpected" onRetry={resetError} />;
 }
 
 function Splash() {

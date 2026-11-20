@@ -7,7 +7,9 @@ import { formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
 import { buildRows, FIELDS, missingRequired, readFile, remap, type Dataset, type SheetCandidate } from '@/lib/importer';
 import { useSession } from '@/lib/session';
 import { downloadTemplate } from '@/lib/template';
-import { EmptyState, PageFrame, PageHead, SectionTitle, useText } from '@/components/common';
+import { BlockError, EmptyState, PageFrame, PageHead, SectionTitle, useText } from '@/components/common';
+import { SkeletonMetric } from '@/components/ui';
+import { useShownError } from '@/lib/query-state';
 import { ProgressBar } from '@/components/motion';
 
 type Item = { id: string; order: number; fileName: string; candidate: SheetCandidate; state: 'ready' | 'importing' | 'done' | 'error'; message?: string; progress?: { done: number; total: number } };
@@ -88,6 +90,7 @@ export default function DataPage() {
 
 
   const summary = status.data;
+  const statusError = useShownError(status);
   return (
     <PageFrame>
       <PageHead eyebrow={t('data.eyebrow')} title={t('data.title')} subtitle={t('data.subtitle')} action={<button type="button" className="btn secondary" onClick={() => void downloadTemplate(locale)} data-testid="button-template"><FileSpreadsheet size={14} /> {t('data.template')}</button>} />
@@ -114,19 +117,24 @@ export default function DataPage() {
       {items.map((item) => <ImportCard key={item.id} item={item} onChange={(candidate) => update(item.id, { candidate, state: 'ready', message: undefined })} onImport={() => void runImport(item)} onRemove={() => setItems((current) => current.filter((other) => other.id !== item.id))} />)}
 
       <SectionTitle title={t('data.summary')} />
+      {/* Loading shows the cards' outline and a failure says so: never a made-up 0. */}
+      {statusError && !summary ? <BlockError error={statusError} onRetry={status.refetch} what={t('data.summary')} testId="data-summary-error" />
+        : !summary ? <div className="grid grid-3" aria-busy="true" data-testid="data-summary-loading"><SkeletonMetric /><SkeletonMetric /><SkeletonMetric /></div>
+        : <>
       <div className="grid grid-3">
-        <div className="card metric-card"><div className="eyebrow">{t('data.kind.ORDERS')}</div><div className="metric-value">{formatNumber(summary?.orders ?? 0, locale)}</div><div className="neutral small-note">{t('data.summary.orders')}</div></div>
-        <div className="card metric-card"><div className="eyebrow">{t('data.kind.PRODUCTS')}</div><div className="metric-value">{formatNumber(summary?.products ?? 0, locale)}</div><div className="neutral small-note">{t('data.summary.products')}</div></div>
-        <div className="card metric-card"><div className="eyebrow">{t('data.kind.ADS')}</div><div className="metric-value">{formatNumber(summary?.ads ?? 0, locale)}</div><div className="neutral small-note">{t('data.summary.ads')}</div></div>
+        <div className="card metric-card"><div className="eyebrow">{t('data.kind.ORDERS')}</div><div className="metric-value">{formatNumber(summary.orders, locale)}</div><div className="neutral small-note">{t('data.summary.orders')}</div></div>
+        <div className="card metric-card"><div className="eyebrow">{t('data.kind.PRODUCTS')}</div><div className="metric-value">{formatNumber(summary.products, locale)}</div><div className="neutral small-note">{t('data.summary.products')}</div></div>
+        <div className="card metric-card"><div className="eyebrow">{t('data.kind.ADS')}</div><div className="metric-value">{formatNumber(summary.ads, locale)}</div><div className="neutral small-note">{t('data.summary.ads')}</div></div>
       </div>
-      {summary?.firstOrderAt && summary.lastOrderAt && <p className="section-note standalone">{text('data.summary.range', { from: summary.firstOrderAt.slice(0, 10), to: summary.lastOrderAt.slice(0, 10) })}</p>}
+      {summary.firstOrderAt && summary.lastOrderAt && <p className="section-note standalone">{text('data.summary.range', { from: summary.firstOrderAt.slice(0, 10), to: summary.lastOrderAt.slice(0, 10) })}</p>}
 
       <SectionTitle title={t('data.history')} />
       <div className="card table-wrap">
-        {summary?.imports.length ? <table className="data-table"><thead><tr><th>{t('Дата')}</th><th>{t('data.col.what')}</th><th>{t('data.col.source')}</th><th>{t('data.col.rows')}</th></tr></thead><tbody>
+        {summary.imports.length ? <table className="data-table"><thead><tr><th>{t('Дата')}</th><th>{t('data.col.what')}</th><th>{t('data.col.source')}</th><th>{t('data.col.rows')}</th></tr></thead><tbody>
           {summary.imports.map((row) => <tr key={row.id}><td>{formatDate(row.createdAt, locale)} {formatTime(row.createdAt, locale)}</td><td>{t(`data.kind.${row.kind}`)}<span className="table-sub">{row.fileName ?? ''}</span></td><td>{t(`data.source.${row.source}`)}</td><td>{formatNumber(row.rows, locale)}</td></tr>)}
         </tbody></table> : <EmptyState label="imports" message={t('onboarding.step1.body')} />}
       </div>
+      </>}
     </PageFrame>
   );
 }

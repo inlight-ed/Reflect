@@ -27,7 +27,7 @@ export default function ExternalMediaPage() {
     if (!selectedId && first) setSelectedId(first);
   }, [query.data, selectedId]);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} source={query.data?.source} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} source={query.data?.source} />;
   const data = query.data;
   const campaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
   const selectedCampaign = campaigns.find((campaign) => campaign.id === selectedId);

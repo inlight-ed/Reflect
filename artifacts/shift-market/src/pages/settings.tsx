@@ -4,8 +4,9 @@ import { AlertTriangle, CheckCircle2, CircleDot, Database, LogOut, MonitorSmartp
 import { Link } from 'wouter';
 import { getGetIntegrationsQueryKey, getGetSyncRunsQueryKey, useDeleteConnection, useGetIntegrations, useGetSyncRuns, useLogoutEverywhere, useSaveConnection, useSyncConnection, type Connection, type ConnectionKind, type IntegrationStatus, type SyncRun } from '@workspace/api-client-react';
 import { formatDate, formatNumber, formatTime, useI18n } from '@/lib/i18n';
+import { useShownError } from '@/lib/query-state';
 import { useSession } from '@/lib/session';
-import { EmptyState, ErrorState, LoadingState, PageFrame, PageHead, SectionTitle, demoSource, statusLabel, useText } from '@/components/common';
+import { EmptyState, ErrorState, LoadingState, PageFrame, PageHead, SectionTitle, demoSource, statusLabel, useText, BlockError } from '@/components/common';
 import { TeamSection } from '@/components/workspace';
 import { HoldButton } from '@/components/motion';
 
@@ -86,6 +87,7 @@ export default function SettingsPage() {
   // While a sync runs in the background, poll until every connection settles.
   const query = useGetIntegrations({ query: { queryKey: getGetIntegrationsQueryKey(), refetchInterval: (current) => (current.state.data?.connections?.some((connection) => connection.status === 'SYNCING') ? 2000 : false) } });
   const runs = useGetSyncRuns({ query: { queryKey: getGetSyncRunsQueryKey(), enabled: signedIn } });
+  const runsError = useShownError(runs);
   const logoutAll = useLogoutEverywhere();
   const syncingCount = (query.data?.connections ?? []).filter((connection) => connection.status === 'SYNCING').length;
   const previousSyncing = useRef(syncingCount);
@@ -96,7 +98,7 @@ export default function SettingsPage() {
     previousSyncing.current = syncingCount;
   }, [syncingCount, refresh, runs]);
   if (query.isLoading) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState onRetry={() => query.refetch()} />;
+  if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
   const data = query.data;
   const demoIntegrations = [data.kaspi, data.redstat, ...(Array.isArray(data.media) ? data.media : [])].filter(Boolean) as IntegrationStatus[];
   return <PageFrame>
@@ -114,7 +116,7 @@ export default function SettingsPage() {
         <TeamSection />
         <SectionTitle title={t('settings.connections')} note={t('settings.connections.note')} />
         <div className="connection-grid">{(data.connections ?? []).map((connection) => <ConnectionCard key={connection.kind} connection={connection} />)}</div>
-        {runs.data && runs.data.length > 0 && <SyncRunLog runs={runs.data} />}
+        {runsError ? <BlockError error={runsError} onRetry={runs.refetch} what={t('conn.runs.title')} testId="sync-log-error" /> : runs.data && runs.data.length > 0 && <SyncRunLog runs={runs.data} />}
       </>
     ) : (
       <>

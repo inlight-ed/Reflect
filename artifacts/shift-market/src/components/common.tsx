@@ -225,7 +225,7 @@ export function SummaryCard({ insight, compact = false }: { insight: Insight; co
       <div className="summary-foot">
         <span className="confidence"><Hint term="confidence">{t('УВЕРЕННОСТЬ')} {insight.confidence}%</Hint></span>
         {impact !== '—' && <span className="impact">{t('ОЖИДАЕМЫЙ ЭФФЕКТ')} {impact}</span>}
-        <span>{t(insight.severity === 'HIGH' ? 'ВЫСОКИЙ' : insight.severity === 'MEDIUM' ? 'СРЕДНИЙ' : 'НИЗКИЙ')} {t('СИГНАЛ')}</span>
+        <span>{t(insight.severity === 'HIGH' ? 'ВЫСОКИЙ' : insight.severity === 'MEDIUM' ? 'СРЕДНИЙ' : 'НИЗКИЙ')} {t('СИГНАЛ').toLocaleLowerCase()}</span>
       </div>
       {body && <Reveal testId="reveal-summary"><p className="summary-body">{body}</p></Reveal>}
     </div>

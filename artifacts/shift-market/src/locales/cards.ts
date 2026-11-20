@@ -2,7 +2,7 @@ import type { Catalog } from './types';
 
 /** Card analysis: checklist, review themes, card change events. */
 export const cards: Catalog = {
-  "card.eyebrow": ["АНАЛИЗ КАРТОЧКИ", "КАРТОЧКА ТАЛДАУЫ", "CARD ANALYSIS"],
+  "card.eyebrow": ["Анализ карточки", "Карточка талдауы", "Card analysis"],
   "card.title": ["Что мешает карточке продавать", "Карточканың сатуына не кедергі", "What holds the card back"],
   "card.subtitle": ["На основе отзывов, цен других продавцов, ваших возвратов и продаж до и после правок.", "Пікірлер, басқа сатушылардың бағалары, қайтарымдарыңыз және өзгерістерге дейінгі/кейінгі сату негізінде.", "Based on reviews, other sellers’ prices, your returns and sales before and after edits."],
   "card.select": ["Товар", "Тауар", "Product"],

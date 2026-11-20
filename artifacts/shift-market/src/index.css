@@ -322,7 +322,9 @@ button { cursor: pointer; }
 .modal-form { display:grid; gap:15px; padding:21px 23px 23px; }
 .field { display:grid; gap:7px; }.field label { color:#aab1bb; font:11px var(--app-font-mono); letter-spacing:.08em; text-transform:uppercase; }
 .field input, .field select { width:100%; padding:10px 11px; color:#e3e7ed; background:var(--rf-color-surface-inset); border:1px solid var(--rf-color-border); border-radius:4px; outline:0; }
-.field input:focus, .field select:focus { border-color:var(--rf-color-accent-border-focus); box-shadow:0 0 0 2px rgba(231,178,79,.1); }.field small { color:var(--app-negative); font-size:10px; }
+.field input:focus, .field select:focus { border-color:var(--rf-color-accent-border-focus); box-shadow:0 0 0 2px rgba(231,178,79,.1); }/* A field's own helper (.hint-text) is guidance, not an error: only other <small> notes take the error colour (C01-09). */
+.field small:not(.hint-text) { color:var(--app-negative); font-size:10px; }
+.field input[aria-invalid="true"], .field select[aria-invalid="true"] { border-color:var(--rf-color-danger); }
 .form-actions { display:flex; justify-content:flex-end; gap:9px; padding-top:5px; }
 .toast-note { position:fixed; right:24px; bottom:24px; z-index:60; padding:12px 15px; background:#202a19; color:#c7e57b; border:1px solid #53652d; border-radius:5px; font-size:12px; box-shadow:0 12px 30px rgba(0,0,0,.3); }
 .loading-grid { display:grid; gap:16px; grid-template-columns:repeat(4,1fr); }.skeleton { height:110px; background:linear-gradient(90deg,var(--rf-color-surface-raised),#1b222c,var(--rf-color-surface-raised)); background-size:200% 100%; animation:shimmer 1.35s infinite; border-radius:6px; border:1px solid #242b34; }.skeleton.large { height:250px; }.skeleton.wide { grid-column:span 2; }
@@ -350,6 +352,11 @@ button { cursor: pointer; }
 /* Glossary hints */
 .hint { position:relative; display:inline-flex; align-items:center; gap:5px; }
 .hint-trigger { display:inline-grid; place-items:center; width:15px; height:15px; padding:0; border:1px solid #3a4350; border-radius:50%; background:transparent; color:var(--app-text-muted); font:600 11px/1 var(--app-font-sans); text-transform:none; letter-spacing:0; }
+/* Hit areas ≥ 24×24 without changing what is drawn (C01-11, WCAG 2.5.8); same technique as button.matrix-dot::after. */
+.hint-trigger, .reveal-toggle, .row-link { position:relative; }
+.hint-trigger::after { content:''; position:absolute; inset:-6px; } /* 13 px padding box + 2×6 = 25 px */
+.reveal-toggle::after { content:''; position:absolute; inset:-1px 0; }
+.row-link::after { content:''; position:absolute; inset:-2px 0; }
 .hint-trigger:hover, .hint.open .hint-trigger { color:var(--app-accent); border-color:#8a6a2f; }
 .hint-bubble { position:fixed; z-index:70; display:block; width:max-content; max-width:min(280px, calc(100vw - 24px)); padding:10px 12px; color:#d9dee5; background:#1b2129; border:1px solid #3b4551; border-radius:5px; box-shadow:0 12px 28px rgba(0,0,0,.4); font:400 12px/1.45 var(--app-font-sans); letter-spacing:0; text-transform:none; white-space:normal; }
 .data-table th .hint-bubble { font-weight:400; }

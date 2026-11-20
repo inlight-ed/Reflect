@@ -152,6 +152,17 @@ function MetricValue({ metric }: { metric: Metric }) {
   return <>{formatNumber(shown, locale)}</>;
 }
 
+/**
+ * A change that shows as zero ("0%", "0,0%", "+0.0%") is neither good nor bad: no arrow, no colour (C01-12).
+ * Otherwise the API's own verdict decides, as before. The value is rounded to the one decimal it is shown with.
+ */
+export function metricChangeTone(metric: Pick<Metric, 'change' | 'changePct' | 'positive'>): 'positive' | 'negative' | 'neutral' {
+  if (metric.changePct === null) return 'neutral';
+  const shown = metric.changePct !== undefined ? metric.changePct : Number((metric.change ?? '').replace(/[^\d.,-]/g, '').replace(',', '.').replace(/^-?$/, 'NaN'));
+  if (Number.isFinite(shown) && Math.round(shown * 10) === 0) return 'neutral';
+  return metric.positive ? 'positive' : 'negative';
+}
+
 export function MetricCards({ metrics }: { metrics: Metric[] }) {
   const { locale, t } = useI18n();
   if (!metrics.length) return <div className="card"><EmptyState label="metrics" /></div>;
@@ -163,9 +174,12 @@ export function MetricCards({ metrics }: { metrics: Metric[] }) {
           <div className="card metric-card fade-in" key={`${metric.label}-${index}`} data-testid={`metric-card-${index}`}>
             <div className="eyebrow">{term ? <Hint term={term}>{t(metric.label)}</Hint> : t(metric.label)}</div>
             <div className="metric-value" data-testid={`text-metric-${index}`}><MetricValue metric={metric} />{metric.estimated && <span className="metric-estimate" title={t('metric.estimated.hint')} data-testid={`metric-estimated-${index}`}>{t('metric.estimated')}</span>}</div>
-            <div className={`metric-change ${metric.positive ? 'positive' : 'negative'}`}>
-              {metric.changePct === null ? <span className="neutral">—</span> : <>{metric.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {metric.changePct !== undefined ? `${metric.changePct > 0 ? '+' : ''}${formatNumber(metric.changePct, locale, 1)}%` : t(metric.change)}</>}
-            </div>
+            {(() => {
+              const tone = metricChangeTone(metric);
+              return <div className={`metric-change ${tone}`} data-testid={`metric-change-${index}`}>
+                {metric.changePct === null ? <span className="neutral">—</span> : <>{tone === 'neutral' ? null : metric.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {metric.changePct !== undefined ? `${metric.changePct > 0 ? '+' : ''}${formatNumber(metric.changePct, locale, 1)}%` : t(metric.change)}</>}
+              </div>;
+            })()}
           </div>
         );
       })}

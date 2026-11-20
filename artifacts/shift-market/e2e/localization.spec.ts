@@ -914,3 +914,124 @@ test('layout: advertising keeps the whole impact on orders readable at every wid
     expect(impact.columnEnd, `${viewport.width}px: impact column inside the scrollable table`).toBeLessThanOrEqual(impact.scrollWidth + 1);
   }
 });
+
+// ---- C01 PR 2: truthful states and interaction fixes ----
+// Every point within 11.5 px of a control's centre must land on the control itself (a 24 px circle, WCAG 2.5.8).
+async function hitArea(page: Page, selector: string, { inline = true }: { inline?: boolean } = {}) {
+  return page.evaluate(async ({ selector, inline }) => {
+    const misses: string[] = [];
+    let checked = 0;
+    for (const control of document.querySelectorAll(selector)) {
+      if (!control.getBoundingClientRect().width) continue;
+      control.scrollIntoView({ block: 'center', inline: inline ? 'center' : 'nearest' });
+      await new Promise((done) => requestAnimationFrame(() => done(null)));
+      const box = control.getBoundingClientRect();
+      // Inside a wide table that is not scrolled: only controls the wrapper actually shows can be hit.
+      const wrapper = inline ? null : control.closest('.table-scroll')?.getBoundingClientRect();
+      if (wrapper && (box.left - 12 < wrapper.left || box.right + 12 > wrapper.right)) continue;
+      checked += 1;
+      for (let step = 0; step < 8; step += 1) {
+        const angle = (step * Math.PI) / 4;
+        const hit = document.elementFromPoint(box.left + box.width / 2 + 11.5 * Math.cos(angle), box.top + box.height / 2 + 11.5 * Math.sin(angle));
+        if (!hit || !(hit === control || control.contains(hit))) { misses.push(`${(control as HTMLElement).className} → ${hit?.className ?? 'nothing'}`); break; }
+      }
+    }
+    return { checked, misses };
+  }, { selector, inline });
+}
+
+test('hit areas: glossary hints and "more" toggles are at least 24 × 24 and still work from the keyboard', async ({ page }) => {
+  for (const width of [375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const route of ['/overview', '/advertising', '/external-media']) {
+      await page.goto(route);
+      await expect(page.locator('.hint-trigger').first()).toBeVisible();
+      for (const selector of ['.hint-trigger', '.reveal-toggle']) {
+        const result = await hitArea(page, selector);
+        expect(result.checked, `${route} ${selector} at ${width}px`).toBeGreaterThan(0);
+        expect(result.misses, `${route} ${selector} at ${width}px`).toEqual([]);
+      }
+    }
+    // Table headers, with the table at its start: the hints in columns the wrapper shows.
+    await page.goto('/products');
+    await expect(page.locator('[data-testid^="row-product-"]').first()).toBeVisible();
+    const headers = await hitArea(page, 'main .table-scroll .hint-trigger', { inline: false });
+    expect(headers.checked, `products table hints at ${width}px`).toBeGreaterThan(0);
+    expect(headers.misses, `products table hints at ${width}px`).toEqual([]);
+    // Matrix dots already had a 28 px area; where two products sit closer than that, the nearer dot wins.
+    const dots = await hitArea(page, 'button.matrix-dot', { inline: false });
+    expect(dots.checked).toBeGreaterThan(0);
+    expect(dots.misses.filter((miss) => !miss.split('→')[1].includes('matrix-dot')), `matrix dots at ${width}px`).toEqual([]);
+  }
+  // Keyboard: the enlarged controls are still ordinary buttons.
+  await page.goto('/overview');
+  const toggle = page.getByTestId('reveal-action').first();
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const hint = page.locator('.hint-trigger').first();
+  await hint.focus();
+  await expect(hint).toBeFocused();
+});
+
+test('seller: settings tell help from errors, give each card one main action, and keep small controls reachable', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`settings-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+
+  // C01-12: the first import has nothing to compare with yet, so every change is zero: no colour, no arrow.
+  const changes = page.locator('[data-testid^="metric-change-"]');
+  await expect(changes.first()).toBeVisible();
+  for (const change of await changes.all()) {
+    if ((await change.textContent())?.trim() !== '0%') continue;
+    await expect(change).toHaveClass(/\bneutral\b/);
+    await expect(change.locator('svg')).toHaveCount(0);
+  }
+
+  await page.goto('/settings');
+  const colour = (testId: string) => page.getByTestId(testId).evaluate((element) => { const style = getComputedStyle(element); return { color: style.color, size: parseFloat(style.fontSize) }; });
+  const danger = await page.evaluate(() => { const probe = document.createElement('span'); probe.style.color = 'var(--rf-color-danger-text)'; document.body.append(probe); const color = getComputedStyle(probe).color; probe.remove(); return color; });
+
+  // C01-09: the saved-key note is guidance, linked to its field, and does not look like an error.
+  const helper = await colour('hint-secret-kaspi_api');
+  expect(helper.color).not.toBe(danger);
+  expect(helper.size).toBeGreaterThanOrEqual(11);
+  await expect(page.getByTestId('input-secret-kaspi_api')).toHaveAttribute('aria-describedby', /secret-hint-KASPI_API/);
+  await expect(page.getByTestId('input-secret-kaspi_api')).not.toHaveAttribute('aria-invalid', 'true');
+
+  // An error is announced, coloured as an error and attached to the fields it is about.
+  await page.getByTestId('button-save-custom_mcp').click();
+  const error = page.getByTestId('error-connection-custom_mcp');
+  await expect(error).toHaveAttribute('role', 'alert');
+  expect((await colour('error-connection-custom_mcp')).color).toBe(danger);
+  for (const input of ['input-url-custom_mcp', 'input-secret-custom_mcp']) {
+    await expect(page.getByTestId(input)).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId(input)).toHaveAttribute('aria-describedby', /connection-error-CUSTOM_MCP/);
+  }
+  // The other cards stay as they were.
+  await expect(page.getByTestId('input-secret-kaspi_api')).not.toHaveAttribute('aria-invalid', 'true');
+
+  // C01-10: one primary action per card; disconnecting is destructive, never a plain secondary.
+  const isPrimary = async (testId: string) => !/\b(secondary|danger)\b/.test((await page.getByTestId(testId).getAttribute('class')) ?? '');
+  expect(await isPrimary('button-sync-kaspi_api'), 'connected: update data is the main action').toBe(true);
+  expect(await isPrimary('button-save-kaspi_api'), 'connected: a new key is secondary').toBe(false);
+  await expect(page.getByTestId('button-remove-kaspi_api')).toHaveClass(/\bdanger\b/);
+  for (const kind of ['moysklad', 'redstat_mcp', 'custom_mcp']) expect(await isPrimary(`button-save-${kind}`), `${kind}: connecting is the main action`).toBe(true);
+  for (const card of await page.locator('[data-testid^="connection-"]').all()) {
+    const primaries = await card.locator('button.btn').evaluateAll((buttons) => buttons.filter((button) => !/\b(secondary|danger)\b/.test(button.className)).length);
+    expect(primaries, `${await card.getAttribute('data-testid')}: primary actions`).toBe(1);
+  }
+  await expect(page.getByTestId('button-logout-all')).toHaveClass(/\bdanger\b/);
+
+  // C01-11: the product name in the decision table is a full-size target too.
+  await page.goto('/products');
+  await expect(page.locator('.row-link').first()).toBeVisible();
+  const links = await hitArea(page, '.row-link', { inline: false });
+  expect(links.checked).toBeGreaterThan(0);
+  expect(links.misses).toEqual([]);
+});

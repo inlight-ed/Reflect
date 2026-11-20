@@ -5,11 +5,14 @@ import { ApiError } from '@workspace/api-client-react';
  * What went wrong with a request, as far as the client can tell. Only what the error itself shows is
  * used: the HTTP status of an ApiError, a body that could not be parsed, or a failed fetch.
  */
-export type ErrorKind = 'network' | 'auth' | 'rateLimit' | 'timeout' | 'server' | 'request' | 'parse' | 'unexpected';
+export type ErrorKind = 'network' | 'auth' | 'forbidden' | 'rateLimit' | 'timeout' | 'server' | 'request' | 'parse' | 'unexpected';
 
 export function classifyError(error: unknown): ErrorKind {
   if (error instanceof ApiError) {
-    if (error.status === 401 || error.status === 403) return 'auth';
+    // 401: the session is no longer accepted, signing in again helps. 403: the API answers it for what a
+    // role may not do (READ_ONLY, OWNER_ONLY), where signing in again would change nothing.
+    if (error.status === 401) return 'auth';
+    if (error.status === 403) return 'forbidden';
     if (error.status === 429) return 'rateLimit';
     if (error.status === 408 || error.status === 504) return 'timeout';
     if (error.status >= 500) return 'server';
@@ -24,7 +27,10 @@ export function classifyError(error: unknown): ErrorKind {
   return 'unexpected';
 }
 
-/** Whether repeating the same request can help. A rejected sign-in or a bad request will fail the same way. */
+/**
+ * Whether repeating the same request can help. A rejected sign-in or a bad request will fail the same way;
+ * missing access can change when the owner grants it, so that one can be checked again.
+ */
 export function canRetry(kind: ErrorKind) {
   return kind !== 'auth' && kind !== 'request';
 }

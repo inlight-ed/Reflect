@@ -5,7 +5,7 @@ import { formatLongDate, useI18n } from '@/lib/i18n';
 import { usePeriod } from '@/lib/period';
 import { useSession } from '@/lib/session';
 import { useNow } from '@/lib/use-now';
-import { useLastData } from '@/lib/query-state';
+import { useLastData, useShownError } from '@/lib/query-state';
 import { ActionCard, BlockError, EmptyState, ErrorState, MetricCards, PageFrame, PageHead, PageSkeleton, RefreshingNotice, SectionTitle, SummaryCard, Timeline, demoSource } from '@/components/common';
 import { SalesDashboard } from '@/components/sales-dashboard';
 import { AssumptionsNote, ForecastList, Onboarding, Outcomes, PeriodBar, RevenueChart } from '@/components/seller';
@@ -32,7 +32,9 @@ export default function OverviewPage() {
   const now = useNow(60_000);
   // When a new period fails, the figures already on screen stay (marked stale) instead of an error page.
   const lastData = useLastData(query.data);
-  const shown = query.data ?? (query.isError ? lastData : undefined);
+  // Kept while a retry or refresh runs, so the warning about older data does not vanish mid-request.
+  const shownError = useShownError(query);
+  const shown = query.data ?? (shownError ? lastData : undefined);
   if (!shown && query.isFetching) return <PageSkeleton className="rf-overview" />;
   // An error with nothing to show replaces the page; an error on refresh keeps the earlier data (below).
   if (!shown) return <ErrorState error={query.error} onRetry={query.refetch} />;
@@ -42,9 +44,10 @@ export default function OverviewPage() {
   const actions = Array.isArray(dashboard.actions) ? dashboard.actions : [];
   const timeline = Array.isArray(dashboard.timeline) ? dashboard.timeline : [];
   const seller = dashboard.mode === 'USER';
-  const head = <PageHead eyebrow={formatLongDate(now, locale)} title={greetingKey(now)} subtitle="Вот где ваше внимание сегодня принесёт больше всего результата." source={dashboard.source ?? demoSource} mode={dashboard.mode} refreshedAt={dashboard.refreshedAt} dataAsOf={dashboard.dataAsOf} action={<>{seller && <PeriodBar />}<RefreshingNotice active={refreshing} /></>} />;
-  const staleError = query.isError && !refreshing
-    ? <BlockError error={query.error} onRetry={query.refetch} what={t('Пульс бизнеса')} stale testId="overview-stale-error" />
+  const head = <PageHead eyebrow={formatLongDate(now, locale)} title={greetingKey(now)} subtitle="Вот где ваше внимание сегодня принесёт больше всего результата." source={dashboard.source ?? demoSource} mode={dashboard.mode} refreshedAt={dashboard.refreshedAt} dataAsOf={dashboard.dataAsOf} action={<>{seller && <PeriodBar />}<RefreshingNotice active={refreshing && !shownError} /></>} />;
+  // Earlier figures on screen after a failed update: one warning, which itself says when it is updating again.
+  const staleError = shownError
+    ? <BlockError error={shownError} onRetry={query.refetch} what={t('Пульс бизнеса')} stale refreshing={refreshing} testId="overview-stale-error" />
     : null;
 
   if (dashboard.mode === 'EMPTY') {

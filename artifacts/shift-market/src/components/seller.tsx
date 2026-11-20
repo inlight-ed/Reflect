@@ -112,13 +112,16 @@ export function Outcomes() {
   const items = query.data ?? [];
   // Shown only once there are verdicts; a failed load is said out loud instead of looking like "no verdicts yet".
   const error = useShownError(query);
+  // A failed update over verdicts already on screen keeps them, marked as older.
+  const notice = error ? <BlockError error={error} onRetry={query.refetch} what={t('outcomes.title')} stale={items.length > 0} refreshing={query.isFetching} testId="outcomes-error" /> : null;
   if (error && !items.length) {
-    return <><SectionTitle title={t('outcomes.title')} note={t('outcomes.note')} /><BlockError error={error} onRetry={query.refetch} what={t('outcomes.title')} testId="outcomes-error" /></>;
+    return <><SectionTitle title={t('outcomes.title')} note={t('outcomes.note')} />{notice}</>;
   }
   if (!items.length) return null;
   return (
     <>
       <SectionTitle title={t('outcomes.title')} note={t('outcomes.note')} />
+      {notice}
       <div className="card table-wrap" data-testid="outcomes">
         <table className="data-table">
           <thead><tr><th>{t('Дата')}</th><th>{t('Товар')}</th><th>{t('Статус')}</th><th>{t('outcomes.before')}</th><th>{t('outcomes.after')}</th><th>{t('Рост')}</th></tr></thead>

@@ -11,17 +11,19 @@ const storage = { getItem: (key: string) => memory.get(key) ?? null, setItem: (k
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
 const { Router } = await import('wouter');
-const { ApiError } = await import('@workspace/api-client-react');
+const { ApiError, getGetSessionQueryKey } = await import('@workspace/api-client-react');
 const { I18nProvider } = await import('../lib/i18n');
 const { SessionProvider } = await import('../lib/session');
 const { canRetry, classifyError, createRetryGuard, nextShownError } = await import('../lib/query-state');
 const { BlockError, EmptyState, ErrorState, MissingValue, PageSkeleton, RefreshingNotice } = await import('../components/states');
 const h = React.createElement;
 
-const render = (node: React.ReactElement, { demo = false } = {}) => {
+const render = (node: React.ReactElement, { demo = false, signedIn = false } = {}) => {
   if (demo) memory.set('reflect-demo', '1'); else memory.delete('reflect-demo');
   // No garbage-collection timers: they would keep the test process alive for minutes.
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false, gcTime: Infinity } } });
+  // The app thinks the person is signed in: the session it last loaded has a user.
+  if (signedIn) client.setQueryData(getGetSessionQueryKey(), { user: { id: 'u1', email: 'seller@example.kz' } });
   const markup = renderToStaticMarkup(h(Router, { ssrPath: '/overview' }, h(QueryClientProvider, { client }, h(I18nProvider, null, h(SessionProvider, null, node)))));
   client.clear();
   return markup;
@@ -32,7 +34,7 @@ const parseError = Object.assign(new Error('Failed to parse response'), { name: 
 describe('classifyError', () => {
   it('tells failures apart only by what the error shows', () => {
     assert.equal(classifyError(apiError(401)), 'auth');
-    assert.equal(classifyError(apiError(403)), 'auth');
+    assert.equal(classifyError(apiError(403)), 'forbidden');
     assert.equal(classifyError(apiError(429)), 'rateLimit');
     assert.equal(classifyError(apiError(504)), 'timeout');
     assert.equal(classifyError(apiError(408)), 'timeout');
@@ -53,7 +55,7 @@ describe('classifyError', () => {
   it('offers a retry only where repeating can help', () => {
     assert.equal(canRetry('auth'), false);
     assert.equal(canRetry('request'), false);
-    for (const kind of ['network', 'rateLimit', 'timeout', 'server', 'parse', 'unexpected'] as const) assert.equal(canRetry(kind), true);
+    for (const kind of ['network', 'forbidden', 'rateLimit', 'timeout', 'server', 'parse', 'unexpected'] as const) assert.equal(canRetry(kind), true);
   });
 });
 
@@ -134,11 +136,26 @@ describe('ErrorState', () => {
     assert.match(render(h(ErrorState, { error: new TypeError('Failed to fetch'), onRetry: noop })), /Нет связи с сервером/);
   });
 
-  it('offers to sign in again instead of a pointless retry when access is refused', () => {
+  it('offers to sign in again instead of a pointless retry when the session is refused', () => {
     const markup = render(h(ErrorState, { error: apiError(401), onRetry: noop }));
-    assert.match(markup, /Нет доступа/);
-    assert.match(markup, /data-testid="button-signin-again"/);
+    assert.match(markup, /Сессия закончилась/);
+    const link = markup.match(/<a [^>]*data-testid="button-signin-again"[^>]*>/)?.[0] ?? '';
+    assert.match(link, /href="\/login"/);
     assert.doesNotMatch(markup, /button-retry/);
+  });
+
+  it('still offers to sign in again when the app thinks the person is signed in but the server refuses', () => {
+    const markup = render(h(ErrorState, { error: apiError(401), onRetry: noop }), { signedIn: true });
+    assert.match(markup, /Сессия закончилась/);
+    assert.match(markup, /<button [^>]*data-testid="button-signin-again"[^>]*>.*Войти снова/);
+  });
+
+  it('says access is missing for a role and lets the person check again, without asking to sign in', () => {
+    const markup = render(h(ErrorState, { error: apiError(403), onRetry: noop }), { signedIn: true });
+    assert.match(markup, /data-error-kind="forbidden"/);
+    assert.match(markup, /Нет доступа/);
+    assert.match(markup, /data-testid="button-retry"[^>]*>.*Проверить ещё раз/);
+    assert.doesNotMatch(markup, /button-signin-again/);
   });
 
   it('offers a reload for a rejected request', () => {
@@ -169,7 +186,16 @@ describe('BlockError', () => {
   it('as a stale warning, says the earlier data is still shown', () => {
     const markup = render(h(BlockError, { error: apiError(503), onRetry: () => undefined, what: 'Пульс бизнеса', stale: true }));
     assert.match(markup, /rf-notice--warning/);
+    assert.match(markup, /role="status"/);
     assert.match(markup, /Показаны прежние данные/);
+  });
+
+  it('while its request runs again, stays and says so, with the retry busy', () => {
+    const markup = render(h(BlockError, { error: apiError(503), onRetry: () => undefined, what: 'Пульс бизнеса', stale: true, refreshing: true, testId: 'overview-stale-error' }));
+    assert.match(markup, /Не удалось обновить: Пульс бизнеса/);
+    assert.match(markup, /Обновляем данные…/);
+    assert.doesNotMatch(markup, /Ошибка на стороне сервера/);
+    assert.match(markup, /<button [^>]*data-testid="overview-stale-error-retry"[^>]*disabled=""[^>]*aria-busy="true"/);
   });
 });
 

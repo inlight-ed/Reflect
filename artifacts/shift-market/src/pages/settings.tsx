@@ -116,7 +116,9 @@ export default function SettingsPage() {
         <TeamSection />
         <SectionTitle title={t('settings.connections')} note={t('settings.connections.note')} />
         <div className="connection-grid">{(data.connections ?? []).map((connection) => <ConnectionCard key={connection.kind} connection={connection} />)}</div>
-        {runsError ? <BlockError error={runsError} onRetry={runs.refetch} what={t('conn.runs.title')} testId="sync-log-error" /> : runs.data && runs.data.length > 0 && <SyncRunLog runs={runs.data} />}
+        {/* A failed update keeps the log already on screen, marked as older. */}
+        {runsError ? <BlockError error={runsError} onRetry={runs.refetch} what={t('conn.runs.title')} stale={Boolean(runs.data?.length)} refreshing={runs.isFetching} testId="sync-log-error" /> : null}
+        {runs.data && runs.data.length > 0 && <SyncRunLog runs={runs.data} />}
       </>
     ) : (
       <>

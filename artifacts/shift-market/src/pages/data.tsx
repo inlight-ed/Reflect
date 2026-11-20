@@ -21,6 +21,8 @@ export default function DataPage() {
   const { signedIn, refresh } = useSession();
   const queryClient = useQueryClient();
   const status = useGetDataStatus({ query: { enabled: signedIn, queryKey: ['/api/data/status'] } });
+  // Hooks stay above the sign-in check below: signing in re-renders this same component.
+  const statusError = useShownError(status);
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -90,7 +92,6 @@ export default function DataPage() {
 
 
   const summary = status.data;
-  const statusError = useShownError(status);
   return (
     <PageFrame>
       <PageHead eyebrow={t('data.eyebrow')} title={t('data.title')} subtitle={t('data.subtitle')} action={<button type="button" className="btn secondary" onClick={() => void downloadTemplate(locale)} data-testid="button-template"><FileSpreadsheet size={14} /> {t('data.template')}</button>} />
@@ -117,9 +118,10 @@ export default function DataPage() {
       {items.map((item) => <ImportCard key={item.id} item={item} onChange={(candidate) => update(item.id, { candidate, state: 'ready', message: undefined })} onImport={() => void runImport(item)} onRemove={() => setItems((current) => current.filter((other) => other.id !== item.id))} />)}
 
       <SectionTitle title={t('data.summary')} />
-      {/* Loading shows the cards' outline and a failure says so: never a made-up 0. */}
-      {statusError && !summary ? <BlockError error={statusError} onRetry={status.refetch} what={t('data.summary')} testId="data-summary-error" />
-        : !summary ? <div className="grid grid-3" aria-busy="true" data-testid="data-summary-loading"><SkeletonMetric /><SkeletonMetric /><SkeletonMetric /></div>
+      {/* Loading shows the cards' outline and a failure says so: never a made-up 0. A failed update over
+          figures already on screen keeps them, marked as older. */}
+      {statusError ? <BlockError error={statusError} onRetry={status.refetch} what={t('data.summary')} stale={Boolean(summary)} refreshing={status.isFetching} testId="data-summary-error" /> : null}
+      {!summary ? !statusError && <div className="grid grid-3" aria-busy="true" data-testid="data-summary-loading"><SkeletonMetric /><SkeletonMetric /><SkeletonMetric /></div>
         : <>
       <div className="grid grid-3">
         <div className="card metric-card"><div className="eyebrow">{t('data.kind.ORDERS')}</div><div className="metric-value">{formatNumber(summary.orders, locale)}</div><div className="neutral small-note">{t('data.summary.orders')}</div></div>

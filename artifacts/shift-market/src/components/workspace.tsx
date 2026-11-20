@@ -162,8 +162,9 @@ export function TeamSection() {
             {name.trim() && name.trim() !== workspace.name && <button type="submit" className="btn btn-small secondary" disabled={rename.isPending}>{t('workspace.save')}</button>}
           </form>
         )}
-        {membersError && !members.data ? <BlockError error={membersError} onRetry={members.refetch} what={t('workspace.team')} testId="team-members-error" />
-          : !members.data ? <div className="card-pad" aria-busy="true"><SkeletonText lines={3} /></div>
+        {/* A failed update over a list already on screen keeps it, marked as older. */}
+        {membersError ? <BlockError error={membersError} onRetry={members.refetch} what={t('workspace.team')} stale={Boolean(members.data)} refreshing={members.isFetching} testId="team-members-error" /> : null}
+        {!members.data ? !membersError && <div className="card-pad" aria-busy="true"><SkeletonText lines={3} /></div>
           : <div className="table-wrap"><table className="data-table" data-testid="team-members">
           <thead><tr><th>{t('workspace.member')}</th><th>{t('workspace.role')}</th><th>{t('workspace.joined')}</th><th /></tr></thead>
           <tbody>{(members.data ?? []).map((member) => (

@@ -122,7 +122,14 @@ async function openDemo(page: Page) {
   await expect(page.getByTestId('select-language')).toHaveValue('ru');
 }
 
+// The API limits requests per client address. Each test is a separate person, so each gets its own
+// address; otherwise the whole suite, run from one machine, shares one person's limit and the tests
+// near the end fail with "too many requests" depending on how fast the earlier ones ran.
+let clientNumber = 0;
+
 test.beforeEach(async ({ page }, testInfo) => {
+  clientNumber += 1;
+  await page.context().setExtraHTTPHeaders({ 'X-Forwarded-For': `10.${testInfo.workerIndex % 250}.${Math.floor(clientNumber / 250) % 250}.${(clientNumber % 250) + 1}` });
   if (testInfo.title.startsWith('seller:')) return;
   await openDemo(page);
 });
@@ -448,6 +455,19 @@ test('states with seller data: partial failure, a new period and a failed refres
   expect(feedbackRequests).toBe(1);
   await page.unroute('**/api/feedback**');
 
+  // Verdicts already on screen stay when their update fails, marked as older, with a retry.
+  const verdict = { id: 'f1', actionKey: 'k1', actionType: 'RESTOCK', sku: 'X-1', object: 'Тестовый товар', verdict: 'TOO_EARLY', createdAt: new Date().toISOString(), beforePerDay: 1000, afterPerDay: null, changePct: null };
+  await page.route('**/api/feedback**', (route) => route.fulfill({ json: [verdict] }));
+  await page.reload();
+  await expect(page.getByTestId('outcomes')).toContainText('Тестовый товар');
+  await page.unroute('**/api/feedback**');
+  await page.route('**/api/feedback**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('outcomes-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('outcomes-error-retry')).toBeEnabled();
+  await expect(page.getByTestId('outcomes')).toContainText('Тестовый товар');
+  await page.unroute('**/api/feedback**');
+
   // A new period: the figures stay on screen, marked as updating, until the answer comes.
   await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 1200)); await route.continue(); });
   await page.getByTestId('period-7').click();
@@ -464,14 +484,78 @@ test('states with seller data: partial failure, a new period and a failed refres
   await expect(page.getByTestId('revenue-chart')).toBeVisible();
   await expect(page.getByTestId('status-error')).toHaveCount(0);
   await page.unroute('**/api/shift-market/dashboard**');
-  await page.getByTestId('overview-stale-error-retry').click();
-  await expect(page.getByTestId('overview-stale-error')).toHaveCount(0);
+  const stale = page.getByTestId('overview-stale-error');
+  const staleRetry = page.getByTestId('overview-stale-error-retry');
+  // A retry that fails again: the warning stays while it runs and says so (the only notice), then shows the error again.
+  await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 800)); await route.fulfill({ status: 503, body: '{}' }); });
+  await staleRetry.click();
+  await expect(stale).toContainText('Обновляем данные…');
+  await expect(staleRetry).toBeDisabled();
+  await expect(page.getByTestId('status-refreshing')).not.toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await expect(stale).toContainText('Ошибка на стороне сервера');
+  await expect(staleRetry).toBeEnabled();
+  await page.unroute('**/api/shift-market/dashboard**');
+  // A retry that succeeds: the warning stays until the answer comes, then goes.
+  await page.route('**/api/shift-market/dashboard**', async (route) => { await new Promise((done) => setTimeout(done, 800)); await route.continue(); });
+  await staleRetry.click();
+  await expect(stale).toContainText('Обновляем данные…');
+  await expect(stale).toHaveCount(0);
+  await expect(page.getByTestId('revenue-chart')).toBeVisible();
+  await page.unroute('**/api/shift-market/dashboard**');
 
-  // The data summary never shows a made-up 0 when its request fails.
+  // The data summary on screen stays when its update fails, marked as older.
+  await page.goto('/data');
+  await expect(page.locator('.grid-3 .metric-value')).toHaveCount(3);
   await page.route('**/api/data/status**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('data-summary-error')).toContainText('Показаны прежние данные');
+  await expect(page.locator('.grid-3 .metric-value')).toHaveCount(3);
+  // With nothing loaded yet, it never shows a made-up 0 when its request fails.
   await page.goto('/data');
   await expect(page.getByTestId('data-summary-error')).toBeVisible();
+  await expect(page.getByTestId('data-summary-error')).not.toContainText('Показаны прежние данные');
   await expect(page.locator('.grid-3 .metric-value')).toHaveCount(0);
+  await page.unroute('**/api/data/status**');
+
+  // The team list and the sync log on screen stay when their update fails, each marked as older.
+  await page.goto('/settings');
+  await expect(page.getByTestId('team-members')).toBeVisible();
+  await expect(page.getByTestId('sync-runs')).toBeVisible();
+  await page.route('**/api/workspace/members**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.route('**/api/integrations/runs**', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('team-members-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('team-members')).toBeVisible();
+  await expect(page.getByTestId('sync-log-error')).toContainText('Показаны прежние данные');
+  await expect(page.getByTestId('sync-runs')).toBeVisible();
+  await page.unroute('**/api/workspace/members**');
+  await page.unroute('**/api/integrations/runs**');
+
+  // Signed in, but the server no longer accepts the session: a way back in, not a dead end or a loop.
+  await page.route('**/api/shift-market/dashboard**', (route) => route.fulfill({ status: 401, body: '{}' }));
+  await page.goto('/overview');
+  await expect(page.getByTestId('status-error')).toHaveAttribute('data-error-kind', 'auth');
+  await page.getByTestId('button-signin-again').click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByTestId('input-email')).toBeVisible();
+  await page.unroute('**/api/shift-market/dashboard**');
+});
+
+test('states: signing in while the data page is open keeps the page working', async ({ page }) => {
+  const crashes: string[] = [];
+  page.on('pageerror', (error) => crashes.push(error.message));
+  // A guest in the demo (opened before each test) is asked to sign in here.
+  await page.goto('/data');
+  await expect(page.getByTestId('empty-data')).toBeVisible();
+  // Signed in elsewhere (another tab); the same page picks up the new session on refresh.
+  const registered = await page.request.post('/api/auth/register', { data: { email: `data-${Date.now()}@example.kz`, password: 'password-123' } });
+  expect(registered.ok()).toBe(true);
+  await page.getByTestId('button-refresh-workspace').click();
+  await expect(page.getByTestId('dropzone')).toBeVisible();
+  await expect(page.getByTestId('empty-data')).toHaveCount(0);
+  await expect(page.getByTestId('status-error')).toHaveCount(0);
+  expect(crashes).toEqual([]);
 });
 
 // A timestamp the server makes at the moment of the request is not a data update: none is shown for it.

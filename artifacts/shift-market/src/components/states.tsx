@@ -1,6 +1,6 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
-import { AlertTriangle, CloudOff, Loader2, LogIn, RefreshCw, RotateCcw, WifiOff } from 'lucide-react';
-import { Link } from 'wouter';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { AlertTriangle, CloudOff, Loader2, Lock, LogIn, RefreshCw, RotateCcw, WifiOff } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import { fill, useI18n } from '@/lib/i18n';
 import { canRetry, classifyError, useRetry, type ErrorKind } from '@/lib/query-state';
 import { useSession } from '@/lib/session';
@@ -37,21 +37,41 @@ export function LoadingState() {
 }
 
 const errorIcon: Record<ErrorKind, ReactNode> = {
-  network: <WifiOff aria-hidden />, auth: <LogIn aria-hidden />, rateLimit: <AlertTriangle aria-hidden />, timeout: <AlertTriangle aria-hidden />,
+  network: <WifiOff aria-hidden />, auth: <LogIn aria-hidden />, forbidden: <Lock aria-hidden />, rateLimit: <AlertTriangle aria-hidden />, timeout: <AlertTriangle aria-hidden />,
   server: <CloudOff aria-hidden />, request: <AlertTriangle aria-hidden />, parse: <AlertTriangle aria-hidden />, unexpected: <AlertTriangle aria-hidden />,
 };
 
-/** The one fitting way out of an error: retry, sign in again, or reload the page. */
+/**
+ * Sign in again while the app still thinks the session is open but the server no longer accepts it.
+ * The sign-in page sends a signed-in visitor on to the overview, so the stale session is closed first
+ * through the app's own sign-out (which also clears cached answers); only then the sign-in page opens.
+ */
+function SignInAgain() {
+  const { t } = useI18n();
+  const { signOut, refresh } = useSession();
+  const [, navigate] = useLocation();
+  const [pending, setPending] = useState(false);
+  const run = () => {
+    if (pending) return;
+    setPending(true);
+    // If even sign-out fails, reloading the session tells the app it is signed out, and the link below takes over.
+    void signOut().catch(() => refresh()).then(() => navigate('/login'), () => setPending(false));
+  };
+  return <Button variant="secondary" size="sm" icon={<LogIn />} pending={pending} onClick={run} data-testid="button-signin-again">{t('error.signin')}</Button>;
+}
+
+/** The one fitting way out of an error: retry, sign in again, check access again, or reload the page. */
 function RecoveryAction({ kind, retry, pending, testId }: { kind: ErrorKind; retry: () => void; pending: boolean; testId: string }) {
   const { t } = useI18n();
   const { signedIn } = useSession();
   if (kind === 'auth') {
-    return signedIn ? null : <Link href="/login" className="rf-button rf-button--secondary rf-button--sm" data-testid="button-signin-again"><LogIn aria-hidden /> {t('error.signin')}</Link>;
+    return signedIn ? <SignInAgain /> : <Link href="/login" className="rf-button rf-button--secondary rf-button--sm" data-testid="button-signin-again"><LogIn aria-hidden /> {t('error.signin')}</Link>;
   }
   if (!canRetry(kind)) {
     return <Button variant="secondary" size="sm" icon={<RotateCcw />} onClick={() => window.location.reload()} data-testid="button-reload">{t('error.reload')}</Button>;
   }
-  return <Button variant="secondary" size="sm" icon={<RefreshCw />} pending={pending} onClick={retry} data-testid={testId}>{pending ? t('error.retrying') : t('Повторить')}</Button>;
+  const label = pending ? t('error.retrying') : kind === 'forbidden' ? t('error.checkAgain') : t('Повторить');
+  return <Button variant="secondary" size="sm" icon={<RefreshCw />} pending={pending} onClick={retry} data-testid={testId}>{label}</Button>;
 }
 
 /**
@@ -95,21 +115,27 @@ export function ErrorState({ error, onRetry, source, kind: knownKind }: { error?
 /**
  * One block failed while the rest of the page works: a notice in place of the block, with its own retry.
  * `what` names the block ("Outcomes of decisions"); `stale` says earlier data is still shown below.
+ * `refreshing` says the block's request is running again (its retry, a refresh, a new period): the
+ * notice stays and says so, with its button busy, until the request ends: gone on success, the error
+ * again on failure. It is the one notice for the block meanwhile, so no separate "Updating…" beside it.
  */
-export function BlockError({ error, onRetry, what, stale = false, testId }: { error?: unknown; onRetry: () => Promise<unknown> | unknown; what: string; stale?: boolean; testId?: string }) {
+export function BlockError({ error, onRetry, what, stale = false, refreshing = false, testId }: { error?: unknown; onRetry: () => Promise<unknown> | unknown; what: string; stale?: boolean; refreshing?: boolean; testId?: string }) {
   const { t } = useI18n();
   const kind = classifyError(error);
-  const { retry, pending } = useRetry(onRetry);
+  const retryState = useRetry(onRetry);
+  const { retry } = retryState;
+  const pending = retryState.pending || refreshing;
   return (
     <InlineNotice
       tone={stale ? 'warning' : 'danger'}
-      announce="alert"
+      // A failure is announced at once; a warning about older data on screen, politely.
+      announce={stale ? 'status' : 'alert'}
       className="rf-block-error"
       testId={testId}
       title={fill(t(stale ? 'state.staleError' : 'state.blockError'), { what })}
       action={<RecoveryAction kind={kind} retry={() => void retry()} pending={pending} testId={testId ? `${testId}-retry` : 'button-block-retry'} />}
     >
-      {t(`error.${kind}.title`)}. {t(`error.${kind}.body`)}
+      {pending ? t('state.refreshing') : `${t(`error.${kind}.title`)}. ${t(`error.${kind}.body`)}`}
     </InlineNotice>
   );
 }

@@ -426,7 +426,8 @@ button.matrix-dot::after { content:''; position:absolute; inset:-9px; border-rad
 @media (max-width: 900px) { .economics-body { grid-template-columns:1fr; gap:24px; } }
 @media (max-width: 420px) { .economics-form { grid-template-columns:1fr; } }
 .media-split { grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr); }
-@media (max-width: 1500px) { .media-split { grid-template-columns:1fr; } }
+/* minmax(0,…): a plain 1fr track grows to the table's min-width and pushes the whole page sideways (C01-01). */
+@media (max-width: 1500px) { .media-split { grid-template-columns:minmax(0,1fr); } }
 .impact-totals { display:flex; gap:32px; flex-wrap:wrap; border-top:1px solid #252b35; }
 .impact-totals .metric-value { font-size:21px; }
 
@@ -781,6 +782,8 @@ a.btn { text-decoration:none; }
 @media (max-width: 1050px) {
   .grid-5 { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .connection-grid { grid-template-columns:1fr; }
+  /* Source, freshness and period wrap under each other instead of running past the viewport (C01-01). */
+  .page-head .page-meta { flex-wrap:wrap; }
   .landing-hero { grid-template-columns:1fr; }
   .hero-visual { max-width:560px; width:100%; margin:0 auto; }
 }
@@ -791,7 +794,6 @@ a.btn { text-decoration:none; }
   .forecast-meter, .forecast-stock { display:none; }
   .onboarding-steps li { grid-template-columns:36px minmax(0,1fr); }
   .step-action { grid-column:2; }
-  .page-head .page-meta { flex-wrap:wrap; }
   .landing-top .btn.secondary { padding:8px 12px; }
 }
 
@@ -936,4 +938,36 @@ a.btn { text-decoration:none; }
   .hold-button .hold-fill, .hold-button.holding .hold-fill, .progress-fill { transition:none; }
   .hold-button.holding .hold-fill { transform:scaleX(1); }
   .progress-fill::after, .import-card.done, .success-pop, .dropzone.dragging svg { animation:none; }
+}
+
+/* ===== C01-02: table visibility =====
+ * Opt-in per table, so screens outside C01 PR 1 keep their tables as they are.
+ *   .table-scroll  the scrolling wrapper; shows that more columns lie to the side.
+ *   .col-wrap      long text (product name, event): wraps, so the other columns fit.
+ *   .col-decision  the decision column: pinned to the right edge from tablet up.
+ * Tablet breakpoint: 760 px, as agreed in docs/design-tokens.md.
+ */
+.data-table .col-wrap { min-width:10rem; white-space:normal; }
+@media (min-width: 761px) {
+  .table-scroll .data-table .col-decision { position:sticky; right:0; z-index:1; background:var(--rf-color-surface-1); box-shadow:-1px 0 0 var(--rf-color-border); }
+  .table-scroll .data-table tbody tr:hover .col-decision { background:var(--rf-color-surface-2); }
+  .table-scroll .data-table tr.selected .col-decision { background:color-mix(in srgb, var(--rf-color-accent) 6%, var(--rf-color-surface-1)); }
+}
+
+/* Scroll cue: the far edge fades and pinned columns cast a shadow while columns are hidden behind them.
+ * Driven by the wrapper's own scroll position; with no overflow the animation is inactive and nothing shows.
+ * Browsers without scroll-driven animations keep the 1 px divider of the pinned columns. */
+@property --rf-table-start { syntax:'<number>'; inherits:true; initial-value:0; }
+@property --rf-table-end { syntax:'<number>'; inherits:true; initial-value:0; }
+@keyframes rf-table-scroll { from { --rf-table-start:0; --rf-table-end:1; } 4% { --rf-table-start:1; } 96% { --rf-table-end:1; } to { --rf-table-start:1; --rf-table-end:0; } }
+@supports (animation-timeline: scroll()) {
+  .table-scroll { animation:rf-table-scroll linear both; animation-timeline:scroll(self inline); }
+  .table-scroll:not(:has(.col-decision)) { -webkit-mask-image:linear-gradient(to left, rgb(0 0 0 / calc(1 - var(--rf-table-end))), #000 var(--rf-space-6)); mask-image:linear-gradient(to left, rgb(0 0 0 / calc(1 - var(--rf-table-end))), #000 var(--rf-space-6)); }
+  @media (min-width: 761px) {
+    .table-scroll .data-table .col-decision { box-shadow:-1px 0 0 var(--rf-color-border), -10px 0 12px -8px rgb(0 0 0 / calc(var(--rf-table-end) * .8)); }
+  }
+  @media (max-width: 760px) {
+    .table-scroll:has(.col-decision) { -webkit-mask-image:linear-gradient(to left, rgb(0 0 0 / calc(1 - var(--rf-table-end))), #000 var(--rf-space-6)); mask-image:linear-gradient(to left, rgb(0 0 0 / calc(1 - var(--rf-table-end))), #000 var(--rf-space-6)); }
+    .table-scroll .data-table th:first-child, .table-scroll .data-table td:first-child { box-shadow:1px 0 0 var(--rf-color-border), 10px 0 12px -8px rgb(0 0 0 / calc(var(--rf-table-start) * .8)); }
+  }
 }

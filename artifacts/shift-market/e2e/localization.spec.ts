@@ -751,3 +751,65 @@ test('agency: one sign-in, an agency next to the shop, and a viewer invited by l
   await expect(page.getByTestId(`member-agency-viewer-${stamp}@example.kz`)).toContainText('Наблюдатель');
   await context.close();
 });
+
+// ---- C01-01 / C01-02: responsive layout and table visibility ----
+// Phone, tablet, laptop and wide desktop. The page itself never scrolls sideways; a wide table
+// scrolls inside its own wrapper, keeps the row name in view and, from tablet up, the decision too.
+const layoutViewports = [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }];
+
+async function checkLayout(page: Page, label: string, decisionFrom?: number) {
+  const width = page.viewportSize()?.width ?? 0;
+  const layout = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    return {
+      pageOverflow: document.documentElement.scrollWidth - viewport,
+      tables: [...document.querySelectorAll('.table-scroll')].map((wrap) => {
+        const box = wrap.getBoundingClientRect();
+        const first = wrap.querySelector('thead th')?.getBoundingClientRect();
+        const decision = wrap.querySelector('thead .col-decision')?.getBoundingClientRect();
+        const visible = (cell?: DOMRect) => (cell ? cell.left >= box.left - 1 && cell.right <= Math.min(box.right, viewport) + 1 : null);
+        return { inside: box.right <= viewport + 1, firstVisible: visible(first), decisionVisible: visible(decision) };
+      }),
+    };
+  });
+  expect(layout.pageOverflow, `${label} at ${width}px: page scrolls sideways`).toBeLessThanOrEqual(0);
+  expect(layout.tables.length, `${label}: tables found`).toBeGreaterThan(0);
+  for (const table of layout.tables) {
+    expect(table.inside, `${label} at ${width}px: table wrapper stays inside the page`).toBe(true);
+    expect(table.firstVisible, `${label} at ${width}px: first column in view`).toBe(true);
+    if (decisionFrom !== undefined && table.decisionVisible !== null && width >= decisionFrom) expect(table.decisionVisible, `${label} at ${width}px: decision column in view`).toBe(true);
+  }
+}
+
+test('layout: external media, products and advertising fit every screen width with demo data', async ({ page }) => {
+  const routes: Array<[string, string, string, number?]> = [
+    ['/external-media', '[data-testid^="row-campaign-"]', 'external media'],
+    ['/products', '[data-testid^="row-product-"]', 'products', 768],
+    ['/advertising', '[data-testid="advertising-activity-feed"]', 'advertising'],
+  ];
+  for (const viewport of layoutViewports) {
+    await page.setViewportSize(viewport);
+    for (const [route, ready, label, decisionFrom] of routes) {
+      await page.goto(route);
+      await expect(page.locator(ready).first()).toBeVisible();
+      await checkLayout(page, label, decisionFrom);
+    }
+  }
+});
+
+test('layout: a seller\'s products keep the period, the source and the decision in view on a tablet', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`layout-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  for (const viewport of layoutViewports) {
+    await page.setViewportSize(viewport);
+    await page.goto('/products');
+    await expect(page.locator('[data-testid^="row-product-"]').first()).toBeVisible();
+    await checkLayout(page, 'seller products', 768);
+  }
+});

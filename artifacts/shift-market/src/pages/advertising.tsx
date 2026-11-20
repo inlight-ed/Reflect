@@ -89,11 +89,11 @@ function AdvertisingActivityFeed({ activities }: { activities: AdvertisingActivi
     return <div className="card"><EmptyState label="timeline events" /></div>;
   }
   return <div className="card activity-feed" data-testid="advertising-activity-feed">
-    <div className="table-wrap">
+    <div className="table-wrap table-scroll">
       <table className="data-table">
-        <thead><tr><th>{t('Дата')}</th><th>{t('Канал')}</th><th>{t('Событие')}</th><th>{t('Возможное влияние на оценочные заказы')}</th></tr></thead>
+        <thead><tr><th>{t('Дата')}</th><th>{t('Канал')}</th><th className="col-wrap">{t('Событие')}</th><th className="col-wrap">{t('Возможное влияние на оценочные заказы')}</th></tr></thead>
         <tbody>{activities.map((activity) => <tr key={activity.id} data-testid={`advertising-activity-${activity.id}`}>
-          <td>{formatDate(activity.date, locale)}</td><td>{t(activity.channel)}</td><td>{t(activity.eventType)}<span className="table-sub">{t(activity.explanation)}</span></td><td className="positive">{t(activity.estimatedImpact)}</td>
+          <td>{formatDate(activity.date, locale)}</td><td>{t(activity.channel)}</td><td className="col-wrap">{t(activity.eventType)}<span className="table-sub">{t(activity.explanation)}</span></td><td className="positive">{t(activity.estimatedImpact)}</td>
         </tr>)}</tbody>
       </table>
     </div>
@@ -102,18 +102,18 @@ function AdvertisingActivityFeed({ activities }: { activities: AdvertisingActivi
 
 function SkuAdsTable({ rows }: { rows: SkuAd[] }) {
   const { locale, t } = useI18n();
-  return <div className="card table-wrap" data-testid="sku-ads"><table className="data-table">
-    <thead><tr><th>{t('SKU / товар')}</th><th>{t('metric.adSpend')}</th><th>{t('Выручка')}</th><th>ROAS</th><th>{t('ads.col.breakeven')}</th><th>{t('ads.col.verdict')}</th></tr></thead>
+  return <div className="card"><div className="table-wrap table-scroll" data-testid="sku-ads"><table className="data-table">
+    <thead><tr><th className="col-wrap">{t('SKU / товар')}</th><th>{t('metric.adSpend')}</th><th>{t('Выручка')}</th><th>ROAS</th><th>{t('ads.col.breakeven')}</th><th className="col-decision">{t('ads.col.verdict')}</th></tr></thead>
     <tbody>{rows.map((row) => {
       const verdict = row.roas === null || row.roas === undefined || row.breakevenRoas === null || row.breakevenRoas === undefined ? 'unknown' : row.roas >= row.breakevenRoas ? 'ok' : 'loss';
       return <tr key={row.sku}>
-        <td>{row.name}<span className="table-sub">{row.sku}</span></td>
+        <td className="col-wrap">{row.name}<span className="table-sub">{row.sku}</span></td>
         <td>{formatCurrency(row.spend, locale)}</td>
         <td>{formatCurrency(row.revenue, locale)}</td>
         <td>{row.roas === null || row.roas === undefined ? '—' : `${formatNumber(row.roas, locale, 2)}x`}</td>
         <td>{row.breakevenRoas === null || row.breakevenRoas === undefined ? '—' : `${formatNumber(row.breakevenRoas, locale, 2)}x`}</td>
-        <td><span className={`status-tag ${verdict === 'ok' ? 'tag-scale' : verdict === 'loss' ? 'tag-stop' : 'tag-keep'}`}>{t(`ads.verdict.${verdict}`)}</span></td>
+        <td className="col-decision"><span className={`status-tag ${verdict === 'ok' ? 'tag-scale' : verdict === 'loss' ? 'tag-stop' : 'tag-keep'}`}>{t(`ads.verdict.${verdict}`)}</span></td>
       </tr>;
     })}</tbody>
-  </table></div>;
+  </table></div></div>;
 }

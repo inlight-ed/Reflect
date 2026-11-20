@@ -3,6 +3,8 @@
 Источник: [`artifacts/shift-market/src/styles/tokens.css`](../artifacts/shift-market/src/styles/tokens.css).
 Это первый шаг редизайна (Blueprint, задача B02). Токены введены так, чтобы **ничего на экране не изменилось**: цветам присвоены значения, которые приложение уже использует.
 
+Правила применения токенов, визуальное направление и UI Definition of Done — в [`visual-direction.md`](visual-direction.md) (C01).
+
 ## Правила
 
 - В новых и изменяемых правилах используем только `var(--rf-…)`. Никаких hex, rgba или px «на глаз».

@@ -19,6 +19,8 @@ import { Button, IconButton, TextField, Select, Badge, Card, InlineNotice, Skele
 | `InlineNotice` | сообщение внутри страницы | `tone` со своей иконкой, `title`, одно `action`. Объявление: `danger` — `alert`, остальные — `status`. `announce="none"` для сообщений, которые есть с первой отрисовки. |
 | `SkeletonText` / `SkeletonCard` / `SkeletonMetric` | пока данные грузятся | Скрыты от скринридера. Сам загружающийся блок помечается `aria-busy="true"`. |
 
+Политика использования компонентов и порядок миграции экранов — в [`visual-direction.md`](visual-direction.md), раздел 6.
+
 ## Соответствие старым классам
 
 Старые классы остаются, пока экраны не переведены:

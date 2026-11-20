@@ -8,6 +8,7 @@ import { useSession } from '@/lib/session';
 import type { GlossaryTerm } from '@/lib/i18n';
 import { useAnimatedNumber } from '@/components/motion';
 import { DataFreshness, DataSourceBadge, type SourceStatus } from '@/components/data-trust';
+import { Badge, type BadgeTone } from '@/components/ui';
 
 export const demoSource = 'DEMO DATA';
 
@@ -340,6 +341,12 @@ function FeedbackButtons({ action }: { action: DashboardAction }) {
   );
 }
 
+const actionTone: Record<DashboardAction['type'], BadgeTone> = { SCALE: 'success', OPTIMIZE: 'warning', DEFEND: 'danger', FIX: 'info', WATCH: 'neutral', RESTOCK: 'danger' };
+
+/**
+ * One recommended action on the overview: what kind of move, its expected effect and how sure we are,
+ * the next step, and the reasons one click away. Effect and confidence come from the API as they are.
+ */
 export function ActionCard({ action, index }: { action: DashboardAction; index: number }) {
   const { t } = useI18n();
   const text = useText();
@@ -350,41 +357,45 @@ export function ActionCard({ action, index }: { action: DashboardAction; index: 
   const recommendation = action.recommendationKey ? text(action.recommendationKey, action.params) : t(action.recommendation);
   const impact = action.impactAmount !== undefined && action.impact === 'action.impact' ? text('action.impact', { amount: action.impactAmount }) : t(action.impact);
   return (
-    <div className={`card action-card ${type} fade-in stagger-${Math.min(index + 1, 3)}`} data-testid={`card-action-${index}`}>
-      <div className="action-top">
-        <span className={`action-type ${type}`}>{t(action.type === 'RESTOCK' ? 'ДОЗАКАЗАТЬ' : statusLabel(action.type))}</span>
-        <span className="eyebrow">{impact}</span>
-      </div>
-      <div className="action-object">{t(action.object)}</div>
-      <div className="action-recommendation"><strong>{t('Далее:')}</strong> {recommendation}</div>
-      <div className="confidence-bar">
-        <span><Hint term="confidence">{t('уверенность')}</Hint></span>
-        <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={action.confidence} aria-label={t('уверенность')}><span style={{ width: `${action.confidence}%` }} /></div>
-        <span>{action.confidence}%</span>
+    <article className={`rf-action rf-action--${type} fade-in stagger-${Math.min(index + 1, 3)}`} data-testid={`card-action-${index}`}>
+      <header className="rf-action-head">
+        <Badge tone={actionTone[action.type] ?? 'neutral'}>{t(`action.type.${action.type}`)}</Badge>
+        {impact && impact !== '—' && <span className="rf-action-impact"><span className="visually-hidden">{t('action.effect')}: </span>{impact}</span>}
+      </header>
+      <h3 className="rf-action-object">{t(action.object)}</h3>
+      <p className="rf-action-next"><strong>{t('Далее:')}</strong> {recommendation}</p>
+      <div className="rf-action-confidence">
+        <span className="rf-action-confidence-label"><Hint term="confidence">{t('action.confidence')}</Hint></span>
+        <div className="rf-meter" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={action.confidence} aria-label={t('action.confidence')}><span style={{ width: `${action.confidence}%` }} /></div>
+        <strong className="rf-action-confidence-value">{action.confidence}%</strong>
       </div>
       <Reveal testId="reveal-action" label={t('Почему')} meta={action.confidenceBasis ? support(action.confidenceBasis) : undefined}>
         <p className="action-explanation">{explanation}</p>
         {action.confidenceBasis && <ConfidenceBasisView basis={action.confidenceBasis} />}
       </Reveal>
       {signedIn && <FeedbackButtons action={action} />}
-    </div>
+    </article>
   );
 }
 
-export function Timeline({ events }: { events: TimelineEvent[] }) {
+/**
+ * Events behind the snapshot, newest first. `windowLabel` names the period the list covers when the
+ * data has one (the demo's last 7 days); a workspace's list is just its latest imports and verdicts.
+ */
+export function Timeline({ events, windowLabel }: { events: TimelineEvent[]; windowLabel?: string }) {
   const { locale, t } = useI18n();
   return (
-    <div className="card">
-      <div className="card-header"><span className="card-title">{t('Лента сигналов')}</span><span className="card-kicker">{t('последние 7 дней')}</span></div>
-      {events.length ? <div className="timeline">
+    <div className="card rf-timeline-card">
+      <div className="card-header"><span className="card-title">{t('Лента сигналов')}</span>{windowLabel && <span className="rf-timeline-window">{windowLabel}</span>}</div>
+      {events.length ? <ol className="timeline">
         {events.map((event) => (
-          <div className="timeline-item" key={event.id} data-testid={`timeline-event-${event.id}`}>
-            <span className="timeline-node" />
-            <span className="timeline-date">{formatDate(event.date, locale)}</span>
+          <li className="timeline-item" key={event.id} data-testid={`timeline-event-${event.id}`}>
+            <span className="timeline-node" aria-hidden />
+            <time className="timeline-date" dateTime={event.date}>{formatDate(event.date, locale)}</time>
             <div><div className="timeline-label">{t(event.label)}</div><div className="timeline-detail">{t(event.detail)}</div></div>
-          </div>
+          </li>
         ))}
-      </div> : <EmptyState label="timeline events" />}
+      </ol> : <EmptyState label="timeline events" />}
     </div>
   );
 }

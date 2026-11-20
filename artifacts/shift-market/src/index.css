@@ -5,6 +5,7 @@
 @import './styles/tokens.css';
 @import './styles/ui.css';
 @import './styles/shell.css';
+@import './styles/overview.css';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -621,7 +622,7 @@ a.btn { text-decoration:none; }
 .onboarding-head h2 { margin:0 0 6px; color:#f0f1f4; font:600 24px var(--app-font-serif); }
 .onboarding-head p { margin:0 0 18px; color:var(--rf-color-neutral); font-size:14px; }
 .onboarding-steps { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
-.onboarding-steps li { display:grid; grid-template-columns:36px 1fr auto; gap:14px; align-items:center; padding:16px; background:var(--app-surface); border:1px solid #29313b; border-radius:7px; }
+.onboarding-steps li { display:grid; grid-template-columns:36px minmax(0,1fr) auto; gap:14px; align-items:center; padding:16px; background:var(--app-surface); border:1px solid #29313b; border-radius:7px; }
 .onboarding-steps li.done { opacity:.7; }
 .onboarding-steps li.current { border-color:rgba(231,178,79,.45); }
 .token-connect { margin-top:12px; max-width:520px; }
@@ -632,7 +633,7 @@ a.btn { text-decoration:none; }
 .token-row .btn { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 .onboarding-alt { display:inline-block; margin-top:10px; padding:0; border:0; background:none; color:var(--app-text-muted); font-size:12px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .onboarding-alt:hover { color:var(--app-accent); }
-@media (max-width: 760px) { .onboarding-steps li { grid-template-columns:28px 1fr; } .onboarding-steps .step-action { grid-column:2; } }
+@media (max-width: 760px) { .onboarding-steps li { grid-template-columns:28px minmax(0,1fr); } .onboarding-steps .step-action { grid-column:2; } }
 .step-index { display:grid; place-items:center; width:36px; height:36px; color:var(--app-accent); background:var(--rf-color-accent-surface); border-radius:50%; }
 .onboarding-steps li.done .step-index { color:var(--app-positive); background:var(--rf-color-success-surface); }
 .step-copy h3 { margin:0 0 4px; color:var(--rf-color-text-strong); font-size:15px; }
@@ -788,7 +789,7 @@ a.btn { text-decoration:none; }
   .landing-features { grid-template-columns:1fr; }
   .forecast-row { grid-template-columns:1fr auto; }
   .forecast-meter, .forecast-stock { display:none; }
-  .onboarding-steps li { grid-template-columns:36px 1fr; }
+  .onboarding-steps li { grid-template-columns:36px minmax(0,1fr); }
   .step-action { grid-column:2; }
   .page-head .page-meta { flex-wrap:wrap; }
   .landing-top .btn.secondary { padding:8px 12px; }

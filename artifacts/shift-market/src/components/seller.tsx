@@ -9,6 +9,7 @@ import { useSession } from '@/lib/session';
 import { axisTick, chartColors, gridProps, tooltipProps } from '@/lib/chart-theme';
 import { downloadTemplate } from '@/lib/template';
 import { EmptyState, SectionTitle, useText } from './common';
+import { InlineNotice } from '@/components/ui';
 
 export function PeriodBar() {
   const { t } = useI18n();
@@ -93,12 +94,12 @@ export function AssumptionsNote({ assumptions }: { assumptions?: Assumptions }) 
     assumptions.missingStock ? text('assumption.stock', { count: assumptions.missingStock }) : null,
   ].filter(Boolean);
   if (!notes.length) return null;
+  // Part of the page from the start: no live announcement, just a note next to the figures it qualifies.
   return (
-    <div className="assumption-note" role="note" data-testid="assumptions">
-      <Database size={14} aria-hidden />
-      <div>{notes.map((note) => <p key={note}>{note}</p>)}</div>
-      <Link href="/data" className="btn secondary">{t('assumption.fix')}</Link>
-    </div>
+    <InlineNotice tone="info" title={t('assumption.title')} announce="none" testId="assumptions" className="rf-assumptions"
+      action={<Link href="/data" className="rf-button rf-button--secondary rf-button--sm">{t('assumption.fix')}</Link>}>
+      <ul className="rf-assumptions-list">{notes.map((note) => <li key={note}>{note}</li>)}</ul>
+    </InlineNotice>
   );
 }
 

@@ -94,12 +94,12 @@
 .rf-badge__dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: var(--rf-radius-pill); background: currentColor; }
 .rf-badge--neutral { color: var(--rf-color-neutral); background: var(--rf-color-surface-control); }
 .rf-badge--success { color: var(--rf-color-success); background: var(--rf-color-success-surface); border-color: var(--rf-color-success-border); }
-.rf-badge--warning { color: var(--rf-color-accent-text); background: var(--rf-color-accent-surface); border-color: var(--rf-color-warning-border); }
+.rf-badge--warning { color: var(--rf-color-warning-text); background: var(--rf-color-warning-surface); border-color: var(--rf-color-warning-border); }
 .rf-badge--danger { color: var(--rf-color-danger-text); background: var(--rf-color-surface-raised); border-color: var(--rf-color-danger-border); }
 .rf-badge--info { color: var(--rf-color-info); background: var(--rf-color-surface-raised); border-color: var(--rf-color-border); }
 
 /* ---- Card ---- */
-.rf-card { min-width: 0; background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border-strong); border-radius: var(--rf-radius-lg); }
+.rf-card { min-width: 0; background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border); border-radius: var(--rf-radius-lg); }
 .rf-card--pad { padding: var(--rf-space-5); }
 @media (max-width: 760px) { .rf-card--pad { padding: var(--rf-space-4); } }
 
@@ -139,7 +139,7 @@
 .rf-skeleton--line:last-child:not(:only-child) { width: 60%; }
 .rf-skeleton-text { display: grid; gap: var(--rf-space-2); }
 .rf-skeleton--card { height: 160px; border-radius: var(--rf-radius-lg); }
-.rf-skeleton-metric { display: grid; gap: var(--rf-space-3); padding: var(--rf-space-4); border: 1px solid var(--rf-color-border-strong); border-radius: var(--rf-radius-lg); background: var(--rf-color-surface-1); }
+.rf-skeleton-metric { display: grid; gap: var(--rf-space-3); padding: var(--rf-space-4); border: 1px solid var(--rf-color-border); border-radius: var(--rf-radius-lg); background: var(--rf-color-surface-1); }
 .rf-skeleton-metric .rf-skeleton:nth-child(1) { width: 45%; height: 10px; }
 .rf-skeleton-metric .rf-skeleton:nth-child(2) { width: 70%; height: 26px; }
 .rf-skeleton-metric .rf-skeleton:nth-child(3) { width: 30%; height: 10px; }
@@ -157,7 +157,7 @@
 .rf-state {
   display: grid; justify-items: center; gap: var(--rf-space-2); max-width: 560px; margin: var(--rf-space-6) auto;
   padding: var(--rf-space-6) var(--rf-space-5); text-align: center;
-  background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border-strong); border-radius: var(--rf-radius-lg);
+  background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border); border-radius: var(--rf-radius-lg);
 }
 .rf-state-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--rf-radius-pill); color: var(--rf-color-danger-text); background: var(--rf-color-surface-raised); border: 1px solid var(--rf-color-danger-border); }
 .rf-state-icon svg { width: 20px; height: 20px; }

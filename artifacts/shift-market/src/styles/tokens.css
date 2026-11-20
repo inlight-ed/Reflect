@@ -29,7 +29,6 @@
   /* ---- Borders ---- */
   --rf-color-border-subtle: #20242b;   /* row dividers */
   --rf-color-border: #2c3540;          /* cards, inputs */
-  --rf-color-border-strong: #2a3039;   /* emphasised outlines */
   --rf-color-border-control: #5f6a78;  /* input and select outlines: ≥ 3:1 on every surface (WCAG 1.4.11) */
 
   /* ---- Accent: one warm amber for action and focus ---- */
@@ -45,8 +44,11 @@
   --rf-color-success: #b9d94b;         /* growth, done */
   --rf-color-success-surface: #202b16;
   --rf-color-success-border: #3a4829;
-  --rf-color-warning: #e7b24f;         /* estimate, needs a look */
-  --rf-color-warning-border: #4e4126;
+  /* Warning is its own amber-orange, apart from the gold accent (C01-06): accent = act here, warning = look closer. */
+  --rf-color-warning: #f29b4c;         /* estimate, demo, needs a look */
+  --rf-color-warning-text: #f6b37c;    /* warning text on dark surfaces */
+  --rf-color-warning-surface: #2a1f16; /* warning badge / banner background */
+  --rf-color-warning-border: #5a3f24;
   --rf-color-danger: #e88479;          /* loss, critical */
   --rf-color-danger-text: #f0a39a;
   --rf-color-danger-border: #5a3431;

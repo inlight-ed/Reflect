@@ -139,7 +139,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <IconButton label={t('auth.logout')} icon={<LogOut />} size="sm" onClick={() => { void signOut().then(() => navigate('/')); }} data-testid="button-sidebar-logout" />
     </div>
   ) : (
-    <div className="rf-source-mini"><span className="rf-source-dot" aria-hidden /><span>{t('Source mode')}</span><strong>{health.isError ? t('OFFLINE') : t('DEMO DATA')}</strong></div>
+    <div className={`rf-source-mini${health.isError ? ' rf-source-mini--offline' : ''}`}><span className="rf-source-dot" aria-hidden /><span>{t('Source mode')}</span><strong>{health.isError ? t('OFFLINE') : t('DEMO DATA')}</strong></div>
   );
 
   return <div className="rf-shell">

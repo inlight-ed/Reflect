@@ -18,18 +18,18 @@ function sourceView(source: string | undefined, status: SourceStatus | undefined
   if (source === 'DEMO DATA' || source === 'MOCK') {
     return { tone: 'warning', label: 'source.demo', description: 'source.demo.hint', icon: <FlaskConical /> };
   }
-  if (source === 'USER DATA') return { tone: 'success', label: 'source.yours', description: 'source.yours.hint', icon: <Store /> };
+  if (source === 'USER DATA') return { tone: 'neutral', label: 'source.yours', description: 'source.yours.hint', icon: <Store /> };
   if (source === 'REDSTAT') {
     if (status === 'PARTIAL') return { tone: 'warning', label: 'source.redstat.partial', description: 'source.redstat.partial.hint', icon: <Radar /> };
     if (status === 'NO_DATA') return { tone: 'neutral', label: 'source.redstat.noData', description: 'source.redstat.noData.hint', icon: <Radar /> };
     if (status === 'NOT_CONFIGURED') return { tone: 'neutral', label: 'source.redstat.notConfigured', description: 'source.redstat.notConfigured.hint', icon: <CloudOff /> };
     if (status === 'UNAVAILABLE') return { tone: 'danger', label: 'source.redstat.unavailable', description: 'source.redstat.unavailable.hint', icon: <AlertTriangle /> };
-    return { tone: 'info', label: 'source.redstat', description: 'source.redstat.hint', icon: <Radar /> };
+    return { tone: 'neutral', label: 'source.redstat', description: 'source.redstat.hint', icon: <Radar /> };
   }
   // In the contract but not sent by the API today; named honestly rather than called unavailable.
-  if (source === 'KASPI API') return { tone: 'info', label: 'source.kaspiApi', description: 'source.external.hint', icon: <Database /> };
-  if (source === 'KASPI ADS') return { tone: 'info', label: 'source.kaspiAds', description: 'source.external.hint', icon: <Database /> };
-  if (source === 'META') return { tone: 'info', label: 'source.meta', description: 'source.external.hint', icon: <Database /> };
+  if (source === 'KASPI API') return { tone: 'neutral', label: 'source.kaspiApi', description: 'source.external.hint', icon: <Database /> };
+  if (source === 'KASPI ADS') return { tone: 'neutral', label: 'source.kaspiAds', description: 'source.external.hint', icon: <Database /> };
+  if (source === 'META') return { tone: 'neutral', label: 'source.meta', description: 'source.external.hint', icon: <Database /> };
   return { tone: 'neutral', label: 'source.unknown', description: 'source.unknown.hint', icon: <CircleHelp /> };
 }
 

@@ -42,8 +42,11 @@
 .rf-account { display: flex; align-items: center; justify-content: space-between; gap: var(--rf-space-2); color: var(--rf-color-text); font-size: var(--rf-text-md); }
 .rf-account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: var(--rf-space-1); }
 .rf-source-mini { display: flex; align-items: center; gap: var(--rf-space-2); flex-wrap: wrap; padding: 0 var(--rf-space-1); color: var(--rf-color-text-subtle); font-size: var(--rf-text-sm); }
-.rf-source-mini strong { color: var(--rf-color-success); font-weight: var(--rf-weight-medium); }
-.rf-source-dot { width: 6px; height: 6px; border-radius: var(--rf-radius-pill); background: var(--rf-color-success); }
+/* Demo data is a caveat and a lost connection an error, never "success" (C01-16). */
+.rf-source-mini strong { color: var(--rf-color-warning-text); font-weight: var(--rf-weight-medium); }
+.rf-source-dot { width: 6px; height: 6px; border-radius: var(--rf-radius-pill); background: var(--rf-color-warning); }
+.rf-source-mini--offline strong { color: var(--rf-color-danger-text); }
+.rf-source-mini--offline .rf-source-dot { background: var(--rf-color-danger); }
 .rf-language { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--rf-space-2); padding: 0 var(--rf-space-1); color: var(--rf-color-text-muted); font-size: var(--rf-text-sm); }
 .rf-language-select { min-width: 0; min-height: 32px; padding: 0 var(--rf-space-2); color: var(--rf-color-text); background: var(--rf-color-surface-raised); border: 1px solid var(--rf-color-border-control); border-radius: var(--rf-radius-md); font: var(--rf-text-sm) var(--rf-font-sans); }
 .rf-version { padding: 0 var(--rf-space-1); color: var(--rf-color-text-subtle); font: var(--rf-text-xs) var(--rf-font-mono); }
@@ -69,7 +72,7 @@
 .rf-banner-icon { width: 18px; height: 18px; flex: 0 0 auto; }
 .rf-banner--viewer { color: var(--rf-color-text); background: var(--rf-color-surface-raised); }
 .rf-banner--viewer .rf-banner-icon { color: var(--rf-color-info); }
-.rf-banner--demo { justify-content: space-between; flex-wrap: wrap; color: var(--rf-color-accent-text); background: var(--rf-color-accent-surface); border-bottom-color: var(--rf-color-warning-border); }
+.rf-banner--demo { justify-content: space-between; flex-wrap: wrap; color: var(--rf-color-warning-text); background: var(--rf-color-warning-surface); border-bottom-color: var(--rf-color-warning-border); }
 .rf-banner-text { flex: 1 1 320px; min-width: 0; }
 .rf-banner-actions { display: flex; gap: var(--rf-space-2); flex-wrap: wrap; }
 
@@ -92,7 +95,7 @@
 
 /* ---- Workspace switcher ---- */
 .ws-switcher { position: relative; }
-.ws-current { display: flex; align-items: center; gap: var(--rf-space-2); width: 100%; min-height: 44px; padding: 6px var(--rf-space-2); color: var(--rf-color-text); background: var(--rf-color-surface-raised); border: 1px solid var(--rf-color-border-strong); border-radius: var(--rf-radius-md); text-align: left; cursor: pointer; }
+.ws-current { display: flex; align-items: center; gap: var(--rf-space-2); width: 100%; min-height: 44px; padding: 6px var(--rf-space-2); color: var(--rf-color-text); background: var(--rf-color-surface-raised); border: 1px solid var(--rf-color-border); border-radius: var(--rf-radius-md); text-align: left; cursor: pointer; }
 .ws-current:hover, .ws-current[aria-expanded='true'] { border-color: var(--rf-color-border-control); }
 .ws-current svg { flex: 0 0 auto; color: var(--rf-color-text-muted); }
 .ws-icon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; color: var(--rf-color-text-on-accent); background: var(--rf-color-accent); border-radius: var(--rf-radius-sm); }

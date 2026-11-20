@@ -23,9 +23,9 @@
 |---|---|
 | Поверхности | `bg`, `bg-sunken`, `surface-1` (карточки), `surface-2` (наведение), `surface-inset`, `surface-raised`, `surface-control` |
 | Текст | `text-strong`, `text`, `text-secondary`, `text-muted`, `text-subtle`, `text-on-accent` |
-| Границы | `border-subtle`, `border`, `border-strong`, `border-control` (поля ввода, ≥ 3:1) |
+| Границы | `border-subtle`, `border` (карточки, поля), `border-control` (поля ввода, ≥ 3:1) |
 | Акцент | `accent`, `accent-hover`, `accent-text`, `accent-border`, `accent-border-focus`, `accent-surface`, `focus-ring` |
-| Статусы | `success` (+ `-surface`, `-border`), `warning` (+ `-border`), `danger` (+ `-text`, `-border`), `info`, `neutral` |
+| Статусы | `success` (+ `-surface`, `-border`), `warning` (+ `-text`, `-surface`, `-border`), `danger` (+ `-text`, `-border`), `info`, `neutral` |
 
 Полное имя: `--rf-color-<токен>`.
 
@@ -43,12 +43,28 @@
 | `accent` | 9.8 | 9.3 | 8.9 | 7.9 |
 | `accent-text` | 12.1 | 11.5 | 11.0 | 9.7 |
 | `success` | 11.8 | 11.2 | 10.7 | 9.5 |
+| `warning` | 8.6 | 8.2 | 7.8 | 6.9 |
+| `warning-text` | 10.5 | 10.0 | 9.5 | 8.4 |
 | `danger` | 7.2 | 6.8 | 6.5 | 5.8 |
 | `danger-text` | 9.4 | 8.9 | 8.5 | 7.5 |
 | `info` | 9.7 | 9.2 | 8.8 | 7.8 |
 | `neutral` | 8.2 | 7.7 | 7.4 | 6.6 |
 
-Пары с заливкой: текст кнопки на акценте 9.6, `success` на `success-surface` 9.2, `accent-text` на `accent-surface` 9.9. Кольцо фокуса на фоне 9.8.
+Пары с заливкой: текст кнопки на акценте 9.6, `success` на `success-surface` 9.2, `accent-text` на `accent-surface` 9.9, `warning-text` на `warning-surface` 8.9, `neutral` на `surface-control` (нейтральный бейдж) 6.6. Кольцо фокуса на фоне 9.8.
+
+## Семантика цвета (C01 PR 4)
+
+| Роль | Токены | Где |
+|---|---|---|
+| Действие, выбор, фокус | `accent*` | кнопки, активный пункт меню, выделенная строка, фокус |
+| Внимание, оценка, демо | `warning`, `warning-text`, `warning-surface`, `warning-border` | демо-баннер и демо-бейдж, метка «оценка», решение «Оптимизировать», неполные данные |
+| Подтверждённый успех, рост | `success*` | рост метрики, «готово», «данные обновлены», решение «Масштабировать» |
+| Ошибка, потеря, опасное действие | `danger*` | ошибки, падение, «Отключить», недоступный источник |
+| Источник данных, подключено | `neutral`, `text` | бейджи «Ваши данные», Kaspi, RedStat, Meta; статус «Подключено» |
+
+- Warning (#f29b4c, оттенок 29°) отделён от accent (#e7b24f, 39°): accent — «действуй здесь», warning — «посмотри внимательнее» (решение D2).
+- Источник — это не статус: «Подключено» и «Ваши данные» не зелёные (решение D3). Цвет получают только оговорки (демо, неполные данные) и ошибки.
+- `border-strong` удалён: он был темнее `border` (#2a3039 против #2c3540) и везде служил обычной рамкой карточки или поля, поэтому все 11 мест используют `border` (C01-15).
 
 **Что исправить позже:**
 - `text-subtle` не ставить на `surface-control`.
@@ -71,12 +87,11 @@
 
 | Ближайший токен | Почти-дубли (примеры) | Использований |
 |---|---|---|
-| `border-strong` | #252b35, #29313b, #252d37, #262d36 … | 24 |
+| `border` | #252b35, #29313b, #2d3540, #2d3845, #303846 … | 37 |
 | `text-strong` | #eceef1, #f0f1f4, #eff1f4, #f2f4f7 … | 21 |
 | `text` | #e3e7ed, #e7ebef, #e6e9ee, #e8ebee … | 19 |
 | `surface-control` | #232933, #242a33, #242b35, #17292c … | 14 |
 | `text-muted` | #8b95a3, #89919d, #8993a0, #858e9b … | 13 |
-| `border` | #2d3540, #2d3845, #2b333e, #303846 … | 13 |
 | `text-subtle`, `text-secondary` | #7d8794, #9aa1ab, #949daa … | 18 |
 | поверхности (`surface-1`, `-raised`, `-2`, `bg`) | #191a18, #141920, #161d25, #0f1216 … | 27 |
 | статусы и акцент | #ed8279 (второй красный), #2b2417, #1a2116 … | 25 |

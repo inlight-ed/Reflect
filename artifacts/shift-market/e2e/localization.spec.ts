@@ -1077,3 +1077,41 @@ test('seller: settings tell help from errors, give each card one main action, an
   expect(links.checked).toBeGreaterThan(0);
   expect(links.problems).toEqual([]);
 });
+
+// ---- C01 PR 4: semantic colour ----
+// Resolves a design token to the colour the browser paints, so tests compare colours, not class names.
+async function tokenColour(page: Page, token: string) {
+  return page.evaluate((name) => { const probe = document.createElement('span'); probe.style.color = `var(${name})`; document.body.append(probe); const colour = getComputedStyle(probe).color; probe.remove(); return colour; }, token);
+}
+
+test('colour: demo is a warning, distinct from the accent, and never painted as success', async ({ page }) => {
+  await page.goto('/overview');
+  const [warning, accent, success] = await Promise.all(['--rf-color-warning-text', '--rf-color-accent-text', '--rf-color-success'].map((token) => tokenColour(page, token)));
+  expect(warning, 'warning has its own colour').not.toBe(accent);
+  const banner = page.getByTestId('demo-banner');
+  await expect(banner).toHaveCSS('color', warning);
+  const badge = page.getByTestId('status-data-source').first();
+  await expect(badge).toHaveClass(/rf-badge--warning/);
+  await expect(badge).toHaveCSS('color', warning);
+  await expect(page.locator('.rf-source-mini strong')).not.toHaveCSS('color', success);
+});
+
+test('colour: a seller\'s own source and a connected integration are neutral, not success', async ({ page }) => {
+  test.skip(!process.env.FAKE_KASPI, 'needs the fake Kaspi API (FAKE_KASPI=1, see e2e/fake-kaspi.mjs)');
+  await page.goto('/register');
+  await page.getByTestId('input-email').fill(`colour-${Date.now()}@example.kz`);
+  await page.getByTestId('input-password').fill('password-123');
+  await page.getByTestId('button-auth-submit').click();
+  await page.getByTestId('input-onboarding-kaspi_api').fill('test-kaspi-token');
+  await page.getByTestId('onboarding-connect-kaspi_api').getByRole('button').click();
+  await expect(page.getByTestId('revenue-chart')).toBeVisible({ timeout: 30_000 });
+  const [success, neutral, text] = await Promise.all(['--rf-color-success', '--rf-color-neutral', '--rf-color-text'].map((token) => tokenColour(page, token)));
+  const badge = page.getByTestId('status-data-source').first();
+  await expect(badge).toHaveClass(/rf-badge--neutral/);
+  await expect(badge).toHaveCSS('color', neutral);
+  await page.goto('/settings');
+  const status = page.getByTestId('connection-kaspi_api').locator('.connection-status');
+  await expect(status).toContainText(/Подключено|Қосылған|Connected/);
+  await expect(status).toHaveCSS('color', text);
+  await expect(status).not.toHaveCSS('color', success);
+});

@@ -17,7 +17,7 @@
   --rf-action-accent: var(--rf-color-border-control);
   display: flex; flex-direction: column; gap: var(--rf-space-3); min-width: 0;
   padding: var(--rf-space-4) var(--rf-space-5) var(--rf-space-4);
-  background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border-strong); border-left: 3px solid var(--rf-action-accent); border-radius: var(--rf-radius-lg);
+  background: var(--rf-color-surface-1); border: 1px solid var(--rf-color-border); border-left: 3px solid var(--rf-action-accent); border-radius: var(--rf-radius-lg);
 }
 .rf-action--scale { --rf-action-accent: var(--rf-color-success); }
 .rf-action--optimize { --rf-action-accent: var(--rf-color-warning); }

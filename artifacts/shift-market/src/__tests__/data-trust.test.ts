@@ -24,7 +24,10 @@ describe('DataSourceBadge', () => {
     assert.equal(tone(render(h(DataSourceBadge, { source: 'DEMO DATA' }))), 'warning');
     assert.equal(tone(render(h(DataSourceBadge, { source: 'MOCK' }))), 'warning');
     assert.match(render(h(DataSourceBadge, { source: 'USER DATA' })), /Ваши данные/);
-    assert.equal(tone(render(h(DataSourceBadge, { source: 'USER DATA' }))), 'success');
+    // C01-16 (D3): the source itself is neutral; colour is kept for caveats (demo, partial) and errors.
+    assert.equal(tone(render(h(DataSourceBadge, { source: 'USER DATA' }))), 'neutral');
+    for (const source of ['KASPI API', 'KASPI ADS', 'META']) assert.equal(tone(render(h(DataSourceBadge, { source }))), 'neutral', source);
+    assert.equal(tone(render(h(DataSourceBadge, { source: 'REDSTAT', status: 'READY' }))), 'neutral');
     assert.match(render(h(DataSourceBadge, { source: 'REDSTAT', status: 'READY' })), />RedStat</);
   });
 

@@ -354,6 +354,7 @@ button { cursor: pointer; }
 .hint-trigger { display:inline-grid; place-items:center; width:15px; height:15px; padding:0; border:1px solid #3a4350; border-radius:50%; background:transparent; color:var(--app-text-muted); font:600 11px/1 var(--app-font-sans); text-transform:none; letter-spacing:0; }
 /* Hit areas ≥ 24×24 without changing what is drawn (C01-11, WCAG 2.5.8); same technique as button.matrix-dot::after. */
 .hint-trigger, .reveal-toggle, .row-link { position:relative; }
+.hint-trigger { flex-shrink:0; } /* keeps its 15 px in a crowded label: a squeezed trigger dropped below 24 px */
 .hint-trigger::after { content:''; position:absolute; inset:-6px; } /* 13 px padding box + 2×6 = 25 px */
 .reveal-toggle::after { content:''; position:absolute; inset:-1px 0; }
 .row-link::after { content:''; position:absolute; inset:-3px 0; } /* 19.5 px line box + 2×3 = 25.5 px */

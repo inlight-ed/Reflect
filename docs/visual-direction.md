@@ -1,7 +1,7 @@
 # C01 — Visual Direction & Design Governance
 
 **Проект:** Reflect  
-**Статус:** техническое направление и UI governance на основании аудита C01  
+**Статус:** техническое направление и UI governance на основании аудита C01; решения владельца D1–D4 приняты 20.11.2026  
 **Дата аудита:** 20 ноября 2026  
 **Состояние репозитория:** `main` @ `6fee8bf` (после merge PR #24 и #25)  
 **Scope:** frontend visual system, design tokens, UI consistency, responsive behavior, component governance  
@@ -85,7 +85,7 @@ Blueprint v3 используется как внешний документ и 
 
 Reflect — компактный аналитический SaaS-интерфейс. Визуальная система должна помогать пользователю быстро читать данные, сравнивать значения, замечать отклонения и переходить к решению.
 
-В качестве референса исследован **Dub**: светлая editorial SaaS эстетика, почти белые поверхности, тонкие границы, нейтральная типографика и ограниченное использование одного акцента. Референс используется для принципов, а не для буквального копирования его цветов или компонентов.
+В качестве референса исследован **Dub**: светлая editorial SaaS эстетика, почти белые поверхности, тонкие границы, нейтральная типографика и ограниченное использование одного акцента. Референс используется для принципов, а не для буквального копирования его цветов или компонентов. **Светлая тема Dub не переносится:** Reflect остаётся в текущей тёмной теме (решение D1, раздел 3.4).
 
 ### 3.2 Принципы
 
@@ -100,18 +100,27 @@ Reflect — компактный аналитический SaaS-интерфе�
 
 ### 3.3 Визуальный характер
 
-> **Открытое решение владельца (OD-1): светлая или тёмная основа.** Сейчас приложение тёмное: `--rf-color-bg: #0e1117`, карточки `--rf-color-surface-1: #13171f` (`styles/tokens.css`). Переход на светлую основу — это смена темы всего продукта, а не governance, и ни в один из PR 1–5 он не входит. До решения владельца принципы ниже (quiet UI, border-first, один акцент, семантический цвет) применяются к текущей тёмной теме; «белая поверхность» в П5 читается как «основная поверхность карточки» (`surface-1`).
+Reflect использует **тёмную тему** (решение D1): фон `--rf-color-bg` (`#0e1117`), карточки `--rf-color-surface-1` (`#13171f`), `styles/tokens.css`. Переход на светлую тему не планируется. Принципы Dub (quiet UI, border-first, один акцент, семантический цвет) применяются к тёмной теме.
 
-- светлая основа (целевое направление, см. OD-1);
-- нейтральные поверхности и контрастный текст;
-- тонкие border;
+- тёмная основа: `bg` → `surface-1` (карточки) → `surface-raised` (popover/menu);
+- нейтральные тёмные поверхности и светлый контрастный текст (`text-strong`, `text`);
+- тонкие border (`border-subtle`, `border`);
 - минимальные тени;
 - умеренно скруглённые карточки и controls;
 - один основной акцент;
 - статусные цвета применяются только к статусам;
 - отсутствие декоративных градиентов в рабочих аналитических блоках, если градиент не несёт смысловой функции.
 
-Не переносить из Dub без отдельного решения: его точную палитру, feature-pill паттерны, маркетинговую hero-композицию, радиусы и display-font. Reflect остаётся аналитическим продуктом, а не landing page.
+Не переносить из Dub: светлую тему (D1). Без отдельного решения не переносить также его точную палитру, feature-pill паттерны, маркетинговую hero-композицию, радиусы и display-font. Reflect остаётся аналитическим продуктом, а не landing page.
+
+### 3.4 Решения владельца (20.11.2026)
+
+| ID | Решение | Где применяется |
+|---|---|---|
+| D1 | Сохраняем текущую тёмную тему. Dub — референс принципов UI; переход на светлую тему не планируется. | Весь документ; П5 |
+| D2 | Warning отделяется от accent: остаётся amber/yellow семантика, но у warning свои tokens и состояния. | 5.3, C01-06, PR 4 |
+| D3 | Бейджи источника данных — нейтральная схема. Demo/Connected не используют success по умолчанию. | C01-16, PR 4 |
+| D4 | H1 — название страницы/раздела; слоган или пояснение — в subtitle. | П3, C01-20, screen migration |
 
 ---
 
@@ -124,6 +133,7 @@ Reflect — компактный аналитический SaaS-интерфе�
 - `success` — подтверждённое успешное состояние, не источник данных и не положительная динамика по умолчанию.
 - `danger` — ошибки и опасные действия.
 - `info` — информационные сообщения.
+- Источник данных (Demo, Connected, «Ваши данные») — нейтральная схема (`neutral`), не `success` (D3).
 - `neutral` — вторичные состояния, недоступность, нейтральные метки.
 
 Нельзя использовать один цвет одновременно для action, warning, demo-state и confidence без ясного различения.
@@ -145,7 +155,7 @@ Reflect — компактный аналитический SaaS-интерфе�
 5. Таблица/детализация.
 6. Дополнительные объяснения, допущения, источники и вторичные действия.
 
-H1 — название раздела. Слоган/маркетинговая формулировка не заменяет название страницы.
+H1 — название раздела. Слоган/маркетинговая формулировка не заменяет название страницы. Слоган или пояснение — в subtitle (D4).
 
 ### П4. Типографика
 
@@ -157,9 +167,9 @@ H1 — название раздела. Слоган/маркетинговая 
 
 ### П5. Поверхности
 
-- Canvas — базовая поверхность страницы.
-- Cards — белая/основная поверхность с тонкой границей (в текущей тёмной теме — `surface-1`, см. OD-1).
-- Muted/alt surface — для вторичных блоков и группировки.
+- Canvas — базовая поверхность страницы (`bg`).
+- Cards — основная поверхность карточки `surface-1` с тонкой границей `border`.
+- Muted/alt surface — `surface-inset` / `surface-2` для вторичных блоков и группировки.
 - Не вкладывать карточку в карточку без функциональной причины.
 - Градиенты не использовать как декоративную заливку аналитических панелей.
 - Тени — для popover, menu, modal и других элементов, реально находящихся над интерфейсом.
@@ -234,7 +244,7 @@ H1 — название раздела. Слоган/маркетинговая 
 
 ### 5.3 Known token issues to resolve
 
-- `warning` и `accent` совпадают (`#e7b24f`) — требуется разделение.
+- `warning` и `accent` совпадают (`#e7b24f`) — разделить (D2): warning остаётся в amber/yellow семантике, но получает собственные tokens, отличимые от accent.
 - `border-strong` темнее `border`, хотя семантика названия предполагает более выраженную границу — исправить или переименовать.
 - Семантические variants неполны: warning lacks `-surface`/`-text`; info lacks `-surface`/`-border`; danger lacks `-surface`.
 - Chart palette hardcodes token values and overlaps semantic colors. Решение по графикам — в phase 5, не в C01.
@@ -299,7 +309,7 @@ Priority definitions:
 | C01-03 | P2 | Shared UI components not adopted | Migrate screen-by-screen, starting Settings |
 | C01-04 | P2 | Legacy token literals | Convert with screen migration and visual review |
 | C01-05 | P2 | Monospace used for KPI/labels/buttons | Mono only technical identifiers; KPI sans + tabular nums |
-| C01-06 | P2 | Warning color equals accent | Owner decision, then semantic token split |
+| C01-06 | P2 | Warning color equals accent | Decided (D2): own warning tokens in amber/yellow family, distinct from accent; PR 4 |
 | C01-07 | P2 | Uppercase labels remain | Remove CSS uppercase and status label uppercase; update translations/tests |
 | C01-08 | P2 | Overview page overrides shared component styles | Move good style to shared component or restore common appearance |
 | C01-09 | P2 | Field helper text appears error-colored and too small | Separate helper and validation error styles |
@@ -309,11 +319,11 @@ Priority definitions:
 | C01-13 | P2 | Chart colors hardcoded/order-dependent | Stable categorical palette separate from semantic status colors (Phase 5) |
 | C01-14 | P2 | No shared Dialog/ConfirmDialog; HoldButton used 4 places | Shared Dialog and ConfirmDialog in Phase 4 |
 | C01-15 | P3 | `border-strong` semantics inverted | Correct value or rename |
-| C01-16 | P3 | “Your data” badge uses success color | Resolve with semantic color policy |
+| C01-16 | P3 | “Your data” badge uses success color | Decided (D3): neutral source badges; PR 4 |
 | C01-17 | P3 | Unused Tooltip/Toaster/shadcn theme mounted | Remove only after dependency check |
 | C01-18 | P3 | Two single-select patterns | Unify in Phase 4 |
 | C01-19 | P3 | 22/24 empty states legacy; CloudOff used universally | Migrate with each screen; use semantic icons |
-| C01-20 | P3 | H1 slogans on 8/11 routes | Owner decision: page name H1; slogan becomes subtitle |
+| C01-20 | P3 | H1 slogans on 8/11 routes | Decided (D4): H1 = page name; slogan → subtitle; applied in screen migration |
 | C01-21 | P3 | Nested borders and gradients in Overview demo / Advertising | Simplify during screen migration |
 | C01-22 | P3 | Breakpoints include undocumented 900/640/420 | Normalize during screen migration |
 | C01-23 | P3 | Some request errors replace page and discard previous data | Separate logic task; outside C01 |
@@ -393,7 +403,7 @@ Risk: medium; shared styles can affect multiple screens.
 **IDs:** C01-06, C01-15, C01-16  
 **Goal:** warning, accent, data source, border roles are distinct and consistent.
 
-Prerequisite: owner decision on warning color and source badge tones.
+Decisions: D2 (warning tokens) and D3 (neutral source badges) are made. Exact warning values are chosen in the PR and approved by the owner together with the contrast table.
 
 Scope:
 - semantic tokens;
@@ -402,10 +412,10 @@ Scope:
 - contrast table in `design-tokens.md`.
 
 Acceptance:
-- warning ≠ accent;
+- warning ≠ accent; warning stays amber/yellow and has its own `-surface`, `-text`, `-border` tokens and states;
 - contrast ratio ≥4.5:1 for normal text on relevant surfaces;
 - border-strong is semantically correct or renamed;
-- “Your data” tone is not success/growth by default;
+- Demo / Connected / “Your data” source badges use the neutral scheme, not success/growth;
 - screenshots of all pages using demo/source/assessment states;
 - token and contrast review.
 
@@ -486,7 +496,7 @@ Each screen migration should address, where applicable:
 | C01-13 chart palette | Deferred to Phase 5 | Requires chart standard |
 | C01-14 dialog | Deferred to Phase 4 | Interaction system |
 | C01-18 single-select patterns | Deferred to Phase 4 | Interaction system |
-| C01-20 H1 naming | Owner decision | Content/IA decision |
+| C01-20 H1 naming | Decided (D4), applied in screen migration | Content change per screen |
 | C01-23 stale data retained after request error | Separate task | Changes request behavior and logic |
 | Navigation grouping | Phase 7 | Requires route/user scenario inventory |
 | Full legacy CSS migration | Phase 8 | Screen-by-screen; not global rewrite |
@@ -500,7 +510,7 @@ Each screen migration should address, where applicable:
 - Every change goes in its own branch from `main`; no direct pushes to `main`.
 - One PR = one roadmap item (PR 1–5 above) or one screen migration; no mixing of Blueprint phases.
 - Merge only with CI green (typecheck, translations, unit, e2e, build, API tests) and explicit owner approval.
-- Owner decisions (OD-1 light/dark base, warning color and source tones for PR 4, C01-20 H1 semantics) are recorded in the PR before implementation starts.
+- New owner decisions are recorded in the PR before implementation starts and added to section 3.4.
 
 ### 12.2 Risks
 
@@ -508,8 +518,7 @@ Each screen migration should address, where applicable:
 - PR 3 and PR 4 affect shared styles and may create regressions on adjacent routes. Their visual review must include all routes at least at 375 and 1440; Overview at all four audited widths.
 - Translation/e2e assertions will need updates for casing changes. Those updates should reflect intended UI copy, not mask unrelated regressions.
 - PR #18 (“Access by clients in agency”) may conflict with Settings and translations. Rebase/resolve carefully; do not silently overwrite its work.
-- PR 4 requires owner decision on warning color/source tones before implementation.
-- C01-20 requires an owner decision on H1 semantics before screen migration.
+- PR 4: exact warning values need owner approval in the PR (direction already decided, D2).
 - Audit counts are source-code counts and should not be presented as exact number of visible elements.
 
 ---
